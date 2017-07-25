@@ -531,7 +531,10 @@ void Executor::initializeGlobals(ExecutionState &state) {
 #else
   int *errno_addr = __error();
 #endif
-  addExternalObject(state, (void *)errno_addr, sizeof *errno_addr, false);
+  MemoryObject *errnoObj =
+      addExternalObject(state, (void *)errno_addr, sizeof *errno_addr, false);
+  // Copy values from and to program space explicitly
+  errnoObj->isUserSpecified = true;
 #endif
 
   // Disabled, we don't want to promote use of live externals.
@@ -3003,6 +3006,27 @@ void Executor::callExternalFunction(ExecutionState &state,
                           External);
     return;
   }
+
+#ifndef WINDOWS
+#ifndef __APPLE__
+  /* From /usr/include/errno.h: it [errno] is a per-thread variable. */
+  int *errno_addr = __errno_location();
+#else
+  int *errno_addr = __error();
+#endif
+  // Update errno value explicitly
+  ObjectPair result;
+  bool resolved = state.addressSpace.resolveOne(
+      ConstantExpr::create((uint64_t)errno_addr, Expr::Int64), result);
+  if (!resolved)
+    klee_error("Could not resolve memory object for errno");
+  int error = externalDispatcher->getLastErrno();
+  if (memcmp(result.second->concreteStore, &error, result.first->size) != 0) {
+    ObjectState *wos =
+        state.addressSpace.getWriteable(result.first, result.second);
+    memcpy(wos->concreteStore, &error, result.first->size);
+  }
+#endif
 
   Type *resultType = target->inst->getType();
   if (resultType != Type::getVoidTy(function->getContext())) {

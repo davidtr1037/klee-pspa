@@ -153,7 +153,10 @@ private:
 
   const MemoryObject *object;
 
+public:
   uint8_t *concreteStore;
+
+private:
   // XXX cleanup name of flushMask (its backwards or something)
   BitArray *concreteMask;
 

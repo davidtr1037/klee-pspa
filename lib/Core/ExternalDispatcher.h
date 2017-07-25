@@ -40,6 +40,8 @@ public:
   bool executeCall(llvm::Function *function, llvm::Instruction *i,
                    uint64_t *args);
   void *resolveSymbol(const std::string &name);
+
+  int getLastErrno();
 };
 }
 
