@@ -524,14 +524,20 @@ void Executor::initializeGlobals(ExecutionState &state) {
     globalAddresses.insert(std::make_pair(f, addr));
   }
 
+#ifndef WINDOWS
+#ifndef __APPLE__
+  /* From /usr/include/errno.h: it [errno] is a per-thread variable. */
+  int *errno_addr = __errno_location();
+#else
+  int *errno_addr = __error();
+#endif
+  addExternalObject(state, (void *)errno_addr, sizeof *errno_addr, false);
+#endif
+
   // Disabled, we don't want to promote use of live externals.
 #ifdef HAVE_CTYPE_EXTERNALS
 #ifndef WINDOWS
 #ifndef DARWIN
-  /* From /usr/include/errno.h: it [errno] is a per-thread variable. */
-  int *errno_addr = __errno_location();
-  addExternalObject(state, (void *)errno_addr, sizeof *errno_addr, false);
-
   /* from /usr/include/ctype.h:
        These point into arrays of 384, so they can be indexed by any `unsigned
        char' value [0,255]; by EOF (-1); or by any `signed char' value
