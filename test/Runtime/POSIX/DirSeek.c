@@ -43,7 +43,6 @@ int main(int argc, char **argv) {
   // Go to end, then back to 2nd
   while (de)
     de = readdir(d);
-  assert(!errno);
   seekdir(d, pos);
   assert(telldir(d) == pos);
   de = readdir(d);
