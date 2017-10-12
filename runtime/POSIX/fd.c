@@ -29,12 +29,6 @@
 #include <sys/select.h>
 #include <klee/klee.h>
 
-/* #define DEBUG */
-
-void klee_warning(const char*);
-void klee_warning_once(const char*);
-int klee_get_errno(void);
-
 /* Returns pointer to the symbolic file structure fs the pathname is symbolic */
 static exe_disk_file_t *__get_sym_file(const char *pathname) {
   if (!pathname)
