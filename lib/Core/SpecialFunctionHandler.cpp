@@ -91,6 +91,8 @@ static SpecialFunctionHandler::HandlerInfo handlerInfo[] = {
   add("klee_define_fixed_object", handleDefineFixedObject, false),
   add("klee_get_obj_size", handleGetObjSize, true),
   add("klee_get_errno", handleGetErrno, true),
+  add("__errno_location", handleErrnoLocation, true),
+  add("__error", handleErrnoLocation, true),
   add("klee_is_symbolic", handleIsSymbolic, true),
   add("klee_make_symbolic", handleMakeSymbolic, false),
   add("klee_mark_global", handleMarkGlobal, false),
@@ -578,10 +580,48 @@ void SpecialFunctionHandler::handleGetErrno(ExecutionState &state,
   // XXX should type check args
   assert(arguments.size()==0 &&
          "invalid number of arguments to klee_get_errno");
-  executor.bindLocal(target, state,
-                     ConstantExpr::create(errno, Expr::Int32));
+#ifndef WINDOWS
+#ifndef __APPLE__
+  int *errno_addr = __errno_location();
+#else
+  int *errno_addr = __error();
+#endif
+#else
+  int *errno_addr = nullptr;
+#endif
+
+  // Retrieve the memory object of the errno variable
+  ObjectPair result;
+  bool resolved = state.addressSpace.resolveOne(
+      ConstantExpr::create((uint64_t)errno_addr, Expr::Int64), result);
+  if (!resolved)
+    executor.terminateStateOnError(state, "Could not resolve address for errno",
+                                   Executor::User);
+  executor.bindLocal(target, state, result.second->read(0, Expr::Int32));
 }
 
+void SpecialFunctionHandler::handleErrnoLocation(
+    ExecutionState &state, KInstruction *target,
+    std::vector<ref<Expr> > &arguments) {
+  // Returns the address of the errno variable
+  assert(arguments.size() == 0 &&
+         "invalid number of arguments to __errno_location");
+
+#ifndef WINDOWS
+#ifndef __APPLE__
+  int *errno_addr = __errno_location();
+#else
+  int *errno_addr = __error();
+#endif
+#else
+  int *errno_addr = nullptr;
+#endif
+  executor.bindLocal(
+      target, state,
+      ConstantExpr::create((uint64_t)errno_addr,
+                           executor.kmodule->targetData->getTypeSizeInBits(
+                               target->inst->getType())));
+}
 void SpecialFunctionHandler::handleCalloc(ExecutionState &state,
                             KInstruction *target,
                             std::vector<ref<Expr> > &arguments) {
