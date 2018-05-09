@@ -48,7 +48,7 @@
 #include "klee/Internal/System/Time.h"
 #include "klee/Internal/System/MemoryUsage.h"
 #include "klee/SolverStats.h"
-#include "klee/Internal/Analysis/AndersenSymbolic.h"
+#include "klee/Internal/Analysis/DynamicAndersen.h"
 
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Attributes.h"
@@ -1374,7 +1374,7 @@ void Executor::executeCall(ExecutionState &state,
     for (unsigned i=0; i<numFormals; ++i) 
       bindArgument(kf, i, state, arguments[i]);
 
-    AndersenSymbolic pta(*kmodule->module);
+    DynamicAndersen pta(*kmodule->module);
   }
 }
 

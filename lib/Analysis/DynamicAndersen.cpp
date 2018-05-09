@@ -1,8 +1,8 @@
-#include <klee/Internal/Analysis/AndersenSymbolic.h>
+#include <klee/Internal/Analysis/DynamicAndersen.h>
 
 #include <MemoryModel/PointerAnalysis.h>
 #include <WPA/Andersen.h>
-#include <WPA/AndersenDynamic.h>
+#include <WPA/DynamicAndersenBase.h>
 
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Function.h>
@@ -14,6 +14,6 @@ using namespace llvm;
 using namespace klee;
 
 
-void AndersenSymbolic::setup() {
+void DynamicAndersen::setup() {
 
 }

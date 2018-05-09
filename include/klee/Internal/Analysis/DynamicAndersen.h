@@ -2,16 +2,16 @@
 #define KLEE_ANDERSENSYMBOLIC_H
 
 #include <WPA/Andersen.h>
-#include <WPA/AndersenDynamic.h>
+#include <WPA/DynamicAndersenBase.h>
 
 #include <llvm/IR/Module.h>
 
 namespace klee {
 
-class AndersenSymbolic : public AndersenDynamic {
+class DynamicAndersen : public DynamicAndersenBase {
 public:
 
-    AndersenSymbolic(llvm::Module &module) : module(module) {
+    DynamicAndersen(llvm::Module &module) : module(module) {
 
     }
 
