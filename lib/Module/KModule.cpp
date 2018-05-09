@@ -323,8 +323,7 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
   p1->runOnModule(*module);
 
   UnifyFunctionExitNodes* p2 = new UnifyFunctionExitNodes();
-  for (Module::iterator it = module->begin(), eit = module->end(); it != eit; ++it) {
-    Function &f = *it;
+  for (Function &f : *module) {
     if (f.isDeclaration()) {
       continue;
     }
