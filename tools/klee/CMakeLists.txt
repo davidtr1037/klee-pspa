@@ -14,7 +14,10 @@ set(KLEE_LIBS
   kleeCore
 )
 
-target_link_libraries(klee ${KLEE_LIBS})
+find_library(SVF_LIB NAMES LLVMSvf HINTS ${SVF_PATH}/build/lib)
+find_library(CUDD_LIB NAMES LLVMCudd HINTS ${SVF_PATH}/build/lib/CUDD)
+
+target_link_libraries(klee ${SVF_LIB} ${CUDD_LIB} ${KLEE_LIBS})
 
 install(TARGETS klee RUNTIME DESTINATION bin)
 

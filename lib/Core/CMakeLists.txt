@@ -44,6 +44,7 @@ else()
 endif()
 
 
+target_include_directories(kleeCore PUBLIC ${SVF_PATH}/include)
 klee_get_llvm_libs(LLVM_LIBS ${LLVM_COMPONENTS})
 target_link_libraries(kleeCore PUBLIC ${LLVM_LIBS})
 target_link_libraries(kleeCore PRIVATE
@@ -52,4 +53,5 @@ target_link_libraries(kleeCore PRIVATE
   kleaverSolver
   kleaverExpr
   kleeSupport
+  kleeAnalysis
 )

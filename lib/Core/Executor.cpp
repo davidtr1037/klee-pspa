@@ -48,6 +48,7 @@
 #include "klee/Internal/System/Time.h"
 #include "klee/Internal/System/MemoryUsage.h"
 #include "klee/SolverStats.h"
+#include "klee/Internal/Analysis/AndersenSymbolic.h"
 
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Attributes.h"
@@ -1046,8 +1047,8 @@ void Executor::bindArgument(KFunction *kf, unsigned index,
   getArgumentCell(state, kf, index).value = value;
 }
 
-ref<Expr> Executor::toUnique(const ExecutionState &state, 
-                             ref<Expr> &e) {
+klee::ref<Expr> Executor::toUnique(const ExecutionState &state,
+                                   ref<Expr> &e) {
   ref<Expr> result = e;
 
   if (!isa<ConstantExpr>(e)) {
@@ -1068,7 +1069,7 @@ ref<Expr> Executor::toUnique(const ExecutionState &state,
 
 /* Concretize the given expression, and return a possible constant value. 
    'reason' is just a documentation string stating the reason for concretization. */
-ref<klee::ConstantExpr> 
+klee::ref<klee::ConstantExpr>
 Executor::toConstant(ExecutionState &state, 
                      ref<Expr> e,
                      const char *reason) {
@@ -1372,6 +1373,8 @@ void Executor::executeCall(ExecutionState &state,
     unsigned numFormals = f->arg_size();
     for (unsigned i=0; i<numFormals; ++i) 
       bindArgument(kf, i, state, arguments[i]);
+
+    AndersenSymbolic pta(*kmodule->module);
   }
 }
 
@@ -3056,8 +3059,8 @@ void Executor::callExternalFunction(ExecutionState &state,
 
 /***/
 
-ref<Expr> Executor::replaceReadWithSymbolic(ExecutionState &state, 
-                                            ref<Expr> e) {
+klee::ref<Expr> Executor::replaceReadWithSymbolic(ExecutionState &state,
+                                                  ref<Expr> e) {
   unsigned n = interpreterOpts.MakeConcreteSymbolic;
   if (!n || replayKTest || replayPath)
     return e;
