@@ -21,12 +21,15 @@
 #include "klee/Internal/Support/Debug.h"
 #include "klee/Internal/Support/ModuleUtil.h"
 
+#include "Util/BreakConstantExpr.h"
+
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/ValueSymbolTable.h"
 #include "llvm/IR/DataLayout.h"
+#include "llvm/Transforms/Utils/UnifyFunctionExitNodes.h"
 
 #if LLVM_VERSION_CODE < LLVM_VERSION(3, 5)
 #include "llvm/Support/CallSite.h"
@@ -312,6 +315,21 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
       }
     }
     delete os;
+  }
+
+  /* running the SVF passes explicitly,
+     in order to avoid missing instructions */
+  BreakConstantGEPs* p1 = new BreakConstantGEPs();
+  p1->runOnModule(*module);
+
+  UnifyFunctionExitNodes* p2 = new UnifyFunctionExitNodes();
+  for (Module::iterator it = module->begin(), eit = module->end(); it != eit; ++it) {
+    Function &f = *it;
+    if (f.isDeclaration()) {
+      continue;
+    }
+
+    p2->runOnFunction(f);
   }
 
   if (OutputModule) {
