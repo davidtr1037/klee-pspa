@@ -1374,7 +1374,15 @@ void Executor::executeCall(ExecutionState &state,
     for (unsigned i=0; i<numFormals; ++i) 
       bindArgument(kf, i, state, arguments[i]);
 
-    DynamicAndersen pta(*kmodule->module);
+    if (!isTargetFunction(state, f)) {
+      return;
+    }
+
+    Module *module = kmodule->module;
+    DynamicAndersen pta(*module);
+    pta.initialize(*module);
+    setArgsPts(state, pta, f, arguments);
+    pta.analyze(*module);
   }
 }
 
@@ -3787,6 +3795,89 @@ size_t Executor::getAllocationAlignment(const llvm::Value *allocSite) const {
   assert(bits64::isPowerOfTwo(alignment) &&
          "Returned alignment must be a power of two");
   return alignment;
+}
+
+bool Executor::isTargetFunction(ExecutionState &state, Function *f) {
+  for (const TargetFunctionOption &option :  interpreterOpts.targetFunctions) {
+    if ((option.name == f->getName().str())) {
+      Instruction *callInst = state.prevPC->inst;
+      const InstructionInfo &info = kmodule->infos->getInfo(callInst);
+      const std::vector<unsigned int> &lines = option.lines;
+
+      /* skip any call site */
+      if (lines.empty()) {
+        return true;
+      }
+
+      /* check if we have debug information */
+      if (info.line == 0) {
+        klee_warning_once(0,
+                          "call filter for %s: debug info not found...",
+                          option.name.data());
+        return true;
+      }
+
+      return std::find(lines.begin(), lines.end(), info.line) != lines.end();
+    }
+  }
+
+  return false;
+}
+
+void Executor::setArgsPts(ExecutionState &state,
+                          DynamicAndersen &pta,
+                          Function *f,
+                          std::vector<ref<Expr>> &arguments) {
+  unsigned int argIndex = 0;
+  for (Function::arg_iterator ai = f->arg_begin(); ai != f->arg_end(); ai++) {
+    Argument &arg = *ai;
+
+    /* ... */
+    ref<Expr> e = arguments[argIndex++];
+    if (!isa<ConstantExpr>(e)) {
+      e = state.constraints.simplifyExpr(e);
+    }
+
+    PointerType *paramType = dyn_cast<PointerType>(arg.getType());
+    if (!paramType) {
+      /* resolve only pointer values */
+      continue;
+    }
+
+    const Value* allocSite = getAllocSite(state, e, paramType);
+    if (!allocSite) {
+      /* TODO: ... */
+      continue;
+    }
+
+    NodeID nodeId = pta.getPAG()->getObjectNode(allocSite);
+    NodeID formalParamId = pta.getPAG()->getValueNode(&arg);
+    PointsTo &pts = pta.getPts(formalParamId);
+    pts.clear();
+    pts.set(nodeId);
+  }
+}
+
+const Value* Executor::getAllocSite(ExecutionState &state,
+                                    ref<Expr> value,
+                                    PointerType *valueType) {
+  ObjectPair op;
+  bool wasResolved;
+
+  solver->setTimeout(coreSolverTimeout);
+  if (!state.addressSpace.resolveOne(state, solver, value, op, wasResolved)) {
+    /* TODO: should we concretize here? */
+    assert(false);
+  }
+  solver->setTimeout(0);
+
+  if (!wasResolved) {
+    /* TODO: check specifically if it's a NULL value? */
+    return ConstantPointerNull::get(valueType);
+  }
+
+  const MemoryObject *mo = op.first;
+  return mo->allocSite;
 }
 
 void Executor::prepareForEarlyExit() {

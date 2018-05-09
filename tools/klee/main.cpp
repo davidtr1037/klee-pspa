@@ -207,6 +207,11 @@ namespace {
   Watchdog("watchdog",
            cl::desc("Use a watchdog process to enforce --max-time."),
            cl::init(0));
+
+  cl::opt<std::string>
+  PTATarget("pta-target",
+            cl::desc("..."));
+
 }
 
 extern cl::opt<double> MaxTime;
@@ -1126,6 +1131,52 @@ static llvm::Module *linkWithUclibc(llvm::Module *mainModule, StringRef libDir) 
 }
 #endif
 
+bool parseNameLineOption(std::string option,
+                         std::string &fname,
+                         std::vector<unsigned int> &lines) {
+  std::istringstream stream(option);
+  std::string token;
+  char *endptr;
+
+  if (std::getline(stream, token, ':')) {
+    fname = token;
+    while (std::getline(stream, token, '/')) {
+      /* TODO: handle errors */
+      const char *s = token.c_str();
+      unsigned int line = strtol(s, &endptr, 10);
+      if ((errno == ERANGE) || (endptr == s) || (*endptr != '\0')) {
+        return false;
+      }
+
+      lines.push_back(line);
+    }
+  }
+
+  return true;
+}
+
+void parsePTATargetOption(Module *module,
+                          std::string parameter,
+                          std::vector<Interpreter::TargetFunctionOption> &result) {
+  std::istringstream stream(parameter);
+  std::string token;
+  std::string fname;
+
+  while (std::getline(stream, token, ',')) {
+    std::vector<unsigned int> lines;
+    if (!parseNameLineOption(token, fname, lines)) {
+      klee_error("pta-target option: invalid parameter: %s", token.c_str());
+    }
+
+    Function *f = module->getFunction(fname);
+    if (!f) {
+      klee_error("pta-target option: '%s' not found in module.", fname.c_str());
+    }
+
+    result.push_back(Interpreter::TargetFunctionOption(fname, lines));
+  }
+}
+
 int main(int argc, char **argv, char **envp) {
   atexit(llvm_shutdown);  // Call llvm_shutdown() on exit.
 
@@ -1268,6 +1319,9 @@ int main(int argc, char **argv, char **envp) {
     klee_error("'%s' function not found in module.", EntryPoint.c_str());
   }
 
+  std::vector<Interpreter::TargetFunctionOption> targetFunctions;
+  parsePTATargetOption(mainModule, PTATarget, targetFunctions);
+
   // FIXME: Change me to std types.
   int pArgc;
   char **pArgv;
@@ -1315,6 +1369,7 @@ int main(int argc, char **argv, char **envp) {
 
   Interpreter::InterpreterOptions IOpts;
   IOpts.MakeConcreteSymbolic = MakeConcreteSymbolic;
+  IOpts.targetFunctions = targetFunctions;
   KleeHandler *handler = new KleeHandler(pArgc, pArgv);
   Interpreter *interpreter =
     theInterpreter = Interpreter::create(ctx, IOpts, handler);

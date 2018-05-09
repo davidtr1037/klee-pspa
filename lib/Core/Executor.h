@@ -22,6 +22,7 @@
 #include "klee/Internal/Module/KModule.h"
 #include "klee/util/ArrayCache.h"
 #include "llvm/Support/raw_ostream.h"
+#include "klee/Internal/Analysis/DynamicAndersen.h"
 
 #include "llvm/ADT/Twine.h"
 
@@ -525,6 +526,17 @@ public:
 
   Expr::Width getWidthForLLVMType(llvm::Type *type) const;
   size_t getAllocationAlignment(const llvm::Value *allocSite) const;
+
+  bool isTargetFunction(ExecutionState &state, llvm::Function *f);
+
+  void setArgsPts(ExecutionState &state,
+                  DynamicAndersen &pta,
+                  llvm::Function *f,
+                  std::vector<ref<Expr>> &arguments);
+
+  const llvm::Value* getAllocSite(ExecutionState &state,
+                                  ref<Expr> value,
+                                  llvm::PointerType *valueType);
 };
   
 } // End klee namespace
