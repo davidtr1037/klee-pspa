@@ -447,7 +447,7 @@ void StatsTracker::writeStatsLine() {
              << "," << stats::queryCexCacheMisses
              << "," << stats::queryCexCacheHits
 #ifdef DEBUG
-             << "," << stats::arrayHashTime / 1000000.
+             //<< "," << stats::arrayHashTime / 1000000.
 #endif
              << ")\n";
   statsFile->flush();
