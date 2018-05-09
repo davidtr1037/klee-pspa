@@ -1,4 +1,4 @@
-; REQUIRES: lt-llvm-3.7
+; REQUIRES: geq-llvm-3.7
 ; RUN: %S/ConcreteTest.py --klee='%klee' --lli=%lli %s
 
 ; Most of the test below use the *address* of gInt as part of their computation,
@@ -46,14 +46,13 @@ define void @"test_logical_ops"() {
   call void @print_i32(i32 %t1)
   call void @print_i32(i32 %t2)
   call void @print_i32(i32 %t3)
-
-  ; or the address with 1 to ensure the addresses will differ in 'ne' below
-  %t4 = shl i64 lshr(i64 or(i64 ptrtoint(i32* @gInt to i64), i64 1), i64 8), 8
-  %t5 = shl i64 ashr(i64 or(i64 ptrtoint(i32* @gInt to i64), i64 1), i64 8), 8
-  %t6 = lshr i64 shl(i64 or(i64 ptrtoint(i32* @gInt to i64), i64 1), i64 8), 8
   
-  %t7 = icmp eq i64 %t4, %t5
-  %t8 = icmp ne i64 %t4, %t6
+  %t4 = shl i32 lshr(i32 ptrtoint(i32* @gInt to i32), i32 8), 8
+  %t5 = shl i32 ashr(i32 ptrtoint(i32* @gInt to i32), i32 8), 8
+  %t6 = lshr i32 shl(i32 ptrtoint(i32* @gInt to i32), i32 8), 8
+  
+  %t7 = icmp eq i32 %t4, %t5     
+  %t8 = icmp ne i32 %t4, %t6     
   
   %t9 = zext i1 %t7 to i8
   %t10 = zext i1 %t8 to i8
@@ -72,7 +71,7 @@ define void @"test_misc"() {
   %t1 = add i32 select(i1 icmp eq (i32* @gInt, i32* inttoptr(i32 100 to i32*)), i32 10, i32 0), 0
   call void @print_i32(i32 %t1)
 
-  %t2 = load i32* getelementptr(%test.struct.type* @test_struct, i32 0, i32 1)
+  %t2 = load i32, i32* getelementptr(%test.struct.type, %test.struct.type* @test_struct, i32 0, i32 1)
   call void @print_i32(i32 %t2)                             
         
   ret void

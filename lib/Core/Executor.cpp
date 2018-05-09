@@ -524,14 +524,23 @@ void Executor::initializeGlobals(ExecutionState &state) {
     globalAddresses.insert(std::make_pair(f, addr));
   }
 
+#ifndef WINDOWS
+#ifndef __APPLE__
+  /* From /usr/include/errno.h: it [errno] is a per-thread variable. */
+  int *errno_addr = __errno_location();
+#else
+  int *errno_addr = __error();
+#endif
+  MemoryObject *errnoObj =
+      addExternalObject(state, (void *)errno_addr, sizeof *errno_addr, false);
+  // Copy values from and to program space explicitly
+  errnoObj->isUserSpecified = true;
+#endif
+
   // Disabled, we don't want to promote use of live externals.
 #ifdef HAVE_CTYPE_EXTERNALS
 #ifndef WINDOWS
 #ifndef DARWIN
-  /* From /usr/include/errno.h: it [errno] is a per-thread variable. */
-  int *errno_addr = __errno_location();
-  addExternalObject(state, (void *)errno_addr, sizeof *errno_addr, false);
-
   /* from /usr/include/ctype.h:
        These point into arrays of 384, so they can be indexed by any `unsigned
        char' value [0,255]; by EOF (-1); or by any `signed char' value
@@ -1299,10 +1308,18 @@ void Executor::executeCall(ExecutionState &state,
           //
           // Alignment requirements for scalar types is the same as their size
           if (argWidth > Expr::Int64) {
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 9)
+             size = llvm::alignTo(size, 16);
+#else
              size = llvm::RoundUpToAlignment(size, 16);
+#endif
              requires16ByteAlignment = true;
           }
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 9)
+          size += llvm::alignTo(argWidth, WordSize) / 8;
+#else
           size += llvm::RoundUpToAlignment(argWidth, WordSize) / 8;
+#endif
         }
       }
 
@@ -1335,10 +1352,18 @@ void Executor::executeCall(ExecutionState &state,
 
             Expr::Width argWidth = arguments[i]->getWidth();
             if (argWidth > Expr::Int64) {
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 9)
+              offset = llvm::alignTo(offset, 16);
+#else
               offset = llvm::RoundUpToAlignment(offset, 16);
+#endif
             }
             os->write(offset, arguments[i]);
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 9)
+            offset += llvm::alignTo(argWidth, WordSize) / 8;
+#else
             offset += llvm::RoundUpToAlignment(argWidth, WordSize) / 8;
+#endif
           }
         }
       }
@@ -2131,8 +2156,13 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
         !fpWidthToSemantics(right->getWidth()))
       return terminateStateOnExecError(state, "Unsupported FRem operation");
     llvm::APFloat Res(*fpWidthToSemantics(left->getWidth()), left->getAPValue());
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 8)
+    Res.mod(
+        APFloat(*fpWidthToSemantics(right->getWidth()), right->getAPValue()));
+#else
     Res.mod(APFloat(*fpWidthToSemantics(right->getWidth()),right->getAPValue()),
             APFloat::rmNearestTiesToEven);
+#endif
     bindLocal(ki, state, ConstantExpr::alloc(Res.bitcastToAPInt()));
     break;
   }
@@ -2994,6 +3024,27 @@ void Executor::callExternalFunction(ExecutionState &state,
                           External);
     return;
   }
+
+#ifndef WINDOWS
+#ifndef __APPLE__
+  /* From /usr/include/errno.h: it [errno] is a per-thread variable. */
+  int *errno_addr = __errno_location();
+#else
+  int *errno_addr = __error();
+#endif
+  // Update errno value explicitly
+  ObjectPair result;
+  bool resolved = state.addressSpace.resolveOne(
+      ConstantExpr::create((uint64_t)errno_addr, Expr::Int64), result);
+  if (!resolved)
+    klee_error("Could not resolve memory object for errno");
+  int error = externalDispatcher->getLastErrno();
+  if (memcmp(result.second->concreteStore, &error, result.first->size) != 0) {
+    ObjectState *wos =
+        state.addressSpace.getWriteable(result.first, result.second);
+    memcpy(wos->concreteStore, &error, result.first->size);
+  }
+#endif
 
   Type *resultType = target->inst->getType();
   if (resultType != Type::getVoidTy(function->getContext())) {

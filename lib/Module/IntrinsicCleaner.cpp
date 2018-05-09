@@ -52,6 +52,10 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b, Module &M) {
   for (BasicBlock::iterator i = b.begin(), ie = b.end();
        (i != ie) && (block_split == false);) {
     IntrinsicInst *ii = dyn_cast<IntrinsicInst>(&*i);
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 8)
+    // create a copy of iterator to pass to IRBuilder ctor later
+    BasicBlock::iterator i_ = i;
+#endif
     // increment now since LowerIntrinsic deletion makes iterator invalid.
     ++i;  
     if(ii) {
@@ -82,11 +86,15 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b, Module &M) {
           Value *pSrc = CastInst::CreatePointerCast(src, i64p, "vacopy.cast.src", ii);
           Value *val = new LoadInst(pSrc, std::string(), ii); new StoreInst(val, pDst, ii);
           Value *off = ConstantInt::get(Type::getInt64Ty(ctx), 1);
-          pDst = GetElementPtrInst::Create(pDst, off, std::string(), ii);
-          pSrc = GetElementPtrInst::Create(pSrc, off, std::string(), ii);
+          pDst = GetElementPtrInst::Create(KLEE_LLVM_GEP_TYPE(nullptr)
+              pDst, off, std::string(), ii);
+          pSrc = GetElementPtrInst::Create(KLEE_LLVM_GEP_TYPE(nullptr)
+              pSrc, off, std::string(), ii);
           val = new LoadInst(pSrc, std::string(), ii); new StoreInst(val, pDst, ii);
-          pDst = GetElementPtrInst::Create(pDst, off, std::string(), ii);
-          pSrc = GetElementPtrInst::Create(pSrc, off, std::string(), ii);
+          pDst = GetElementPtrInst::Create(KLEE_LLVM_GEP_TYPE(nullptr)
+              pDst, off, std::string(), ii);
+          pSrc = GetElementPtrInst::Create(KLEE_LLVM_GEP_TYPE(nullptr)
+              pSrc, off, std::string(), ii);
           val = new LoadInst(pSrc, std::string(), ii); new StoreInst(val, pDst, ii);
         }
         ii->removeFromParent();
@@ -100,8 +108,12 @@ bool IntrinsicCleanerPass::runOnBasicBlock(BasicBlock &b, Module &M) {
       case Intrinsic::uadd_with_overflow:
       case Intrinsic::usub_with_overflow:
       case Intrinsic::umul_with_overflow: {
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 8)
+        // ctor needs the iterator, but we already increased our one
+        IRBuilder<> builder(ii->getParent(), i_);
+#else
         IRBuilder<> builder(ii->getParent(), ii);
-
+#endif
         Value *op1 = ii->getArgOperand(0);
         Value *op2 = ii->getArgOperand(1);
         

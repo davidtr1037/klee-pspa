@@ -65,6 +65,7 @@ private:
   llvm::Module *singleDispatchModule;
   std::vector<std::string> moduleIDs;
   std::string &getFreshModuleID();
+  int lastErrno;
 
 public:
   ExternalDispatcherImpl(llvm::LLVMContext &ctx);
@@ -72,6 +73,7 @@ public:
   bool executeCall(llvm::Function *function, llvm::Instruction *i,
                    uint64_t *args);
   void *resolveSymbol(const std::string &name);
+  int getLastErrno();
 };
 
 std::string &ExternalDispatcherImpl::getFreshModuleID() {
@@ -114,7 +116,8 @@ void *ExternalDispatcherImpl::resolveSymbol(const std::string &name) {
   return addr;
 }
 
-ExternalDispatcherImpl::ExternalDispatcherImpl(LLVMContext &ctx) : ctx(ctx) {
+ExternalDispatcherImpl::ExternalDispatcherImpl(LLVMContext &ctx)
+    : ctx(ctx), lastErrno(0) {
   std::string error;
   singleDispatchModule = new Module(getFreshModuleID(), ctx);
 #if LLVM_VERSION_CODE < LLVM_VERSION(3, 6)
@@ -253,6 +256,8 @@ bool ExternalDispatcherImpl::runProtectedCall(Function *f, uint64_t *args) {
     res = false;
   } else {
     executionEngine->runFunction(f, gvArgs);
+    // Explicitly acquire errno information
+    lastErrno = errno;
     res = true;
   }
 
@@ -319,6 +324,7 @@ Function *ExternalDispatcherImpl::createDispatcher(Function *target,
     Type *argTy =
         (i < FTy->getNumParams() ? FTy->getParamType(i) : (*ai)->getType());
     Instruction *argI64p = GetElementPtrInst::Create(
+        KLEE_LLVM_GEP_TYPE(nullptr)
         argI64s, ConstantInt::get(Type::getInt32Ty(ctx), idx), "", dBB);
 
     Instruction *argp =
@@ -346,6 +352,8 @@ Function *ExternalDispatcherImpl::createDispatcher(Function *target,
   return dispatcher;
 }
 
+int ExternalDispatcherImpl::getLastErrno() { return lastErrno; }
+
 ExternalDispatcher::ExternalDispatcher(llvm::LLVMContext &ctx)
     : impl(new ExternalDispatcherImpl(ctx)) {}
 
@@ -359,4 +367,6 @@ bool ExternalDispatcher::executeCall(llvm::Function *function,
 void *ExternalDispatcher::resolveSymbol(const std::string &name) {
   return impl->resolveSymbol(name);
 }
+
+int ExternalDispatcher::getLastErrno() { return impl->getLastErrno(); }
 }

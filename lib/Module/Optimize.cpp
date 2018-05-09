@@ -35,6 +35,11 @@
 #include "llvm/Analysis/Verifier.h"
 #endif
 
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 9)
+#include "llvm/Transforms/IPO/FunctionAttrs.h"
+#include "llvm/Transforms/Scalar/GVN.h"
+#endif
+
 using namespace llvm;
 
 // Don't verify at the end
@@ -102,7 +107,16 @@ static void AddStandardCompilePasses(klee::LegacyLLVMPassManagerTy &PM) {
   addPass(PM, createCFGSimplificationPass());    // Clean up after IPCP & DAE
 
   addPass(PM, createPruneEHPass());              // Remove dead EH info
-  addPass(PM, createFunctionAttrsPass());        // Deduce function attrs
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 8)
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 9)
+  addPass(PM, createPostOrderFunctionAttrsLegacyPass());
+#else
+  addPass(PM, createPostOrderFunctionAttrsPass());
+#endif
+  addPass(PM, createReversePostOrderFunctionAttrsPass());
+#else
+  addPass(PM, createFunctionAttrsPass()); // Deduce function attrs
+#endif
 
   if (!DisableInline)
     addPass(PM, createFunctionInliningPass());   // Inline small functions
@@ -111,7 +125,11 @@ static void AddStandardCompilePasses(klee::LegacyLLVMPassManagerTy &PM) {
   addPass(PM, createInstructionCombiningPass()); // Cleanup for scalarrepl.
   addPass(PM, createJumpThreadingPass());        // Thread jumps.
   addPass(PM, createCFGSimplificationPass());    // Merge & remove BBs
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 9)
+  addPass(PM, createSROAPass());                 // Break up aggregate allocas
+#else
   addPass(PM, createScalarReplAggregatesPass()); // Break up aggregate allocas
+#endif
   addPass(PM, createInstructionCombiningPass()); // Combine silly seq's
 
   addPass(PM, createTailCallEliminationPass());  // Eliminate tail calls
@@ -154,7 +172,9 @@ void Optimize(Module *M, const std::string &EntryPoint) {
     Passes.add(createVerifierPass());
 
   // Add an appropriate DataLayout instance for this module...
-#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 6)
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 7)
+  // LLVM 3.7+ doesn't have DataLayoutPass anymore.
+#elif LLVM_VERSION_CODE >= LLVM_VERSION(3, 6)
   DataLayoutPass *dlpass = new DataLayoutPass();
   dlpass->doInitialization(*M);
   addPass(Passes, dlpass);
@@ -172,8 +192,15 @@ void Optimize(Module *M, const std::string &EntryPoint) {
     // for a main function.  If main is defined, mark all other functions
     // internal.
     if (!DisableInternalize) {
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 9)
+      auto PreserveEP = [=](const GlobalValue &GV) {
+	return GV.getName().equals(EntryPoint);
+      };
+      ModulePass *pass = createInternalizePass(PreserveEP);
+#else
       ModulePass *pass = createInternalizePass(
           std::vector<const char *>(1, EntryPoint.c_str()));
+#endif
       addPass(Passes, pass);
     }
 
@@ -212,11 +239,25 @@ void Optimize(Module *M, const std::string &EntryPoint) {
     // The IPO passes may leave cruft around.  Clean up after them.
     addPass(Passes, createInstructionCombiningPass());
     addPass(Passes, createJumpThreadingPass());        // Thread jumps.
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 9)
+    addPass(Passes, createSROAPass());                 // Break up allocas
+#else
     addPass(Passes, createScalarReplAggregatesPass()); // Break up allocas
+#endif
 
     // Run a few AA driven optimizations here and now, to cleanup the code.
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 8)
+#if LLVM_VERSION_CODE >= LLVM_VERSION(3, 9)
+    addPass(Passes, createPostOrderFunctionAttrsLegacyPass());
+#else
+    addPass(Passes, createPostOrderFunctionAttrsPass());
+#endif
+    addPass(Passes, createReversePostOrderFunctionAttrsPass());
+    // addPass(Passes, createGlobalsAAWrapperPass());
+#else
     addPass(Passes, createFunctionAttrsPass());      // Add nocapture
     addPass(Passes, createGlobalsModRefPass());      // IP alias analysis
+#endif
 
     addPass(Passes, createLICMPass());               // Hoist loop invariants
     addPass(Passes, createGVNPass());                // Remove redundancies
