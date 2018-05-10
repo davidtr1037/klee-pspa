@@ -49,6 +49,7 @@
 #include "klee/Internal/System/MemoryUsage.h"
 #include "klee/SolverStats.h"
 #include "klee/Internal/Analysis/DynamicAndersen.h"
+#include "klee/Internal/Analysis/PTAUtils.h"
 
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Attributes.h"
@@ -3832,7 +3833,7 @@ void Executor::setArgsPts(ExecutionState &state,
   for (Function::arg_iterator ai = f->arg_begin(); ai != f->arg_end(); ai++) {
     Argument &arg = *ai;
 
-    /* ... */
+    /* try to concretize the argument expression */
     ref<Expr> e = arguments[argIndex++];
     if (!isa<ConstantExpr>(e)) {
       e = state.constraints.simplifyExpr(e);
