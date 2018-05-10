@@ -530,7 +530,6 @@ public:
   bool isTargetFunction(ExecutionState &state, llvm::Function *f);
 
   void setArgsPts(ExecutionState &state,
-                  DynamicAndersen &pta,
                   llvm::Function *f,
                   std::vector<ref<Expr>> &arguments);
 

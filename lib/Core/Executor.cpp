@@ -1380,10 +1380,8 @@ void Executor::executeCall(ExecutionState &state,
     }
 
     Module *module = kmodule->module;
-    DynamicAndersen pta(*module);
-    pta.initialize(*module);
-    setArgsPts(state, pta, f, arguments);
-    pta.analyze(*module);
+    setArgsPts(state, f, arguments);
+    state.getPTA()->analyze(*module);
   }
 }
 
@@ -3530,6 +3528,11 @@ void Executor::runFunctionAsMain(Function *f,
   }
 
   ExecutionState *state = new ExecutionState(kmodule->functionMap[f]);
+
+  /* TODO: add docs */
+  DynamicAndersen *pta = new DynamicAndersen(*kmodule->module);
+  pta->initialize(*kmodule->module);
+  state->setPTA(pta);
   
   if (pathWriter) 
     state->pathOS = pathWriter->open();
@@ -3826,7 +3829,6 @@ bool Executor::isTargetFunction(ExecutionState &state, Function *f) {
 }
 
 void Executor::setArgsPts(ExecutionState &state,
-                          DynamicAndersen &pta,
                           Function *f,
                           std::vector<ref<Expr>> &arguments) {
   unsigned int argIndex = 0;
@@ -3851,9 +3853,12 @@ void Executor::setArgsPts(ExecutionState &state,
       continue;
     }
 
-    NodeID nodeId = pta.getPAG()->getObjectNode(allocSite);
-    NodeID formalParamId = pta.getPAG()->getValueNode(&arg);
-    PointsTo &pts = pta.getPts(formalParamId);
+    DynamicAndersen *pta = state.getPTA();
+
+    NodeID nodeId = pta->getPAG()->getObjectNode(allocSite);
+    NodeID formalParamId = pta->getPAG()->getValueNode(&arg);
+
+    PointsTo &pts = pta->getPts(formalParamId);
     pts.clear();
     pts.set(nodeId);
   }

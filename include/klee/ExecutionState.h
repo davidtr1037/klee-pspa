@@ -14,6 +14,7 @@
 #include "klee/Expr.h"
 #include "klee/Internal/ADT/TreeStream.h"
 #include "klee/MergeHandler.h"
+#include "klee/Internal/Analysis/DynamicAndersen.h"
 
 // FIXME: We do not want to be exposing these? :(
 #include "../../lib/Core/AddressSpace.h"
@@ -72,6 +73,9 @@ private:
   ExecutionState &operator=(const ExecutionState &);
 
   std::map<std::string, std::string> fnAliases;
+
+  /* TODO: add docs */
+  DynamicAndersen *pta;
 
 public:
   // Execution - Control Flow specific
@@ -173,6 +177,15 @@ public:
 
   bool merge(const ExecutionState &b);
   void dumpStack(llvm::raw_ostream &out) const;
+
+  void setPTA(DynamicAndersen *pta) {
+    this->pta = pta;
+  }
+
+  DynamicAndersen *getPTA() {
+    return pta;
+  }
+
 };
 }
 

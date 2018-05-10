@@ -63,6 +63,8 @@ StackFrame::~StackFrame() {
 /***/
 
 ExecutionState::ExecutionState(KFunction *kf) :
+    pta(0),
+
     pc(kf->instructions),
     prevPC(pc),
 
@@ -91,6 +93,10 @@ ExecutionState::~ExecutionState() {
   }
 
   while (!stack.empty()) popFrame();
+
+  if (pta) {
+    delete pta;
+  }
 }
 
 ExecutionState::ExecutionState(const ExecutionState& state):
