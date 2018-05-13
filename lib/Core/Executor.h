@@ -529,9 +529,14 @@ public:
 
   bool isTargetFunction(ExecutionState &state, llvm::Function *f);
 
-  void setArgsPts(ExecutionState &state,
-                  llvm::Function *f,
-                  std::vector<ref<Expr>> &arguments);
+  void updatePointsToOnStore(ExecutionState &state,
+                             const MemoryObject *mo,
+                             ref<Expr> offset,
+                             ref<Expr> value);
+
+  void updatePointsToOnCall(ExecutionState &state,
+                            llvm::Function *f,
+                            std::vector<ref<Expr>> &arguments);
 
   const llvm::Value* getAllocSite(ExecutionState &state,
                                   ref<Expr> value,

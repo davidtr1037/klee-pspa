@@ -1380,7 +1380,7 @@ void Executor::executeCall(ExecutionState &state,
     }
 
     Module *module = kmodule->module;
-    setArgsPts(state, f, arguments);
+    updatePointsToOnCall(state, f, arguments);
     state.getPTA()->analyze(*module);
   }
 }
@@ -3336,7 +3336,8 @@ void Executor::executeMemoryOperation(ExecutionState &state,
         } else {
           ObjectState *wos = state.addressSpace.getWriteable(mo, os);
           wos->write(offset, value);
-        }          
+          updatePointsToOnStore(state, mo, offset, value);
+        }
       } else {
         ref<Expr> result = os->read(offset, type);
         
@@ -3828,9 +3829,43 @@ bool Executor::isTargetFunction(ExecutionState &state, Function *f) {
   return false;
 }
 
-void Executor::setArgsPts(ExecutionState &state,
-                          Function *f,
-                          std::vector<ref<Expr>> &arguments) {
+void Executor::updatePointsToOnStore(ExecutionState &state,
+                                     const MemoryObject *mo,
+                                     ref<Expr> offset,
+                                     ref<Expr> value) {
+  StoreInst *storeInst = dyn_cast<StoreInst>(state.prevPC->inst);
+  if (!storeInst) {
+    /* TODO: check other cases... */
+    return;
+  }
+
+  PointerType *valueType = dyn_cast<PointerType>(storeInst->getValueOperand()->getType());
+  if (!valueType) {
+    /* that is not sound... */
+    return;
+  }
+
+  const Value* valueAS = getAllocSite(state, value, valueType);
+  if (!valueAS) {
+    return;
+  }
+
+  if (isa<ConstantPointerNull>(valueAS)) {
+    return;
+  }
+
+  ConstantExpr *ce = dyn_cast<ConstantExpr>(offset);
+  if (!ce) {
+    llvm::report_fatal_error("non-constant offset");
+    return;
+  }
+
+  /* TODO: compute offset abstraction */
+}
+
+void Executor::updatePointsToOnCall(ExecutionState &state,
+                                    Function *f,
+                                    std::vector<ref<Expr>> &arguments) {
   unsigned int argIndex = 0;
   for (Function::arg_iterator ai = f->arg_begin(); ai != f->arg_end(); ai++) {
     Argument &arg = *ai;
