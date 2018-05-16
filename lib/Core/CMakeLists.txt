@@ -7,6 +7,7 @@
 #
 #===------------------------------------------------------------------------===#
 klee_add_component(kleeCore
+  AbstractMO.cpp
   AddressSpace.cpp
   MergeHandler.cpp
   CallPathManager.cpp

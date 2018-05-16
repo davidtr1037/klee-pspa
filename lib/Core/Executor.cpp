@@ -22,6 +22,7 @@
 #include "TimingSolver.h"
 #include "UserSearcher.h"
 #include "ExecutorTimerInfo.h"
+#include "AbstractMO.h"
 
 
 #include "klee/ExecutionState.h"
@@ -1381,7 +1382,7 @@ void Executor::executeCall(ExecutionState &state,
 
     Module *module = kmodule->module;
     updatePointsToOnCall(state, f, arguments);
-    state.getPTA()->analyze(*module);
+    //state.getPTA()->analyze(*module);
   }
 }
 
@@ -3829,6 +3830,40 @@ bool Executor::isTargetFunction(ExecutionState &state, Function *f) {
   return false;
 }
 
+void Executor::getDynamicMemoryLocation(ExecutionState &state,
+                                        ref<Expr> value,
+                                        PointerType *valueType,
+                                        DynamicMemoryLocation &location) {
+  ObjectPair op;
+  bool wasResolved;
+
+  solver->setTimeout(coreSolverTimeout);
+  if (!state.addressSpace.resolveOne(state, solver, value, op, wasResolved)) {
+    /* TODO: should we concretize here? */
+    assert(false);
+  }
+  solver->setTimeout(0);
+
+  if (!wasResolved) {
+    /* TODO: check specifically if it's a NULL value? */
+    location.value = ConstantPointerNull::get(valueType);
+    location.offset = 0;
+    return;
+  }
+
+  const MemoryObject *mo = op.first;
+
+  /* TODO: try to concretize? */
+  ref<Expr> offsetExpr = mo->getOffsetExpr(value);
+  ConstantExpr *ce = dyn_cast<ConstantExpr>(offsetExpr);
+  if (!ce) {
+    assert(false);
+  }
+
+  location.value = mo->allocSite;
+  location.offset = ce->getZExtValue();
+}
+
 void Executor::updatePointsToOnStore(ExecutionState &state,
                                      const MemoryObject *mo,
                                      ref<Expr> offset,
@@ -3844,23 +3879,6 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
     /* that is not sound... */
     return;
   }
-
-  const Value* valueAS = getAllocSite(state, value, valueType);
-  if (!valueAS) {
-    return;
-  }
-
-  if (isa<ConstantPointerNull>(valueAS)) {
-    return;
-  }
-
-  ConstantExpr *ce = dyn_cast<ConstantExpr>(offset);
-  if (!ce) {
-    llvm::report_fatal_error("non-constant offset");
-    return;
-  }
-
-  /* TODO: compute offset abstraction */
 }
 
 void Executor::updatePointsToOnCall(ExecutionState &state,
@@ -3882,43 +3900,32 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
       continue;
     }
 
-    const Value* allocSite = getAllocSite(state, e, paramType);
-    if (!allocSite) {
+    DynamicMemoryLocation location;
+    getDynamicMemoryLocation(state, e, paramType, location);
+    if (!location.value) {
       /* TODO: ... */
       continue;
     }
 
-    DynamicAndersen *pta = state.getPTA();
+    PointerType *moType = dyn_cast<PointerType>(location.value->getType());
+    if (!moType) {
+        /* TODO: check the __uClibc_main wierd case... */
+        llvm::report_fatal_error("Unexpected type of allocation site");
+        return;
+    }
 
-    NodeID nodeId = pta->getPAG()->getObjectNode(allocSite);
-    NodeID formalParamId = pta->getPAG()->getValueNode(&arg);
+    Type *elementType = moType->getElementType();
+    uint32_t abstractOffset = computeAbstractFieldOffset(location.offset, elementType);
 
-    PointsTo &pts = pta->getPts(formalParamId);
-    pts.clear();
-    pts.set(nodeId);
+    //DynamicAndersen *pta = state.getPTA();
+
+    //NodeID nodeId = pta->getPAG()->getObjectNode(location.value);
+    //NodeID formalParamId = pta->getPAG()->getValueNode(&arg);
+
+    //PointsTo &pts = pta->getPts(formalParamId);
+    //pts.clear();
+    //pts.set(nodeId);
   }
-}
-
-const Value* Executor::getAllocSite(ExecutionState &state,
-                                    ref<Expr> value,
-                                    PointerType *valueType) {
-  ObjectPair op;
-  bool wasResolved;
-
-  solver->setTimeout(coreSolverTimeout);
-  if (!state.addressSpace.resolveOne(state, solver, value, op, wasResolved)) {
-    /* TODO: should we concretize here? */
-    assert(false);
-  }
-  solver->setTimeout(0);
-
-  if (!wasResolved) {
-    /* TODO: check specifically if it's a NULL value? */
-    return ConstantPointerNull::get(valueType);
-  }
-
-  const MemoryObject *mo = op.first;
-  return mo->allocSite;
 }
 
 void Executor::prepareForEarlyExit() {

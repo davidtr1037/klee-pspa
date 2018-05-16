@@ -23,6 +23,7 @@
 #include "klee/util/ArrayCache.h"
 #include "llvm/Support/raw_ostream.h"
 #include "klee/Internal/Analysis/DynamicAndersen.h"
+#include "AbstractMO.h"
 
 #include "llvm/ADT/Twine.h"
 
@@ -529,6 +530,11 @@ public:
 
   bool isTargetFunction(ExecutionState &state, llvm::Function *f);
 
+  void getDynamicMemoryLocation(ExecutionState &state,
+                                ref<Expr> value,
+                                llvm::PointerType *valueType,
+                                DynamicMemoryLocation &location);
+
   void updatePointsToOnStore(ExecutionState &state,
                              const MemoryObject *mo,
                              ref<Expr> offset,
@@ -537,10 +543,6 @@ public:
   void updatePointsToOnCall(ExecutionState &state,
                             llvm::Function *f,
                             std::vector<ref<Expr>> &arguments);
-
-  const llvm::Value* getAllocSite(ExecutionState &state,
-                                  ref<Expr> value,
-                                  llvm::PointerType *valueType);
 };
   
 } // End klee namespace
