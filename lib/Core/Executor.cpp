@@ -3934,6 +3934,11 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
       continue;
     }
 
+    if (isa<ConstantPointerNull>(location.value)) {
+      /* if the argument is null, then there is no need to update */
+      continue;
+    }
+
     NodeID dst = computeAbstractMO(state.getPTA(), location);
     NodeID formalParamId = state.getPTA()->getPAG()->getValueNode(&arg);
 
