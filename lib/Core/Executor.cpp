@@ -3900,11 +3900,9 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
     assert(false);
   }
 
-  DynamicMemoryLocation storeLocation;
-  storeLocation.value = mo->allocSite;
-  storeLocation.offset = ce->getZExtValue();
-
+  DynamicMemoryLocation storeLocation(mo->allocSite, ce->getZExtValue());
   NodeID src = computeAbstractMO(state.getPTA(), storeLocation);
+
   PointsTo &pts = state.getPTA()->getPts(src);
   pts.clear();
   pts.set(dst);
