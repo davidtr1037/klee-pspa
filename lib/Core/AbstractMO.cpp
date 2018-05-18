@@ -4,11 +4,32 @@
 
 #include <MemoryModel/MemModel.h>
 #include <MemoryModel/LocationSet.h>
+#include <MemoryModel/PointerAnalysis.h>
 
 #include <stdint.h>
 
 using namespace klee;
 using namespace llvm;
+
+NodeID klee::computeAbstractMO(PointerAnalysis *pta,
+                               DynamicMemoryLocation &location) {
+    PointerType *moType = dyn_cast<PointerType>(location.value->getType());
+    if (!moType) {
+        /* TODO: check the __uClibc_main wierd case... */
+        llvm::report_fatal_error("Unexpected type of allocation site");
+        return 0;
+    }
+
+    NodeID nodeID = pta->getPAG()->getObjectNode(location.value);
+    if (pta->isHeapMemObj(nodeID)) {
+        /* handle similarly to arrays */
+        return pta->getGepObjNode(nodeID, LocationSet(0));
+    }
+
+    Type *elementType = moType->getElementType();
+    uint32_t abstractOffset = computeAbstractFieldOffset(location.offset, elementType);
+    return pta->getGepObjNode(nodeID, LocationSet(abstractOffset));
+}
 
 uint32_t klee::computeAbstractFieldOffset(uint32_t offset,
                                           const Type *moType) {

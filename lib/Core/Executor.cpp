@@ -1380,9 +1380,9 @@ void Executor::executeCall(ExecutionState &state,
       return;
     }
 
-    Module *module = kmodule->module;
     updatePointsToOnCall(state, f, arguments);
-    //state.getPTA()->analyze(*module);
+    state.getPTA()->analyze(*kmodule->module);
+    dumpPTAResults(state.getPTA(), f);
   }
 }
 
@@ -3876,9 +3876,38 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
 
   PointerType *valueType = dyn_cast<PointerType>(storeInst->getValueOperand()->getType());
   if (!valueType) {
-    /* that is not sound... */
+    /* non-pointer values are not relevant for pointer analysis */
     return;
   }
+
+  DynamicMemoryLocation location;
+  getDynamicMemoryLocation(state, value, valueType, location);
+  if (!location.value) {
+    /* TODO: ... */
+    return;
+  }
+
+  if (isa<ConstantPointerNull>(location.value)) {
+    /* if the written value is null, then there is no need to update */
+    return;
+  }
+
+  NodeID dst = computeAbstractMO(state.getPTA(), location);
+
+  /* TODO: try to concretize? */
+  ConstantExpr *ce = dyn_cast<ConstantExpr>(offset);
+  if (!ce) {
+    assert(false);
+  }
+
+  DynamicMemoryLocation storeLocation;
+  storeLocation.value = mo->allocSite;
+  storeLocation.offset = ce->getZExtValue();
+
+  NodeID src = computeAbstractMO(state.getPTA(), storeLocation);
+  PointsTo &pts = state.getPTA()->getPts(src);
+  pts.clear();
+  pts.set(dst);
 }
 
 void Executor::updatePointsToOnCall(ExecutionState &state,
@@ -3907,24 +3936,12 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
       continue;
     }
 
-    PointerType *moType = dyn_cast<PointerType>(location.value->getType());
-    if (!moType) {
-        /* TODO: check the __uClibc_main wierd case... */
-        llvm::report_fatal_error("Unexpected type of allocation site");
-        return;
-    }
+    NodeID dst = computeAbstractMO(state.getPTA(), location);
+    NodeID formalParamId = state.getPTA()->getPAG()->getValueNode(&arg);
 
-    Type *elementType = moType->getElementType();
-    uint32_t abstractOffset = computeAbstractFieldOffset(location.offset, elementType);
-
-    //DynamicAndersen *pta = state.getPTA();
-
-    //NodeID nodeId = pta->getPAG()->getObjectNode(location.value);
-    //NodeID formalParamId = pta->getPAG()->getValueNode(&arg);
-
-    //PointsTo &pts = pta->getPts(formalParamId);
-    //pts.clear();
-    //pts.set(nodeId);
+    PointsTo &pts = state.getPTA()->getPts(formalParamId);
+    pts.clear();
+    pts.set(dst);
   }
 }
 
