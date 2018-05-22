@@ -28,6 +28,10 @@ static void visitStore(PointerAnalysis *pta, Function *f, StoreInst *inst) {
     }
 
     const Value *value = obj->getMemObj()->getRefVal();
+    if (!value) {
+        continue;
+    }
+
     errs() << "-- AS: " << *value << "\n";
     errs() << "   -- kind: " << obj->getNodeKind() << "\n";
     GepObjPN *gepObj = dyn_cast<GepObjPN>(obj);
@@ -51,6 +55,10 @@ static void visitLoad(PointerAnalysis *pta, Function *f, LoadInst *inst) {
     }
 
     const Value *value = obj->getMemObj()->getRefVal();
+    if (!value) {
+        continue;
+    }
+
     errs() << "-- AS: " << *value << "\n";
     errs() << "   -- kind: " << obj->getNodeKind() << "\n";
     GepObjPN *gepObj = dyn_cast<GepObjPN>(obj);
