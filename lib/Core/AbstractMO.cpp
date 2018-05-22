@@ -1,6 +1,7 @@
 #include "AbstractMO.h"
 
 #include <llvm/IR/Type.h>
+#include <llvm/IR/Instruction.h>
 
 #include <MemoryModel/MemModel.h>
 #include <MemoryModel/LocationSet.h>
@@ -15,6 +16,14 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
                                DynamicMemoryLocation &location) {
     PointerType *moType = dyn_cast<PointerType>(location.value->getType());
     if (!moType) {
+        const CallInst *callInst = dyn_cast<CallInst>(location.value);
+        if (callInst) {
+            Function *callee = callInst->getCalledFunction();
+            if (callee->getName() == "__uClibc_main") {
+                return 0;
+            }
+        }
+
         /* TODO: check the __uClibc_main wierd case... */
         llvm::report_fatal_error("Unexpected type of allocation site");
         return 0;
