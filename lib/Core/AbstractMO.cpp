@@ -36,6 +36,10 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
     }
 
     Type *elementType = moType->getElementType();
+    if (elementType->isSingleValueType()) {
+        return pta->getFIObjNode(nodeID);
+    }
+
     uint32_t abstractOffset = computeAbstractFieldOffset(location.offset, elementType);
     return pta->getGepObjNode(nodeID, LocationSet(abstractOffset));
 }
