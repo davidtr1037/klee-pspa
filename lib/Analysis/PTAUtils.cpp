@@ -14,6 +14,26 @@
 using namespace llvm;
 using namespace klee;
 
+
+void klee::dumpNodeInfo(PointerAnalysis *pta, NodeID nodeId) {
+    errs() << "-- node: " << nodeId << "\n";
+    PAGNode *pagNode = pta->getPAG()->getPAGNode(nodeId);
+    ObjPN *obj = dyn_cast<ObjPN>(pagNode);
+    if (obj) {
+        const Value *value = obj->getMemObj()->getRefVal();
+        if (!value) {
+            return;
+        }
+
+        errs() << "-- AS: " << *value << "\n";
+        errs() << "   -- kind: " << obj->getNodeKind() << "\n";
+        GepObjPN *gepObj = dyn_cast<GepObjPN>(obj);
+        if (gepObj) {
+            errs() << "   -- ls: " << gepObj->getLocationSet().getOffset() << "\n";
+        }
+    }
+}
+
 static void visitStore(PointerAnalysis *pta, Function *f, StoreInst *inst) {
   NodeID id = pta->getPAG()->getValueNode(inst->getPointerOperand());
   PointsTo &pts = pta->getPts(id);
@@ -21,23 +41,7 @@ static void visitStore(PointerAnalysis *pta, Function *f, StoreInst *inst) {
   errs() << f->getName() << ": "  << *inst << ":\n";
   for (PointsTo::iterator i = pts.begin(); i != pts.end(); ++i) {
     NodeID nodeId = *i;
-    PAGNode *pagNode = pta->getPAG()->getPAGNode(nodeId);
-    ObjPN *obj = dyn_cast<ObjPN>(pagNode);
-    if (!obj) {
-      return;
-    }
-
-    const Value *value = obj->getMemObj()->getRefVal();
-    if (!value) {
-        continue;
-    }
-
-    errs() << "-- AS: " << *value << "\n";
-    errs() << "   -- kind: " << obj->getNodeKind() << "\n";
-    GepObjPN *gepObj = dyn_cast<GepObjPN>(obj);
-    if (gepObj) {
-      errs() << "   -- ls: " << gepObj->getLocationSet().getOffset() << "\n";
-    }
+    dumpNodeInfo(pta, nodeId);
   }
 }
 
@@ -48,23 +52,7 @@ static void visitLoad(PointerAnalysis *pta, Function *f, LoadInst *inst) {
   errs() << f->getName() << ": "  << *inst << ":\n";
   for (PointsTo::iterator i = pts.begin(); i != pts.end(); ++i) {
     NodeID nodeId = *i;
-    PAGNode *pagNode = pta->getPAG()->getPAGNode(nodeId);
-    ObjPN *obj = dyn_cast<ObjPN>(pagNode);
-    if (!obj) {
-      return;
-    }
-
-    const Value *value = obj->getMemObj()->getRefVal();
-    if (!value) {
-        continue;
-    }
-
-    errs() << "-- AS: " << *value << "\n";
-    errs() << "   -- kind: " << obj->getNodeKind() << "\n";
-    GepObjPN *gepObj = dyn_cast<GepObjPN>(obj);
-    if (gepObj) {
-      errs() << "   -- ls: " << gepObj->getLocationSet().getOffset() << "\n";
-    }
+    dumpNodeInfo(pta, nodeId);
   }
 }
 

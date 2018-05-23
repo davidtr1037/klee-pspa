@@ -7,6 +7,8 @@
 
 namespace klee {
 
+void dumpNodeInfo(PointerAnalysis *pta, NodeID nodeId);
+
 void dumpPTAResults(PointerAnalysis *pta);
 
 void dumpPTAResults(PointerAnalysis *pta,
