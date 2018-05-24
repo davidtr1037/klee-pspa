@@ -1383,7 +1383,6 @@ void Executor::executeCall(ExecutionState &state,
 
     updatePointsToOnCall(state, f, arguments);
     state.getPTA()->analyzeFunction(*kmodule->module, f);
-    dumpPTAResults(state.getPTA());
   }
 }
 
@@ -3907,6 +3906,16 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
   PointsTo &pts = state.getPTA()->getPts(src);
   pts.clear();
   pts.set(dst);
+
+  /* ... */
+  const AllocaInst *alloca = dyn_cast<AllocaInst>(mo->allocSite);
+  if (!alloca) {
+    return;
+  }
+
+  if (alloca->getParent()->getParent() == state.stack.back().kf->function) {
+    state.stack.back().localPointers.insert(src);
+  }
 }
 
 void Executor::updatePointsToOnCall(ExecutionState &state,

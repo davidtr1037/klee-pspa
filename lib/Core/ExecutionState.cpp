@@ -152,6 +152,11 @@ void ExecutionState::popFrame() {
   for (std::vector<const MemoryObject*>::iterator it = sf.allocas.begin(), 
          ie = sf.allocas.end(); it != ie; ++it)
     addressSpace.unbindObject(*it);
+  /* clear non-relevant points-to information */
+  for (const NodeID &n : sf.localPointers) {
+    PointsTo &pts = getPTA()->getPts(n);
+    pts.clear();
+  }
   stack.pop_back();
 }
 
