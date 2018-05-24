@@ -30,6 +30,16 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
     }
 
     NodeID nodeID = pta->getPAG()->getObjectNode(location.value);
+    if (SymbolTableInfo::isConstantObj(nodeID)) {
+        /* strings, ... */
+        return nodeID;
+    }
+
+    if (SymbolTableInfo::isBlkObj(nodeID)) {
+        /* TODO: handle... */
+        assert(false);
+    }
+
     if (pta->isHeapMemObj(nodeID)) {
         /* handle similarly to arrays */
         return pta->getGepObjNode(nodeID, LocationSet(0));
