@@ -1,8 +1,6 @@
 #include "klee/Internal/Analysis/PTAUtils.h"
 
 #include <MemoryModel/PointerAnalysis.h>
-#include <WPA/Andersen.h>
-#include <WPA/DynamicAndersenBase.h>
 
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>

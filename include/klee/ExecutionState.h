@@ -14,11 +14,13 @@
 #include "klee/Expr.h"
 #include "klee/Internal/ADT/TreeStream.h"
 #include "klee/MergeHandler.h"
-#include "klee/Internal/Analysis/DynamicAndersen.h"
 
 // FIXME: We do not want to be exposing these? :(
 #include "../../lib/Core/AddressSpace.h"
 #include "klee/Internal/Module/KInstIterator.h"
+
+#include "WPA/Andersen.h"
+#include "WPA/AndersenDynamic.h"
 
 #include <map>
 #include <set>
@@ -75,7 +77,7 @@ private:
   std::map<std::string, std::string> fnAliases;
 
   /* TODO: add docs */
-  DynamicAndersen *pta;
+  AndersenDynamic *pta;
 
 public:
   // Execution - Control Flow specific
@@ -178,11 +180,11 @@ public:
   bool merge(const ExecutionState &b);
   void dumpStack(llvm::raw_ostream &out) const;
 
-  void setPTA(DynamicAndersen *pta) {
+  void setPTA(AndersenDynamic *pta) {
     this->pta = pta;
   }
 
-  DynamicAndersen *getPTA() {
+  AndersenDynamic *getPTA() {
     return pta;
   }
 

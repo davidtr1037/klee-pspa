@@ -49,8 +49,9 @@
 #include "klee/Internal/System/Time.h"
 #include "klee/Internal/System/MemoryUsage.h"
 #include "klee/SolverStats.h"
-#include "klee/Internal/Analysis/DynamicAndersen.h"
 #include "klee/Internal/Analysis/PTAUtils.h"
+
+#include "WPA/AndersenDynamic.h"
 
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Attributes.h"
@@ -1381,8 +1382,8 @@ void Executor::executeCall(ExecutionState &state,
     }
 
     updatePointsToOnCall(state, f, arguments);
-    state.getPTA()->analyze(*kmodule->module);
-    dumpPTAResults(state.getPTA(), f);
+    state.getPTA()->analyzeFunction(*kmodule->module, f);
+    dumpPTAResults(state.getPTA());
   }
 }
 
@@ -3532,7 +3533,7 @@ void Executor::runFunctionAsMain(Function *f,
   ExecutionState *state = new ExecutionState(kmodule->functionMap[f]);
 
   /* TODO: add docs */
-  DynamicAndersen *pta = new DynamicAndersen(*kmodule->module);
+  AndersenDynamic *pta = new AndersenDynamic();
   pta->initialize(*kmodule->module);
   state->setPTA(pta);
   

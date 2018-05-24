@@ -8,7 +8,6 @@
 #===------------------------------------------------------------------------===#
 
 klee_add_component(kleeAnalysis
-    DynamicAndersen.cpp
     PTAUtils.cpp
 )
 
