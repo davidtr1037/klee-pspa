@@ -13,7 +13,9 @@ using namespace klee;
 using namespace llvm;
 
 NodeID klee::computeAbstractMO(PointerAnalysis *pta,
-                               DynamicMemoryLocation &location) {
+                               DynamicMemoryLocation &location,
+                               PointerType *hint) {
+    /* get the type from the allocation site */
     PointerType *moType = dyn_cast<PointerType>(location.value->getType());
     if (!moType) {
         const CallInst *callInst = dyn_cast<CallInst>(location.value);
@@ -40,17 +42,30 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
         assert(false);
     }
 
+    uint32_t offset = location.offset;
+    Type *elementType;
+    uint32_t abstractOffset;
+
     if (pta->isHeapMemObj(nodeID)) {
-        /* handle similarly to arrays */
-        return pta->getGepObjNode(nodeID, LocationSet(0));
+        if (!hint) {
+            /* handle similarly to arrays */
+            return pta->getGepObjNode(nodeID, LocationSet(0));
+        }
+
+        /* we have a type hint... */
+        elementType = hint->getElementType();
+        StInfo *stInfo = SymbolTableInfo::SymbolInfo()->getStructInfo(elementType);
+        offset = offset % stInfo->getSize();
+        abstractOffset = computeAbstractFieldOffset(offset, elementType);
+        return pta->getGepObjNode(nodeID, LocationSet(abstractOffset));
     }
 
-    Type *elementType = moType->getElementType();
+    elementType = moType->getElementType();
     if (elementType->isSingleValueType()) {
         return pta->getFIObjNode(nodeID);
     }
 
-    uint32_t abstractOffset = computeAbstractFieldOffset(location.offset, elementType);
+    abstractOffset = computeAbstractFieldOffset(offset, elementType);
     return pta->getGepObjNode(nodeID, LocationSet(abstractOffset));
 }
 
@@ -66,8 +81,6 @@ uint32_t klee::computeAbstractFieldOffset(uint32_t offset,
 
     StInfo *stInfo = SymbolTableInfo::SymbolInfo()->getStructInfo(moType);
     if (offset > stInfo->getSize()) {
-        moType->dump();
-        errs() << "offset: " << offset << "\n";
         assert(false);
     }
 
@@ -80,6 +93,11 @@ uint32_t klee::computeAbstractFieldOffset(uint32_t offset,
     if (isa<StructType>(moType)) {
         uint32_t flattenOffset = 0;
         for (FieldLayout &fl : stInfo->getFieldLayoutVec()) {
+            if (offset < fl.offset) {
+                /* something went wrong... */
+                assert(false);
+            }
+
             if (offset < fl.offset + fl.size) {
                 return flattenOffset + computeAbstractFieldOffset(offset - fl.offset,
                                                                   fl.type);
@@ -88,6 +106,9 @@ uint32_t klee::computeAbstractFieldOffset(uint32_t offset,
             StInfo *fieldStInfo = SymbolTableInfo::SymbolInfo()->getStructInfo(fl.type);
             flattenOffset += fieldStInfo->getFlattenFieldInfoVec().size();
         }
+
+        /* we should not get here... */
+        assert(false);
     }
 
     if (isa<FunctionType>(moType)) {
@@ -95,7 +116,6 @@ uint32_t klee::computeAbstractFieldOffset(uint32_t offset,
         return 0;
     }
 
-    errs() << "unexpected type: " << moType->getTypeID(); moType->dump();
     assert(false);
     return 0;
 }

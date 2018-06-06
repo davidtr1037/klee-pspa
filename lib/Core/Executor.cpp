@@ -4005,7 +4005,15 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
       continue;
     }
 
-    NodeID dst = computeAbstractMO(state.getPTA(), location);
+    PointerType *hint = NULL;
+    if (location.hints.size() > 0) {
+        if (location.hints.size() > 1) {
+            assert(false);
+        }
+        hint = location.hints.front();
+    }
+
+    NodeID dst = computeAbstractMO(state.getPTA(), location, hint);
     NodeID formalParamId = state.getPTA()->getPAG()->getValueNode(&arg);
 
     PointsTo &pts = state.getPTA()->getPts(formalParamId);
