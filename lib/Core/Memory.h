@@ -14,6 +14,7 @@
 #include "klee/Expr.h"
 
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/IR/DerivedTypes.h"
 
 #include <vector>
 #include <string>
@@ -64,6 +65,8 @@ public:
   /// with allowing it to be added to during execution (although
   /// should sensibly be only at creation time).
   mutable std::vector< ref<Expr> > cexPreferences;
+
+  mutable std::set<llvm::PointerType *> types;
 
   // DO NOT IMPLEMENT
   MemoryObject(const MemoryObject &b);

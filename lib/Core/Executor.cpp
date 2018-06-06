@@ -2094,6 +2094,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   case Instruction::BitCast: {
     ref<Expr> result = eval(ki, 0, state).value;
     bindLocal(ki, state, result);
+    handleBitCast(state, ki, result);
     break;
   }
 
@@ -3862,6 +3863,60 @@ void Executor::getDynamicMemoryLocation(ExecutionState &state,
 
   location.value = mo->allocSite;
   location.offset = ce->getZExtValue();
+  for (PointerType *type : mo->types) {
+    location.hints.push_back(type);
+  }
+}
+
+void Executor::handleBitCast(ExecutionState &state,
+                             KInstruction *ki,
+                             ref<Expr> value) {
+  BitCastInst *castInst = dyn_cast<BitCastInst>(ki->inst);
+  if (!castInst) {
+    return;
+  }
+
+  PointerType *dstType = dyn_cast<PointerType>(castInst->getDestTy());
+  if (!dstType) {
+    return;
+  }
+
+  if (dstType->getElementType()->isSingleValueType()) {
+    IntegerType *integerType = dyn_cast<IntegerType>(dstType->getElementType());
+    if (integerType && integerType->getBitWidth() == 8) {
+      /* if the destination type is i8*, then ignore */
+      return;
+    }
+  }
+
+  ObjectPair op;
+  bool wasResolved;
+
+  solver->setTimeout(coreSolverTimeout);
+  if (!state.addressSpace.resolveOne(state, solver, value, op, wasResolved)) {
+    /* TODO: should we concretize here? */
+    assert(false);
+  }
+  solver->setTimeout(0);
+
+  if (!wasResolved) {
+    /* we can't add any type information */
+    return;
+  }
+
+  const MemoryObject *mo = op.first;
+  if (mo->allocSite->getType() == dstType) {
+    return;
+  }
+
+  ref<Expr> offset = mo->getOffsetExpr(value);
+  ConstantExpr *ce = dyn_cast<ConstantExpr>(offset);
+  if (!ce || ce->getZExtValue() != 0) {
+    return;
+  }
+
+  /* add type hint */
+  mo->types.insert(dstType);
 }
 
 void Executor::updatePointsToOnStore(ExecutionState &state,
@@ -3897,6 +3952,7 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
   /* TODO: try to concretize? */
   ConstantExpr *ce = dyn_cast<ConstantExpr>(offset);
   if (!ce) {
+    /* TODO: handle... */
     assert(false);
   }
 

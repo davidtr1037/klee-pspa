@@ -534,6 +534,10 @@ public:
                                 llvm::PointerType *valueType,
                                 DynamicMemoryLocation &location);
 
+  void handleBitCast(ExecutionState &state,
+                     KInstruction *ki,
+                     ref<Expr> value);
+
   void updatePointsToOnStore(ExecutionState &state,
                              const MemoryObject *mo,
                              ref<Expr> offset,

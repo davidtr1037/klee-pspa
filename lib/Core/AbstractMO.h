@@ -7,12 +7,14 @@
 #include <MemoryModel/PointerAnalysis.h>
 
 #include <stdint.h>
+#include <vector>
 
 namespace klee {
 
 struct DynamicMemoryLocation {
   const llvm::Value *value;
   uint64_t offset;
+  std::vector<llvm::PointerType *> hints;
 
   DynamicMemoryLocation() :
     value(NULL), offset(0) {
