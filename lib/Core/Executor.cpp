@@ -3947,17 +3947,26 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
     return;
   }
 
+  /* TODO: use hint here? */
   NodeID dst = computeAbstractMO(state.getPTA(), location);
 
-  /* TODO: try to concretize? */
   ConstantExpr *ce = dyn_cast<ConstantExpr>(offset);
   if (!ce) {
     /* TODO: handle... */
     assert(false);
   }
 
+  /* try to get a hint... */
+  PointerType *hint = NULL;
+  if (mo->types.size() > 0) {
+    if (mo->types.size() > 1) {
+      assert(false);
+    }
+    hint = *mo->types.begin();
+  }
+
   DynamicMemoryLocation storeLocation(mo->allocSite, ce->getZExtValue());
-  NodeID src = computeAbstractMO(state.getPTA(), storeLocation);
+  NodeID src = computeAbstractMO(state.getPTA(), storeLocation, hint);
 
   PointsTo &pts = state.getPTA()->getPts(src);
   pts.clear();
