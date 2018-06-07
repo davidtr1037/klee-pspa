@@ -4007,10 +4007,10 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
 
     PointerType *hint = NULL;
     if (location.hints.size() > 0) {
-        if (location.hints.size() > 1) {
-            assert(false);
-        }
-        hint = location.hints.front();
+      if (location.hints.size() > 1) {
+        assert(false);
+      }
+      hint = location.hints.front();
     }
 
     NodeID dst = computeAbstractMO(state.getPTA(), location, hint);
