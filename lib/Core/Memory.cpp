@@ -66,6 +66,9 @@ int MemoryObject::counter = 0;
 MemoryObject::~MemoryObject() {
   if (parent)
     parent->markFreed(this);
+  if (uniqueAllocSite) {
+    delete uniqueAllocSite;
+  }
 }
 
 void MemoryObject::getAllocInfo(std::string &result) const {

@@ -59,7 +59,10 @@ public:
   /// should be either the allocating instruction or the global object
   /// it was allocated for (or whatever else makes sense).
   const llvm::Value *allocSite;
-  
+
+  /* TODO: initialize in the constructor! */
+  mutable const llvm::Value *uniqueAllocSite;
+
   /// A list of boolean expressions the user has requested be true of
   /// a counterexample. Mutable since we play a little fast and loose
   /// with allowing it to be added to during execution (although
@@ -82,7 +85,8 @@ public:
       size(0),
       isFixed(true),
       parent(NULL),
-      allocSite(0) {
+      allocSite(0),
+      uniqueAllocSite(0) {
   }
 
   MemoryObject(uint64_t _address, unsigned _size, 
@@ -99,7 +103,9 @@ public:
       isFixed(_isFixed),
       isUserSpecified(false),
       parent(_parent), 
-      allocSite(_allocSite) {
+      allocSite(_allocSite),
+      uniqueAllocSite(0) {
+
   }
 
   ~MemoryObject();
