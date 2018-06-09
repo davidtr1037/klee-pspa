@@ -216,6 +216,9 @@ private:
   // @brief buffer to store logs before flushing to file
   llvm::raw_string_ostream debugLogBuffer;
 
+  /* TODO: find a better solution */
+  std::vector<const llvm::Value *> clonedAllocSites;
+
   llvm::Function* getTargetFunction(llvm::Value *calledVal,
                                     ExecutionState &state);
   

@@ -423,6 +423,10 @@ const Module *Executor::setModule(llvm::Module *module,
 }
 
 Executor::~Executor() {
+  /* TODO: find a better solution */
+  for (const Value *value : clonedAllocSites) {
+    delete value;
+  }
   delete memory;
   delete externalDispatcher;
   delete processTree;
@@ -3853,6 +3857,8 @@ const Value *Executor::getAllocSite(ExecutionState &state, const MemoryObject *m
   /* that should be a dynamic allocation */
   if (!mo->uniqueAllocSite) {
     mo->uniqueAllocSite = addClonedObjNode(state, mo->allocSite);
+    /* TODO: find a better solution */
+    clonedAllocSites.push_back(mo->uniqueAllocSite);
   }
 
   return mo->uniqueAllocSite;
