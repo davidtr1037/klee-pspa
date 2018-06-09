@@ -529,6 +529,10 @@ public:
 
   bool isTargetFunction(ExecutionState &state, llvm::Function *f);
 
+  const llvm::Value *addClonedObjNode(ExecutionState &state, const llvm::Value *value);
+
+  const llvm::Value *getAllocSite(ExecutionState &state, const MemoryObject *mo);
+
   void getDynamicMemoryLocation(ExecutionState &state,
                                 ref<Expr> value,
                                 llvm::PointerType *valueType,

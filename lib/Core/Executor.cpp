@@ -3831,6 +3831,33 @@ bool Executor::isTargetFunction(ExecutionState &state, Function *f) {
   return false;
 }
 
+const Value *Executor::addClonedObjNode(ExecutionState &state, const Value *value) {
+  if (!isa<Instruction>(value)) {
+    assert(false);
+  }
+
+  /* create a copy of the original allocation site */
+  const Value *newValue = dyn_cast<Instruction>(value)->clone();
+
+  /* add a node for it in the PAG */
+  state.getPTA()->getPAG()->addExternalObjNode(newValue);
+
+  return newValue;
+}
+
+const Value *Executor::getAllocSite(ExecutionState &state, const MemoryObject *mo) {
+  if (mo->isLocal || mo->isGlobal) {
+    return mo->allocSite;
+  }
+
+  /* that should be a dynamic allocation */
+  if (!mo->uniqueAllocSite) {
+    mo->uniqueAllocSite = addClonedObjNode(state, mo->allocSite);
+  }
+
+  return mo->uniqueAllocSite;
+}
+
 void Executor::getDynamicMemoryLocation(ExecutionState &state,
                                         ref<Expr> value,
                                         PointerType *valueType,
@@ -3861,8 +3888,9 @@ void Executor::getDynamicMemoryLocation(ExecutionState &state,
     assert(false);
   }
 
-  location.value = mo->allocSite;
+  location.value = getAllocSite(state, mo);
   location.offset = ce->getZExtValue();
+
   for (PointerType *type : mo->types) {
     location.hints.push_back(type);
   }
@@ -3965,7 +3993,8 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
     hint = *mo->types.begin();
   }
 
-  DynamicMemoryLocation storeLocation(mo->allocSite, ce->getZExtValue());
+  const Value *storeAllocSite = getAllocSite(state, mo);
+  DynamicMemoryLocation storeLocation(storeAllocSite, ce->getZExtValue());
   NodeID src = computeAbstractMO(state.getPTA(), storeLocation, hint);
 
   PointsTo &pts = state.getPTA()->getPts(src);
