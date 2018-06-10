@@ -8,11 +8,11 @@
 namespace klee {
 
 struct PTAStats {
-    uint32_t count;
+    uint32_t queries;
     uint32_t total;
     uint32_t max_size;
 
-    PTAStats() : count(0), total(0), max_size(0) {
+    PTAStats() : queries(0), total(0), max_size(0) {
 
     }
 };

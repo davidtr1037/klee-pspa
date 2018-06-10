@@ -55,17 +55,17 @@ static unsigned visitLoad(PointerAnalysis *pta,
   NodeID id = pta->getPAG()->getValueNode(inst->getPointerOperand());
   PointsTo &pts = pta->getPts(id);
 
-  errs() << f->getName() << ": "  << *inst << ":\n";
+  //errs() << f->getName() << ": "  << *inst << ":\n";
   for (PointsTo::iterator i = pts.begin(); i != pts.end(); ++i) {
     NodeID nodeId = *i;
-    dumpNodeInfo(pta, nodeId);
+    //dumpNodeInfo(pta, nodeId);
   }
 
   return pts.count();
 }
 
 static void updatePTAStats(PTAStats &stats, unsigned size) {
-  stats.count += 1;
+  stats.queries += 1;
   stats.total += size;
   if (size > stats.max_size) {
     stats.max_size = size;
