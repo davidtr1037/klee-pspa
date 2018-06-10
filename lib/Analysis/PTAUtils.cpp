@@ -1,4 +1,5 @@
 #include "klee/Internal/Analysis/PTAUtils.h"
+#include "klee/Internal/Analysis/Reachability.h"
 
 #include <MemoryModel/PointerAnalysis.h>
 
@@ -13,7 +14,8 @@ using namespace llvm;
 using namespace klee;
 
 
-void klee::dumpNodeInfo(PointerAnalysis *pta, NodeID nodeId) {
+void klee::dumpNodeInfo(PointerAnalysis *pta,
+                        NodeID nodeId) {
     errs() << "-- node: " << nodeId << "\n";
     PAGNode *pagNode = pta->getPAG()->getPAGNode(nodeId);
     ObjPN *obj = dyn_cast<ObjPN>(pagNode);
@@ -32,7 +34,9 @@ void klee::dumpNodeInfo(PointerAnalysis *pta, NodeID nodeId) {
     }
 }
 
-static void visitStore(PointerAnalysis *pta, Function *f, StoreInst *inst) {
+static unsigned visitStore(PointerAnalysis *pta,
+                           Function *f,
+                           StoreInst *inst) {
   NodeID id = pta->getPAG()->getValueNode(inst->getPointerOperand());
   PointsTo &pts = pta->getPts(id);
 
@@ -41,9 +45,13 @@ static void visitStore(PointerAnalysis *pta, Function *f, StoreInst *inst) {
     NodeID nodeId = *i;
     dumpNodeInfo(pta, nodeId);
   }
+
+  return pts.count();
 }
 
-static void visitLoad(PointerAnalysis *pta, Function *f, LoadInst *inst) {
+static unsigned visitLoad(PointerAnalysis *pta,
+                          Function *f,
+                          LoadInst *inst) {
   NodeID id = pta->getPAG()->getValueNode(inst->getPointerOperand());
   PointsTo &pts = pta->getPts(id);
 
@@ -51,25 +59,52 @@ static void visitLoad(PointerAnalysis *pta, Function *f, LoadInst *inst) {
   for (PointsTo::iterator i = pts.begin(); i != pts.end(); ++i) {
     NodeID nodeId = *i;
     dumpNodeInfo(pta, nodeId);
+  }
+
+  return pts.count();
+}
+
+static void updatePTAStats(PTAStats &stats, unsigned size) {
+  stats.count += 1;
+  stats.total += size;
+  if (size > stats.max_size) {
+    stats.max_size = size;
+  }
+}
+
+void dumpPTA(PointerAnalysis *pta,
+             Function *f,
+             PTAStats &stats) {
+  unsigned pts_size;
+
+  for (inst_iterator j = inst_begin(f); j != inst_end(f); j++) {
+    Instruction *inst = &*j;
+    if (inst->getOpcode() == Instruction::Store) {
+      pts_size = visitStore(pta, f, dyn_cast<StoreInst>(inst));
+      updatePTAStats(stats, pts_size);
+    }
+    if (inst->getOpcode() == Instruction::Load) {
+      pts_size = visitLoad(pta, f, dyn_cast<LoadInst>(inst));
+      updatePTAStats(stats, pts_size);
+    }
   }
 }
 
 void klee::dumpPTAResults(PointerAnalysis *pta,
-                          Function *f) {
-  for (inst_iterator j = inst_begin(f); j != inst_end(f); j++) {
-    Instruction *inst = &*j;
-    if (inst->getOpcode() == Instruction::Store) {
-      visitStore(pta, f, dyn_cast<StoreInst>(inst));
-    }
-    if (inst->getOpcode() == Instruction::Load) {
-      visitLoad(pta, f, dyn_cast<LoadInst>(inst));
-    }
+                          Function *entry,
+                          PTAStats &stats) {
+  /* compute reachable functions (without resolving) */
+  FunctionSet functions;
+  computeReachableFunctions(entry, functions);
+
+  for (Function *f : functions) {
+    dumpPTA(pta, f, stats);
   }
 }
 
-void klee::dumpPTAResults(PointerAnalysis *pta) {
+void klee::dumpPTAResults(PointerAnalysis *pta, PTAStats &stats) {
   Module &module = *pta->getModule();
   for (Function &f : module) {
-    dumpPTAResults(pta, &f);
+    dumpPTAResults(pta, &f, stats);
   }
 }

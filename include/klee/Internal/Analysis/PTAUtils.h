@@ -7,12 +7,25 @@
 
 namespace klee {
 
-void dumpNodeInfo(PointerAnalysis *pta, NodeID nodeId);
+struct PTAStats {
+    uint32_t count;
+    uint32_t total;
+    uint32_t max_size;
 
-void dumpPTAResults(PointerAnalysis *pta);
+    PTAStats() : count(0), total(0), max_size(0) {
+
+    }
+};
+
+void dumpNodeInfo(PointerAnalysis *pta,
+                  NodeID nodeId);
 
 void dumpPTAResults(PointerAnalysis *pta,
-                    llvm::Function *f);
+                    llvm::Function *entry,
+                    PTAStats &state);
+
+void dumpPTAResults(PointerAnalysis *pta,
+                    PTAStats &stats);
 
 }
 

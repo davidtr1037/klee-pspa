@@ -12,9 +12,9 @@ using namespace klee;
 using namespace std;
 
 
-void klee::computeReachableFunctions(const Function *entry,
+void klee::computeReachableFunctions(Function *entry,
                                      FunctionSet &results) {
-    stack<const Function *> worklist;
+    stack<Function *> worklist;
     FunctionSet pushed;
 
     worklist.push(entry);
@@ -22,17 +22,17 @@ void klee::computeReachableFunctions(const Function *entry,
     results.insert(entry);
 
     while (!worklist.empty()) {
-        const Function *f = worklist.top();
+        Function *f = worklist.top();
         worklist.pop();
 
-        for (const_inst_iterator iter = inst_begin(f); iter != inst_end(f); iter++) {
-            const Instruction *inst = &*iter;
+        for (inst_iterator iter = inst_begin(f); iter != inst_end(f); iter++) {
+            Instruction *inst = &*iter;
             if (inst->getOpcode() != Instruction::Call) {
                 continue;
             }
 
-            const CallInst *callInst = dyn_cast<CallInst>(inst);
-            const Function *target = callInst->getCalledFunction();
+            CallInst *callInst = dyn_cast<CallInst>(inst);
+            Function *target = callInst->getCalledFunction();
             if (!target) {
                 continue;
             }

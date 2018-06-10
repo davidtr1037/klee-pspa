@@ -7,9 +7,9 @@
 
 namespace klee {
 
-typedef std::set<const llvm::Function *> FunctionSet;
+typedef std::set<llvm::Function *> FunctionSet;
 
-void computeReachableFunctions(const llvm::Function *entry,
+void computeReachableFunctions(llvm::Function *entry,
                                FunctionSet &results);
 
 };
