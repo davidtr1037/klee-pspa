@@ -3840,6 +3840,23 @@ bool Executor::isTargetFunction(ExecutionState &state, Function *f) {
   return false;
 }
 
+void Executor::evaluateWholeProgramPTA() {
+  PointerAnalysis *andersen = new Andersen();
+  andersen->analyze(*kmodule->module);
+
+  /* evalute results */
+  for (const TargetFunctionOption &option :  interpreterOpts.targetFunctions) {
+    Function *f = kmodule->module->getFunction(option.name);
+    PTAStats stats;
+    evaluatePTAResults(andersen, f, stats, false);
+    klee_message("Andersen Points-to queries: %u", stats.queries);
+    klee_message("Andersen Points-to average size: %f",
+                 float(stats.total) / float(stats.queries));
+    klee_message("Andersen Points-to max size: %u", stats.max_size);
+  }
+  delete andersen;
+}
+
 const Value *Executor::addClonedObjNode(ExecutionState &state, const Value *value) {
   if (!isa<Instruction>(value)) {
     assert(false);
