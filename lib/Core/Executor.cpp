@@ -1387,6 +1387,11 @@ void Executor::executeCall(ExecutionState &state,
 
     updatePointsToOnCall(state, f, arguments);
     state.getPTA()->analyzeFunction(*kmodule->module, f);
+    PTAStats stats;
+    evaluatePTAResults(state.getPTA(), f, stats, false);
+    klee_message("Points-to queries: %u", stats.queries);
+    klee_message("Points-to average size: %f", float(stats.total) / float(stats.queries));
+    klee_message("Points-to max size: %u", stats.max_size);
   }
 }
 

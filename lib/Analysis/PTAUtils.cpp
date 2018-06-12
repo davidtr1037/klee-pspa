@@ -36,14 +36,17 @@ void klee::dumpNodeInfo(PointerAnalysis *pta,
 
 static unsigned visitStore(PointerAnalysis *pta,
                            Function *f,
-                           StoreInst *inst) {
+                           StoreInst *inst,
+                           bool dump) {
   NodeID id = pta->getPAG()->getValueNode(inst->getPointerOperand());
   PointsTo &pts = pta->getPts(id);
 
-  errs() << f->getName() << ": "  << *inst << ":\n";
-  for (PointsTo::iterator i = pts.begin(); i != pts.end(); ++i) {
-    NodeID nodeId = *i;
-    dumpNodeInfo(pta, nodeId);
+  if (dump) {
+    errs() << f->getName() << ": "  << *inst << ":\n";
+    for (PointsTo::iterator i = pts.begin(); i != pts.end(); ++i) {
+      NodeID nodeId = *i;
+      dumpNodeInfo(pta, nodeId);
+    }
   }
 
   return pts.count();
@@ -51,14 +54,17 @@ static unsigned visitStore(PointerAnalysis *pta,
 
 static unsigned visitLoad(PointerAnalysis *pta,
                           Function *f,
-                          LoadInst *inst) {
+                          LoadInst *inst,
+                          bool dump) {
   NodeID id = pta->getPAG()->getValueNode(inst->getPointerOperand());
   PointsTo &pts = pta->getPts(id);
 
-  //errs() << f->getName() << ": "  << *inst << ":\n";
-  for (PointsTo::iterator i = pts.begin(); i != pts.end(); ++i) {
-    NodeID nodeId = *i;
-    //dumpNodeInfo(pta, nodeId);
+  if (dump) {
+    errs() << f->getName() << ": "  << *inst << ":\n";
+    for (PointsTo::iterator i = pts.begin(); i != pts.end(); ++i) {
+      NodeID nodeId = *i;
+      dumpNodeInfo(pta, nodeId);
+    }
   }
 
   return pts.count();
@@ -72,39 +78,43 @@ static void updatePTAStats(PTAStats &stats, unsigned size) {
   }
 }
 
-void dumpPTA(PointerAnalysis *pta,
-             Function *f,
-             PTAStats &stats) {
+void evaluatePTA(PointerAnalysis *pta,
+                 Function *f,
+                 PTAStats &stats,
+                 bool dump) {
   unsigned pts_size;
 
   for (inst_iterator j = inst_begin(f); j != inst_end(f); j++) {
     Instruction *inst = &*j;
     if (inst->getOpcode() == Instruction::Store) {
-      pts_size = visitStore(pta, f, dyn_cast<StoreInst>(inst));
+      pts_size = visitStore(pta, f, dyn_cast<StoreInst>(inst), dump);
       updatePTAStats(stats, pts_size);
     }
     if (inst->getOpcode() == Instruction::Load) {
-      pts_size = visitLoad(pta, f, dyn_cast<LoadInst>(inst));
+      pts_size = visitLoad(pta, f, dyn_cast<LoadInst>(inst), dump);
       updatePTAStats(stats, pts_size);
     }
   }
 }
 
-void klee::dumpPTAResults(PointerAnalysis *pta,
-                          Function *entry,
-                          PTAStats &stats) {
+void klee::evaluatePTAResults(PointerAnalysis *pta,
+                              Function *entry,
+                              PTAStats &stats,
+                              bool dump) {
   /* compute reachable functions (without resolving) */
   FunctionSet functions;
   computeReachableFunctions(entry, functions);
 
   for (Function *f : functions) {
-    dumpPTA(pta, f, stats);
+    evaluatePTA(pta, f, stats, dump);
   }
 }
 
-void klee::dumpPTAResults(PointerAnalysis *pta, PTAStats &stats) {
+void klee::evaluatePTAResults(PointerAnalysis *pta,
+                              PTAStats &stats,
+                              bool dump) {
   Module &module = *pta->getModule();
   for (Function &f : module) {
-    dumpPTAResults(pta, &f, stats);
+    evaluatePTA(pta, &f, stats, dump);
   }
 }

@@ -20,12 +20,14 @@ struct PTAStats {
 void dumpNodeInfo(PointerAnalysis *pta,
                   NodeID nodeId);
 
-void dumpPTAResults(PointerAnalysis *pta,
-                    llvm::Function *entry,
-                    PTAStats &state);
+void evaluatePTAResults(PointerAnalysis *pta,
+                        llvm::Function *entry,
+                        PTAStats &state,
+                        bool dump = true);
 
-void dumpPTAResults(PointerAnalysis *pta,
-                    PTAStats &stats);
+void evaluatePTAResults(PointerAnalysis *pta,
+                        PTAStats &stats,
+                        bool dump = true);
 
 }
 
