@@ -178,6 +178,23 @@ public:
   bool runOnModule(llvm::Module &M);
   bool checkPassed() const { return instructionOperandsConform; }
 };
+
+class UnusedValuesRemovalPass : public llvm::ModulePass {
+private:
+  std::string entry;
+
+public:
+  static char ID;
+
+  UnusedValuesRemovalPass(std::string &entry) :
+    llvm::ModulePass(ID), entry(entry) {
+
+  }
+
+  // TODO: Add `override` when we switch to C++11
+  bool runOnModule(llvm::Module &M);
+};
+
 }
 
 #endif
