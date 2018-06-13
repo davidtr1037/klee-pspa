@@ -181,12 +181,12 @@ public:
 
 class UnusedValuesRemovalPass : public llvm::ModulePass {
 private:
-  std::string entry;
+  const std::string entry;
 
 public:
   static char ID;
 
-  UnusedValuesRemovalPass(std::string &entry) :
+  UnusedValuesRemovalPass(const std::string &entry) :
     llvm::ModulePass(ID), entry(entry) {
 
   }
