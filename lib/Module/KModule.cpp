@@ -331,6 +331,10 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
     p2->runOnFunction(f);
   }
 
+  LegacyLLVMPassManagerTy passManager;
+  passManager.add(new UnusedValuesRemovalPass(opts.EntryPoint));
+  passManager.run(*module);
+
   if (OutputModule) {
     llvm::raw_fd_ostream *f = ih->openOutputFile("final.bc");
     WriteBitcodeToFile(module, *f);
