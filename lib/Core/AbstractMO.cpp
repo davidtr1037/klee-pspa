@@ -21,6 +21,7 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
     if (!moType) {
         const CallInst *callInst = dyn_cast<CallInst>(location.value);
         if (callInst) {
+            /* TODO: handle vararg... */
             Function *callee = callInst->getCalledFunction();
             if (callee->getName() == "__uClibc_main") {
                 return 0;
