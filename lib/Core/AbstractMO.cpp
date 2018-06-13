@@ -25,6 +25,9 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
             if (callee->getName() == "__uClibc_main") {
                 return 0;
             }
+            if (callee->getName() == "version_etc") {
+                return 0;
+            }
         }
 
         /* TODO: check the __uClibc_main wierd case... */
