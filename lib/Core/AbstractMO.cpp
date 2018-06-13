@@ -11,6 +11,7 @@
 
 using namespace klee;
 using namespace llvm;
+using namespace std;
 
 NodeID klee::computeAbstractMO(PointerAnalysis *pta,
                                DynamicMemoryLocation &location,
@@ -98,9 +99,11 @@ uint32_t klee::computeAbstractFieldOffset(uint32_t offset,
                 assert(false);
             }
 
+            uint32_t unalignedSize, nextOffset;
             if (offset < fl.offset + fl.size) {
-                return flattenOffset + computeAbstractFieldOffset(offset - fl.offset,
-                                                                  fl.type);
+                unalignedSize = SymbolTableInfo::SymbolInfo()->getTypeSizeInBytes(fl.type);
+                nextOffset = min(unalignedSize - 1, offset - fl.offset);
+                return flattenOffset + computeAbstractFieldOffset(nextOffset, fl.type);
             }
 
             StInfo *fieldStInfo = SymbolTableInfo::SymbolInfo()->getStructInfo(fl.type);
