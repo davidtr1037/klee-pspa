@@ -304,6 +304,11 @@ namespace {
   MaxMemoryInhibit("max-memory-inhibit",
             cl::desc("Inhibit forking at memory cap (vs. random terminate) (default=on)"),
             cl::init(true));
+
+  cl::opt<bool>
+  RunStaticPTA("run-static-pta",
+               cl::init(true),
+               cl::desc("Run statis pointer analysis (before the execution)"));
 }
 
 
@@ -3496,6 +3501,10 @@ void Executor::runFunctionAsMain(Function *f,
 				 char **argv,
 				 char **envp) {
   std::vector<ref<Expr> > arguments;
+
+  if (RunStaticPTA) {
+    evaluateWholeProgramPTA();
+  }
 
   // force deterministic initialization of memory objects
   srand(1);
