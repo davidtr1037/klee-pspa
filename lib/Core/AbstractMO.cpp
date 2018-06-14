@@ -16,6 +16,10 @@ using namespace std;
 NodeID klee::computeAbstractMO(PointerAnalysis *pta,
                                DynamicMemoryLocation &location,
                                PointerType *hint) {
+    if (isa<ConstantPointerNull>(location.value)) {
+        return pta->getPAG()->getNullPtr();
+    }
+
     /* get the type from the allocation site */
     PointerType *moType = dyn_cast<PointerType>(location.value->getType());
     if (!moType) {

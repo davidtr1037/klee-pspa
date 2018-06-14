@@ -4007,11 +4007,6 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
     return;
   }
 
-  if (isa<ConstantPointerNull>(location.value)) {
-    /* if the written value is null, then there is no need to update */
-    return;
-  }
-
   /* TODO: use hint here? */
   NodeID dst = computeAbstractMO(state.getPTA(), location);
 
@@ -4034,9 +4029,7 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
   DynamicMemoryLocation storeLocation(storeAllocSite, ce->getZExtValue());
   NodeID src = computeAbstractMO(state.getPTA(), storeLocation, hint);
 
-  PointsTo &pts = state.getPTA()->getPts(src);
-  pts.clear();
-  pts.set(dst);
+  state.getPTA()->strongUpdate(src, dst);
 
   /* ... */
   const AllocaInst *alloca = dyn_cast<AllocaInst>(mo->allocSite);
@@ -4091,9 +4084,7 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
     NodeID dst = computeAbstractMO(state.getPTA(), location, hint);
     NodeID formalParamId = state.getPTA()->getPAG()->getValueNode(&arg);
 
-    PointsTo &pts = state.getPTA()->getPts(formalParamId);
-    pts.clear();
-    pts.set(dst);
+    state.getPTA()->strongUpdate(formalParamId, dst);
   }
 }
 
