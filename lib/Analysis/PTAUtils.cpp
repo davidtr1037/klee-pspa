@@ -103,7 +103,7 @@ void klee::evaluatePTAResults(PointerAnalysis *pta,
                               bool dump) {
   /* compute reachable functions (without resolving) */
   FunctionSet functions;
-  computeReachableFunctions(entry, functions);
+  computeReachableFunctions(entry, pta, functions);
 
   for (Function *f : functions) {
     evaluatePTA(pta, f, stats, dump);
