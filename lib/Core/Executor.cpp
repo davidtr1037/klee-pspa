@@ -3910,6 +3910,17 @@ void Executor::getDynamicMemoryLocation(ExecutionState &state,
   solver->setTimeout(0);
 
   if (!wasResolved) {
+    /* it may be a function pointer */
+    ConstantExpr *ce = dyn_cast<ConstantExpr>(value);
+    if (ce) {
+      uint64_t addr = ce->getZExtValue();
+      if (legalFunctions.count(addr)) {
+        location.value = (const Function *)(addr);
+        location.offset = 0;
+        return;
+      }
+    }
+
     /* TODO: check specifically if it's a NULL value? */
     location.value = ConstantPointerNull::get(valueType);
     location.offset = 0;

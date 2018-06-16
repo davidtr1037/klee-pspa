@@ -25,7 +25,12 @@ void klee::dumpNodeInfo(PointerAnalysis *pta,
             return;
         }
 
-        errs() << "-- AS: " << *value << "\n";
+        if (isa<Function>(value)) {
+            const Function *f = dyn_cast<Function>(value);
+            errs() << "-- AS: " << f->getName() << "\n";
+        } else {
+            errs() << "-- AS: " << *value << "\n";
+        }
         errs() << "   -- kind: " << obj->getNodeKind() << "\n";
         GepObjPN *gepObj = dyn_cast<GepObjPN>(obj);
         if (gepObj) {

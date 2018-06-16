@@ -55,7 +55,16 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
     Type *elementType;
     uint32_t abstractOffset;
 
-    if (pta->isHeapMemObj(nodeID)) {
+    const MemObj *mem = pta->getPAG()->getObject(nodeID);
+    if (!mem) {
+        assert(false);
+    }
+
+    if (mem->isFunction()) {
+        return pta->getFIObjNode(nodeID);
+    }
+
+    if (mem->isHeap()) {
         if (!hint) {
             /* handle similarly to arrays */
             return pta->getGepObjNode(nodeID, LocationSet(0));
