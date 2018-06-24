@@ -3855,19 +3855,37 @@ bool Executor::isTargetFunction(ExecutionState &state, Function *f) {
 }
 
 void Executor::evaluateWholeProgramPTA() {
+  /* functions to analyze */
+  std::set<Function *> functions;
+
+  if (interpreterOpts.targetFunctions.empty()) {
+    /* analyze all the functions of the module */
+    for (Function &f : *kmodule->module) {
+      if (!f.isDeclaration()) {
+        functions.insert(&f);
+      }
+    }
+  } else {
+    for (const TargetFunctionOption &option :  interpreterOpts.targetFunctions) {
+      Function *f = kmodule->module->getFunction(option.name);
+      functions.insert(f);
+    }
+  }
+
+  klee_message("Running whole program pointer analysis...");
   PointerAnalysis *andersen = new Andersen();
   andersen->analyze(*kmodule->module);
 
-  /* evalute results */
-  for (const TargetFunctionOption &option :  interpreterOpts.targetFunctions) {
-    Function *f = kmodule->module->getFunction(option.name);
+  for (Function *f : functions) {
     PTAStats stats;
+    klee_message("PTA for: %s", f->getName().data());
     evaluatePTAResults(andersen, f, stats, false);
     klee_message("Andersen Points-to queries: %u", stats.queries);
     klee_message("Andersen Points-to average size: %f",
                  float(stats.total) / float(stats.queries));
     klee_message("Andersen Points-to max size: %u", stats.max_size);
   }
+
   delete andersen;
 }
 
