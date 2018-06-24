@@ -11,7 +11,7 @@ using namespace llvm;
 using namespace std;
 
 
-PTAStatsLogger() {
+PTAStatsLogger::PTAStatsLogger() {
 
 }
 
@@ -22,14 +22,15 @@ void PTAStatsLogger::dump(Function *f, PTAStats &stats) {
   errs() << "  -- max size: " << stats.max_size << "\n";
 }
 
-PTAStatsCSVLogger(string path) :
-  path(path) {
+PTAStatsCSVLogger::PTAStatsCSVLogger(string path) {
   error_code ec;
   file = new raw_fd_ostream(path.c_str(), ec, sys::fs::F_Append);
 }
 
-~PTAStatsCSVLogger() {
-  delete file;
+PTAStatsCSVLogger::~PTAStatsCSVLogger() {
+  if (file) {
+    delete file;
+  }
 }
 
 void PTAStatsCSVLogger::dump(Function *f, PTAStats &stats) {
