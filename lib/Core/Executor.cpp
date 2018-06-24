@@ -315,6 +315,9 @@ namespace {
   UseStrongUpdates("use-strong-updates",
                    cl::init(true),
                    cl::desc("Use strong updates for points-to information"));
+
+  cl::opt<std::string>
+  DumpPTASumary("dump-pta-summary", cl::desc(""), cl::init(""));
 }
 
 
@@ -405,7 +408,11 @@ Executor::Executor(LLVMContext &ctx, const InterpreterOptions &opts,
     }
   }
 
-  ptaStatsLogger = new PTAStatsPrintLogger();
+  if (DumpPTASumary == "") {
+    ptaStatsLogger = new PTAStatsPrintLogger();
+  } else {
+    ptaStatsLogger = new PTAStatsCSVLogger(DumpPTASumary);
+  }
 }
 
 

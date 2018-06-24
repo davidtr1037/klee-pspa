@@ -11,20 +11,31 @@ using namespace llvm;
 using namespace std;
 
 
+void PTAStatsLogger::dump(Function *f, PTAStats &stats) {
+  PTAStatsSummary summary;
+
+  summary.f = f;
+  summary.queries = stats.queries;
+  summary.average_size = stats.queries > 0 ? double(stats.total) / double(stats.queries) : 0;
+  summary.max_size = stats.max_size;
+  dump(summary);
+}
+
 PTAStatsPrintLogger::PTAStatsPrintLogger() {
 
 }
 
-void PTAStatsPrintLogger::dump(Function *f, PTAStats &stats) {
-  errs() << "PTA for: " << f->getName() << "\n";
-  errs() << "  -- queries: " << stats.queries << "\n";
-  errs() << "  -- average size: " << float(stats.total) / float(stats.queries) << "\n";
-  errs() << "  -- max size: " << stats.max_size << "\n";
+void PTAStatsPrintLogger::dump(PTAStatsSummary &summary) {
+  errs() << "PTA for: " << summary.f->getName() << "\n";
+  errs() << "  -- queries: " << summary.queries << "\n";
+  errs() << "  -- average size: " << summary.average_size << "\n";
+  errs() << "  -- max size: " << summary.max_size << "\n";
 }
 
 PTAStatsCSVLogger::PTAStatsCSVLogger(string path) {
   error_code ec;
   file = new raw_fd_ostream(path.c_str(), ec, sys::fs::F_Append);
+  *file << "Function,Queries,Average,Max\n";
 }
 
 PTAStatsCSVLogger::~PTAStatsCSVLogger() {
@@ -33,6 +44,9 @@ PTAStatsCSVLogger::~PTAStatsCSVLogger() {
   }
 }
 
-void PTAStatsCSVLogger::dump(Function *f, PTAStats &stats) {
-
+void PTAStatsCSVLogger::dump(PTAStatsSummary &summary) {
+  *file << summary.f->getName() << ",";
+  *file << summary.queries << ",";
+  *file << summary.average_size << ",";
+  *file << summary.max_size << "\n";
 }

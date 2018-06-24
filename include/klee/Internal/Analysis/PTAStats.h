@@ -18,6 +18,17 @@ struct PTAStats {
   }
 };
 
+struct PTAStatsSummary {
+  llvm::Function *f;
+  uint32_t queries;
+  double average_size;
+  uint32_t max_size;
+
+  PTAStatsSummary() : f(0), queries(0), average_size(0), max_size(0) {
+
+  }
+};
+
 class PTAStatsLogger {
 
 public:
@@ -26,7 +37,9 @@ public:
 
   }
 
-  virtual void dump(llvm::Function *f, PTAStats &stats) = 0;
+  void dump(llvm::Function *f, PTAStats &stats);
+
+  virtual void dump(PTAStatsSummary &summary) = 0;
 
 };
 
@@ -36,7 +49,7 @@ public:
 
   PTAStatsPrintLogger();
 
-  virtual void dump(llvm::Function *f, PTAStats &stats);
+  virtual void dump(PTAStatsSummary &summary);
 
 };
 
@@ -48,7 +61,7 @@ public:
 
   virtual ~PTAStatsCSVLogger();
 
-  virtual void dump(llvm::Function *f, PTAStats &stats);
+  virtual void dump(PTAStatsSummary &summary);
 
 private:
   llvm::raw_fd_ostream *file;
