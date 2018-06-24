@@ -34,8 +34,19 @@ void PTAStatsPrintLogger::dump(PTAStatsSummary &summary) {
 
 PTAStatsCSVLogger::PTAStatsCSVLogger(string path) {
   error_code ec;
+  sys::fs::file_status result;
+
+  /* check file status before opening the file... */
+  sys::fs::status(path, result);
+
   file = new raw_fd_ostream(path.c_str(), ec, sys::fs::F_Append);
-  *file << "Function,Queries,Average,Max\n";
+  if (ec) {
+    assert(false);
+  }
+
+  if (!sys::fs::exists(result)) {
+    *file << "Function,Queries,Average,Max\n";
+  }
 }
 
 PTAStatsCSVLogger::~PTAStatsCSVLogger() {
