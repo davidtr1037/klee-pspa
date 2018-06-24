@@ -317,7 +317,7 @@ namespace {
                    cl::desc("Use strong updates for points-to information"));
 
   cl::opt<std::string>
-  DumpPTASumary("dump-pta-summary", cl::desc(""), cl::init(""));
+  DumpPTASummary("dump-pta-summary", cl::desc(""), cl::init(""));
 }
 
 
@@ -408,10 +408,10 @@ Executor::Executor(LLVMContext &ctx, const InterpreterOptions &opts,
     }
   }
 
-  if (DumpPTASumary == "") {
+  if (DumpPTASummary == "") {
     ptaStatsLogger = new PTAStatsPrintLogger();
   } else {
-    ptaStatsLogger = new PTAStatsCSVLogger(DumpPTASumary);
+    ptaStatsLogger = new PTAStatsCSVLogger(DumpPTASummary);
   }
 }
 
