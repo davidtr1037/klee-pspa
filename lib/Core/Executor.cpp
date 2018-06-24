@@ -309,6 +309,11 @@ namespace {
   RunStaticPTA("run-static-pta",
                cl::init(true),
                cl::desc("Run statis pointer analysis (before the execution)"));
+
+  cl::opt<bool>
+  UseStrongUpdates("use-strong-updates",
+                   cl::init(true),
+                   cl::desc("Use strong updates for points-to information"));
 }
 
 
@@ -4040,7 +4045,11 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
   DynamicMemoryLocation storeLocation(storeAllocSite, ce->getZExtValue());
   NodeID src = computeAbstractMO(state.getPTA(), storeLocation, hint);
 
-  state.getPTA()->strongUpdate(src, dst);
+  if (UseStrongUpdates) {
+    state.getPTA()->strongUpdate(src, dst);
+  } else {
+    state.getPTA()->weakUpdate(src, dst);
+  }
 
   /* ... */
   const AllocaInst *alloca = dyn_cast<AllocaInst>(mo->allocSite);
