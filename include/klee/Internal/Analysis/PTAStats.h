@@ -18,31 +18,35 @@ struct PTAStats {
   }
 };
 
-class PTAStatsAbstractLogger {
+class PTAStatsLogger {
 
 public:
+
+  virtual ~PTAStatsLogger() {
+
+  }
 
   virtual void dump(llvm::Function *f, PTAStats &stats) = 0;
 
 };
 
-class PTAStatsLogger : PTAStatsAbstractLogger {
+class PTAStatsPrintLogger : public PTAStatsLogger {
 
 public:
 
-  PTAStatsLogger();
+  PTAStatsPrintLogger();
 
   virtual void dump(llvm::Function *f, PTAStats &stats);
 
 };
 
-class PTAStatsCSVLogger : PTAStatsAbstractLogger {
+class PTAStatsCSVLogger : public PTAStatsLogger {
 
 public:
 
   PTAStatsCSVLogger(std::string path);
 
-  ~PTAStatsCSVLogger();
+  virtual ~PTAStatsCSVLogger();
 
   virtual void dump(llvm::Function *f, PTAStats &stats);
 

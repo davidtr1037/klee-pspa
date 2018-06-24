@@ -49,6 +49,7 @@
 #include "klee/Internal/System/Time.h"
 #include "klee/Internal/System/MemoryUsage.h"
 #include "klee/SolverStats.h"
+#include "klee/Internal/Analysis/PTAStats.h"
 #include "klee/Internal/Analysis/PTAUtils.h"
 
 #include "WPA/AndersenDynamic.h"
@@ -348,7 +349,8 @@ Executor::Executor(LLVMContext &ctx, const InterpreterOptions &opts,
       coreSolverTimeout(MaxCoreSolverTime != 0 && MaxInstructionTime != 0
                             ? std::min(MaxCoreSolverTime, MaxInstructionTime)
                             : std::max(MaxCoreSolverTime, MaxInstructionTime)),
-      debugInstFile(0), debugLogBuffer(debugBufferString) {
+      debugInstFile(0), debugLogBuffer(debugBufferString),
+      ptaStatsLogger(0) {
 
   if (coreSolverTimeout) UseForkedCoreSolver = true;
   Solver *coreSolver = klee::createCoreSolver(CoreSolverToUse);
@@ -402,6 +404,8 @@ Executor::Executor(LLVMContext &ctx, const InterpreterOptions &opts,
                  ErrorInfo.c_str());
     }
   }
+
+  ptaStatsLogger = new PTAStatsPrintLogger();
 }
 
 
@@ -449,6 +453,9 @@ Executor::~Executor() {
     timers.pop_back();
   }
   delete debugInstFile;
+  if (ptaStatsLogger) {
+    delete ptaStatsLogger;
+  }
 }
 
 /***/
@@ -1397,11 +1404,12 @@ void Executor::executeCall(ExecutionState &state,
 
     updatePointsToOnCall(state, f, arguments);
     state.getPTA()->analyzeFunction(*kmodule->module, f);
+
     PTAStats stats;
     evaluatePTAResults(state.getPTA(), f, stats, false);
-    klee_message("Points-to queries: %u", stats.queries);
-    klee_message("Points-to average size: %f", float(stats.total) / float(stats.queries));
-    klee_message("Points-to max size: %u", stats.max_size);
+    ptaStatsLogger->dump(f, stats);
+
+    terminateState(state);
   }
 }
 
@@ -3878,12 +3886,8 @@ void Executor::evaluateWholeProgramPTA() {
 
   for (Function *f : functions) {
     PTAStats stats;
-    klee_message("PTA for: %s", f->getName().data());
     evaluatePTAResults(andersen, f, stats, false);
-    klee_message("Andersen Points-to queries: %u", stats.queries);
-    klee_message("Andersen Points-to average size: %f",
-                 float(stats.total) / float(stats.queries));
-    klee_message("Andersen Points-to max size: %u", stats.max_size);
+    ptaStatsLogger->dump(f, stats);
   }
 
   delete andersen;

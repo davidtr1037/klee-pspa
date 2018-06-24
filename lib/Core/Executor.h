@@ -23,6 +23,7 @@
 #include "klee/util/ArrayCache.h"
 #include "llvm/Support/raw_ostream.h"
 #include "AbstractMO.h"
+#include "klee/Internal/Analysis/PTAStats.h"
 
 #include "llvm/ADT/Twine.h"
 
@@ -218,6 +219,9 @@ private:
 
   /* TODO: find a better solution */
   std::vector<const llvm::Value *> clonedAllocSites;
+
+  /* TODO: add docs */
+  PTAStatsLogger *ptaStatsLogger;
 
   llvm::Function* getTargetFunction(llvm::Value *calledVal,
                                     ExecutionState &state);

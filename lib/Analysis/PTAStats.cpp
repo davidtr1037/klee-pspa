@@ -11,11 +11,11 @@ using namespace llvm;
 using namespace std;
 
 
-PTAStatsLogger::PTAStatsLogger() {
+PTAStatsPrintLogger::PTAStatsPrintLogger() {
 
 }
 
-void PTAStatsLogger::dump(Function *f, PTAStats &stats) {
+void PTAStatsPrintLogger::dump(Function *f, PTAStats &stats) {
   errs() << "PTA for: " << f->getName() << "\n";
   errs() << "  -- queries: " << stats.queries << "\n";
   errs() << "  -- average size: " << float(stats.total) / float(stats.queries) << "\n";
