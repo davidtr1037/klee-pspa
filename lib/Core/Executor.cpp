@@ -1414,7 +1414,12 @@ void Executor::executeCall(ExecutionState &state,
 
     PTAStats stats;
     evaluatePTAResults(state.getPTA(), f, stats, false);
-    ptaStatsLogger->dump(f, stats);
+
+    CallingContext context;
+    context.callee = f;
+    context.line = kmodule->infos->getInfo(i).line;
+    context.call_depth = state.stack.size() - 1;
+    ptaStatsLogger->dump(context, stats);
 
     terminateState(state);
   }
@@ -3894,7 +3899,10 @@ void Executor::evaluateWholeProgramPTA() {
   for (Function *f : functions) {
     PTAStats stats;
     evaluatePTAResults(andersen, f, stats, false);
-    ptaStatsLogger->dump(f, stats);
+
+    CallingContext context;
+    context.callee = f;
+    ptaStatsLogger->dump(context, stats);
   }
 
   delete andersen;

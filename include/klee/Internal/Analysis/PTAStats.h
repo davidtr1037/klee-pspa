@@ -18,13 +18,23 @@ struct PTAStats {
   }
 };
 
+struct CallingContext {
+  llvm::Function *callee;
+  uint32_t line;
+  uint32_t call_depth;
+
+  CallingContext() : callee(0), line(0), call_depth(0) {
+
+  }
+};
+
 struct PTAStatsSummary {
-  llvm::Function *f;
+  CallingContext context;
   uint32_t queries;
   double average_size;
   uint32_t max_size;
 
-  PTAStatsSummary() : f(0), queries(0), average_size(0), max_size(0) {
+  PTAStatsSummary() : context(), queries(0), average_size(0), max_size(0) {
 
   }
 };
@@ -37,7 +47,7 @@ public:
 
   }
 
-  void dump(llvm::Function *f, PTAStats &stats);
+  void dump(CallingContext &context, PTAStats &stats);
 
   virtual void dump(PTAStatsSummary &summary) = 0;
 

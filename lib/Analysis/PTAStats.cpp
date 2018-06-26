@@ -11,10 +11,10 @@ using namespace llvm;
 using namespace std;
 
 
-void PTAStatsLogger::dump(Function *f, PTAStats &stats) {
+void PTAStatsLogger::dump(CallingContext &context, PTAStats &stats) {
   PTAStatsSummary summary;
 
-  summary.f = f;
+  summary.context = context;
   summary.queries = stats.queries;
   summary.average_size = stats.queries > 0 ? double(stats.total) / double(stats.queries) : 0;
   summary.max_size = stats.max_size;
@@ -29,7 +29,7 @@ void PTAStatsPrintLogger::dump(PTAStatsSummary &summary) {
   char formatted[30] = {0,};
   snprintf(formatted, sizeof(formatted), "%.2f", summary.average_size);
 
-  errs() << "PTA for: " << summary.f->getName() << "\n";
+  errs() << "PTA for: " << summary.context.callee->getName() << "\n";
   errs() << "  -- queries: " << summary.queries << "\n";
   errs() << "  -- average size: " << formatted << "\n";
   errs() << "  -- max size: " << summary.max_size << "\n";
@@ -48,7 +48,7 @@ PTAStatsCSVLogger::PTAStatsCSVLogger(string path) {
   }
 
   if (!sys::fs::exists(result)) {
-    *file << "Function,Queries,Average,Max\n";
+    *file << "Function,Line,Call-Depth,Queries,Average,Max\n";
   }
 }
 
@@ -62,7 +62,9 @@ void PTAStatsCSVLogger::dump(PTAStatsSummary &summary) {
   char formatted[30] = {0,};
   snprintf(formatted, sizeof(formatted), "%.2f", summary.average_size);
 
-  *file << summary.f->getName() << ",";
+  *file << summary.context.callee->getName() << ",";
+  *file << summary.context.line << ",";
+  *file << summary.context.call_depth << ",";
   *file << summary.queries << ",";
   *file << formatted << ",";
   *file << summary.max_size << "\n";
