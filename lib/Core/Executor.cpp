@@ -1416,7 +1416,7 @@ void Executor::executeCall(ExecutionState &state,
     evaluatePTAResults(state.getPTA(), f, stats, false);
 
     CallingContext context;
-    context.callee = f;
+    context.entry = f;
     context.line = kmodule->infos->getInfo(i).line;
     context.call_depth = state.stack.size() - 1;
     ptaStatsLogger->dump(context, stats);
@@ -3901,7 +3901,7 @@ void Executor::evaluateWholeProgramPTA() {
     evaluatePTAResults(andersen, f, stats, false);
 
     CallingContext context;
-    context.callee = f;
+    context.entry = f;
     ptaStatsLogger->dump(context, stats);
   }
 

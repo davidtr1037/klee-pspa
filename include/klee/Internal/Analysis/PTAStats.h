@@ -19,11 +19,11 @@ struct PTAStats {
 };
 
 struct CallingContext {
-  llvm::Function *callee;
+  llvm::Function *entry;
   uint32_t line;
   uint32_t call_depth;
 
-  CallingContext() : callee(0), line(0), call_depth(0) {
+  CallingContext() : entry(0), line(0), call_depth(0) {
 
   }
 };

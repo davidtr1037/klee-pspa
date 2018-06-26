@@ -29,7 +29,7 @@ void PTAStatsPrintLogger::dump(PTAStatsSummary &summary) {
   char formatted[30] = {0,};
   snprintf(formatted, sizeof(formatted), "%.2f", summary.average_size);
 
-  errs() << "PTA for: " << summary.context.callee->getName() << "\n";
+  errs() << "PTA for: " << summary.context.entry->getName() << "\n";
   errs() << "  -- queries: " << summary.queries << "\n";
   errs() << "  -- average size: " << formatted << "\n";
   errs() << "  -- max size: " << summary.max_size << "\n";
@@ -62,7 +62,7 @@ void PTAStatsCSVLogger::dump(PTAStatsSummary &summary) {
   char formatted[30] = {0,};
   snprintf(formatted, sizeof(formatted), "%.2f", summary.average_size);
 
-  *file << summary.context.callee->getName() << ",";
+  *file << summary.context.entry->getName() << ",";
   *file << summary.context.line << ",";
   *file << summary.context.call_depth << ",";
   *file << summary.queries << ",";
