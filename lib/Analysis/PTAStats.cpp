@@ -26,9 +26,12 @@ PTAStatsPrintLogger::PTAStatsPrintLogger() {
 }
 
 void PTAStatsPrintLogger::dump(PTAStatsSummary &summary) {
+  char formatted[30] = {0,};
+  snprintf(formatted, sizeof(formatted), "%.2f", summary.average_size);
+
   errs() << "PTA for: " << summary.f->getName() << "\n";
   errs() << "  -- queries: " << summary.queries << "\n";
-  errs() << "  -- average size: " << summary.average_size << "\n";
+  errs() << "  -- average size: " << formatted << "\n";
   errs() << "  -- max size: " << summary.max_size << "\n";
 }
 
@@ -56,8 +59,11 @@ PTAStatsCSVLogger::~PTAStatsCSVLogger() {
 }
 
 void PTAStatsCSVLogger::dump(PTAStatsSummary &summary) {
+  char formatted[30] = {0,};
+  snprintf(formatted, sizeof(formatted), "%.2f", summary.average_size);
+
   *file << summary.f->getName() << ",";
   *file << summary.queries << ",";
-  *file << summary.average_size << ",";
+  *file << formatted << ",";
   *file << summary.max_size << "\n";
 }
