@@ -91,8 +91,11 @@ static SpecialFunctionHandler::HandlerInfo handlerInfo[] = {
   add("klee_define_fixed_object", handleDefineFixedObject, false),
   add("klee_get_obj_size", handleGetObjSize, true),
   add("klee_get_errno", handleGetErrno, true),
+#ifndef __APPLE__
   add("__errno_location", handleErrnoLocation, true),
+#else
   add("__error", handleErrnoLocation, true),
+#endif
   add("klee_is_symbolic", handleIsSymbolic, true),
   add("klee_make_symbolic", handleMakeSymbolic, false),
   add("klee_mark_global", handleMarkGlobal, false),
