@@ -559,6 +559,10 @@ public:
   void updatePointsToOnCall(ExecutionState &state,
                             llvm::Function *f,
                             std::vector<ref<Expr>> &arguments);
+
+  void logCall(ExecutionState &state,
+               llvm::Function *f);
+
 };
   
 } // End klee namespace

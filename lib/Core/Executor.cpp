@@ -4149,6 +4149,25 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
   }
 }
 
+void Executor::logCall(ExecutionState &state,
+                       Function *f) {
+  Instruction *callInst = state.prevPC->inst;
+  const InstructionInfo &caller_info = kmodule->infos->getInfo(callInst);
+
+  errs() << "call: " << f->getName() << ":" << caller_info.line << " ";
+  errs() << state.stack.size() - 1 << " ";
+
+  Instruction *inst = &*f->begin()->begin();
+  const InstructionInfo &callee_info = kmodule->infos->getInfo(inst);
+
+  if (callee_info.file.empty()) {
+      errs() << "UNKNOWN";
+  } else {
+      errs() << callee_info.file;
+  }
+  errs() << "\n";
+}
+
 void Executor::prepareForEarlyExit() {
   if (statsTracker) {
     // Make sure stats get flushed out
