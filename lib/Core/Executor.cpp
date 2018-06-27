@@ -3377,7 +3377,11 @@ void Executor::executeMemoryOperation(ExecutionState &state,
         } else {
           ObjectState *wos = state.addressSpace.getWriteable(mo, os);
           wos->write(offset, value);
-          updatePointsToOnStore(state, mo, offset, value);
+
+          /* TODO: replace with a better check... */
+          if (!interpreterOpts.targetFunctions.empty()) {
+            updatePointsToOnStore(state, mo, offset, value);
+          }
         }
       } else {
         ref<Expr> result = os->read(offset, type);
