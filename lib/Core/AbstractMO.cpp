@@ -67,7 +67,10 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
   if (mem->isHeap()) {
     if (!hint) {
       /* handle similarly to arrays */
-      return pta->getGepObjNode(nodeID, LocationSet(0));
+      //return pta->getGepObjNode(nodeID, LocationSet(0));
+      NodeID objId = pta->getFIObjNode(nodeID);
+      pta->setObjFieldInsensitive(objId);
+      return objId;
     }
 
     /* we have a type hint... */
