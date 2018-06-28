@@ -390,3 +390,15 @@ void ExecutionState::dumpStack(llvm::raw_ostream &out) const {
     target = sf.caller;
   }
 }
+
+bool ExecutionState::isCalledRecursively(Function *f) {
+  uint32_t count = 0;
+
+  for (StackFrame &sf : stack) {
+    if (sf.kf->function == f) {
+      count++;
+    }
+  }
+
+  return count > 1;
+}

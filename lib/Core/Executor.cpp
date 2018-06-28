@@ -4092,20 +4092,24 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
                                  hint,
                                  &canStronglyUpdate);
 
+  /* ... */
+  const AllocaInst *alloca = dyn_cast<AllocaInst>(mo->allocSite);
+  if (alloca) {
+    Function *allocatingFunction = (Function *)(alloca->getParent()->getParent());
+    if (state.isCalledRecursively(allocatingFunction)) {
+      canStronglyUpdate = false;
+    } else {
+      canStronglyUpdate = true;
+      if (alloca->getParent()->getParent() == state.stack.back().kf->function) {
+        state.stack.back().localPointers.insert(src);
+      }
+    }
+  }
+
   if (UseStrongUpdates && canStronglyUpdate) {
     state.getPTA()->strongUpdate(src, dst);
   } else {
     state.getPTA()->weakUpdate(src, dst);
-  }
-
-  /* ... */
-  const AllocaInst *alloca = dyn_cast<AllocaInst>(mo->allocSite);
-  if (!alloca) {
-    return;
-  }
-
-  if (alloca->getParent()->getParent() == state.stack.back().kf->function) {
-    state.stack.back().localPointers.insert(src);
   }
 }
 

@@ -189,6 +189,8 @@ public:
     return pta;
   }
 
+  bool isCalledRecursively(llvm::Function *f);
+
 };
 }
 
