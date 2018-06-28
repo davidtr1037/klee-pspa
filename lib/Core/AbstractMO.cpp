@@ -15,7 +15,12 @@ using namespace std;
 
 NodeID klee::computeAbstractMO(PointerAnalysis *pta,
                                DynamicMemoryLocation &location,
-                               PointerType *hint) {
+                               PointerType *hint,
+                               bool *canStronglyUpdate) {
+  if (canStronglyUpdate != NULL) {
+    *canStronglyUpdate = true;
+  }
+
   if (isa<ConstantPointerNull>(location.value)) {
     return pta->getPAG()->getNullPtr();
   }
@@ -66,7 +71,10 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
 
   if (mem->isHeap()) {
     if (!hint) {
-      /* handle similarly to arrays */
+      /* handle field-insensitively */
+      if (canStronglyUpdate != NULL) {
+        *canStronglyUpdate = false;
+      }
       NodeID objId = pta->getFIObjNode(nodeId);
       pta->setObjFieldInsensitive(objId);
       return objId;

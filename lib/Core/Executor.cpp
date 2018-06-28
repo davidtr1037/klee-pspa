@@ -4065,7 +4065,9 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
   }
 
   /* TODO: use hint here? */
-  NodeID dst = computeAbstractMO(state.getPTA(), location);
+  NodeID dst = computeAbstractMO(state.getPTA(),
+                                 location,
+                                 NULL);
 
   ConstantExpr *ce = dyn_cast<ConstantExpr>(offset);
   if (!ce) {
@@ -4084,9 +4086,13 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
 
   const Value *storeAllocSite = getAllocSite(state, mo);
   DynamicMemoryLocation storeLocation(storeAllocSite, ce->getZExtValue());
-  NodeID src = computeAbstractMO(state.getPTA(), storeLocation, hint);
+  bool canStronglyUpdate;
+  NodeID src = computeAbstractMO(state.getPTA(),
+                                 storeLocation,
+                                 hint,
+                                 &canStronglyUpdate);
 
-  if (UseStrongUpdates) {
+  if (UseStrongUpdates && canStronglyUpdate) {
     state.getPTA()->strongUpdate(src, dst);
   } else {
     state.getPTA()->weakUpdate(src, dst);

@@ -30,7 +30,8 @@ struct DynamicMemoryLocation {
 
 NodeID computeAbstractMO(PointerAnalysis *pta,
                          DynamicMemoryLocation &location,
-                         llvm::PointerType *hint = NULL);
+                         llvm::PointerType *hint,
+                         bool *canStronglyUpdate = NULL);
 
 uint32_t computeAbstractFieldOffset(uint32_t offset,
                                     const llvm::Type *moType);
