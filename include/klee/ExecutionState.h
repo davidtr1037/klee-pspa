@@ -80,6 +80,9 @@ private:
   /* TODO: add docs */
   AndersenDynamic *pta;
 
+  /* TODO: add docs */
+  std::map<llvm::Function *, uint32_t> callingFunctions;
+
 public:
   // Execution - Control Flow specific
 

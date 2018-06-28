@@ -145,6 +145,10 @@ ExecutionState *ExecutionState::branch() {
 
 void ExecutionState::pushFrame(KInstIterator caller, KFunction *kf) {
   stack.push_back(StackFrame(caller,kf));
+
+  /* ... */
+  uint32_t &count = callingFunctions[kf->function];
+  count++;
 }
 
 void ExecutionState::popFrame() {
@@ -152,11 +156,17 @@ void ExecutionState::popFrame() {
   for (std::vector<const MemoryObject*>::iterator it = sf.allocas.begin(), 
          ie = sf.allocas.end(); it != ie; ++it)
     addressSpace.unbindObject(*it);
+
   /* clear non-relevant points-to information */
   for (const NodeID &n : sf.localPointers) {
     PointsTo &pts = getPTA()->getPts(n);
     pts.clear();
   }
+
+  /* ... */
+  uint32_t &count = callingFunctions[sf.kf->function];
+  count--;
+
   stack.pop_back();
 }
 
@@ -392,12 +402,9 @@ void ExecutionState::dumpStack(llvm::raw_ostream &out) const {
 }
 
 bool ExecutionState::isCalledRecursively(Function *f) {
-  uint32_t count = 0;
-
-  for (StackFrame &sf : stack) {
-    if (sf.kf->function == f) {
-      count++;
-    }
+  uint32_t &count = callingFunctions[f];
+  if (count == 0) {
+    assert(false);
   }
 
   return count > 1;
