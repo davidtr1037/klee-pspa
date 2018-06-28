@@ -40,13 +40,13 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
     return 0;
   }
 
-  NodeID nodeID = pta->getPAG()->getObjectNode(location.value);
-  if (SymbolTableInfo::isConstantObj(nodeID)) {
+  NodeID nodeId = pta->getPAG()->getObjectNode(location.value);
+  if (SymbolTableInfo::isConstantObj(nodeId)) {
     /* strings, ... */
-    return nodeID;
+    return nodeId;
   }
 
-  if (SymbolTableInfo::isBlkObj(nodeID)) {
+  if (SymbolTableInfo::isBlkObj(nodeId)) {
     /* TODO: handle... */
     assert(false);
   }
@@ -55,20 +55,19 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
   Type *elementType;
   uint32_t abstractOffset;
 
-  const MemObj *mem = pta->getPAG()->getObject(nodeID);
+  const MemObj *mem = pta->getPAG()->getObject(nodeId);
   if (!mem) {
     assert(false);
   }
 
   if (mem->isFunction()) {
-    return pta->getFIObjNode(nodeID);
+    return pta->getFIObjNode(nodeId);
   }
 
   if (mem->isHeap()) {
     if (!hint) {
       /* handle similarly to arrays */
-      //return pta->getGepObjNode(nodeID, LocationSet(0));
-      NodeID objId = pta->getFIObjNode(nodeID);
+      NodeID objId = pta->getFIObjNode(nodeId);
       pta->setObjFieldInsensitive(objId);
       return objId;
     }
@@ -78,16 +77,16 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
     StInfo *stInfo = SymbolTableInfo::SymbolInfo()->getStructInfo(elementType);
     offset = offset % stInfo->getSize();
     abstractOffset = computeAbstractFieldOffset(offset, elementType);
-    return pta->getGepObjNode(nodeID, LocationSet(abstractOffset));
+    return pta->getGepObjNode(nodeId, LocationSet(abstractOffset));
   }
 
   elementType = moType->getElementType();
   if (elementType->isSingleValueType()) {
-    return pta->getFIObjNode(nodeID);
+    return pta->getFIObjNode(nodeId);
   }
 
   abstractOffset = computeAbstractFieldOffset(offset, elementType);
-  return pta->getGepObjNode(nodeID, LocationSet(abstractOffset));
+  return pta->getGepObjNode(nodeId, LocationSet(abstractOffset));
 }
 
 uint32_t klee::computeAbstractFieldOffset(uint32_t offset,
