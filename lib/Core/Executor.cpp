@@ -3941,6 +3941,19 @@ const Value *Executor::getAllocSite(ExecutionState &state, const MemoryObject *m
   return mo->uniqueAllocSite;
 }
 
+PointerType *Executor::getTypeHint(const MemoryObject *mo) {
+  PointerType *hint = NULL;
+
+  if (mo->types.size() > 0) {
+    if (mo->types.size() > 1) {
+      assert(false);
+    }
+    hint = *mo->types.begin();
+  }
+
+  return hint;
+}
+
 void Executor::getDynamicMemoryLocation(ExecutionState &state,
                                         ref<Expr> value,
                                         PointerType *valueType,
@@ -3970,6 +3983,7 @@ void Executor::getDynamicMemoryLocation(ExecutionState &state,
     /* TODO: check specifically if it's a NULL value? */
     location.value = ConstantPointerNull::get(valueType);
     location.offset = 0;
+    location.hint = NULL;
     return;
   }
 
@@ -3984,10 +3998,7 @@ void Executor::getDynamicMemoryLocation(ExecutionState &state,
 
   location.value = getAllocSite(state, mo);
   location.offset = ce->getZExtValue();
-
-  for (PointerType *type : mo->types) {
-    location.hints.push_back(type);
-  }
+  location.hint = getTypeHint(mo);
 }
 
 void Executor::handleBitCast(ExecutionState &state,
@@ -4071,9 +4082,7 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
   }
 
   /* TODO: use hint here? */
-  NodeID dst = computeAbstractMO(state.getPTA(),
-                                 location,
-                                 NULL);
+  NodeID dst = computeAbstractMO(state.getPTA(), location);
 
   ConstantExpr *ce = dyn_cast<ConstantExpr>(offset);
   if (!ce) {
@@ -4081,21 +4090,14 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
     assert(false);
   }
 
-  /* try to get a hint... */
-  PointerType *hint = NULL;
-  if (mo->types.size() > 0) {
-    if (mo->types.size() > 1) {
-      assert(false);
-    }
-    hint = *mo->types.begin();
-  }
-
+  /* TODO: it would be better to use the same API... */
   const Value *storeAllocSite = getAllocSite(state, mo);
-  DynamicMemoryLocation storeLocation(storeAllocSite, ce->getZExtValue());
+  PointerType *hint = getTypeHint(mo);
+  DynamicMemoryLocation storeLocation(storeAllocSite, ce->getZExtValue(), hint);
+
   bool canStronglyUpdate;
   NodeID src = computeAbstractMO(state.getPTA(),
                                  storeLocation,
-                                 hint,
                                  &canStronglyUpdate);
 
   /* ... */
@@ -4150,15 +4152,7 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
       continue;
     }
 
-    PointerType *hint = NULL;
-    if (location.hints.size() > 0) {
-      if (location.hints.size() > 1) {
-        assert(false);
-      }
-      hint = location.hints.front();
-    }
-
-    NodeID dst = computeAbstractMO(state.getPTA(), location, hint);
+    NodeID dst = computeAbstractMO(state.getPTA(), location);
     NodeID formalParamId = state.getPTA()->getPAG()->getValueNode(&arg);
 
     state.getPTA()->strongUpdate(formalParamId, dst);

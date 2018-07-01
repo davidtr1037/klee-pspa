@@ -15,7 +15,6 @@ using namespace std;
 
 NodeID klee::computeAbstractMO(PointerAnalysis *pta,
                                DynamicMemoryLocation &location,
-                               PointerType *hint,
                                bool *canStronglyUpdate) {
   if (canStronglyUpdate != NULL) {
     *canStronglyUpdate = true;
@@ -70,7 +69,7 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
   }
 
   if (mem->isHeap()) {
-    if (!hint) {
+    if (!location.hint) {
       /* handle field-insensitively */
       if (canStronglyUpdate != NULL) {
         *canStronglyUpdate = false;
@@ -81,7 +80,7 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
     }
 
     /* we have a type hint... */
-    elementType = hint->getElementType();
+    elementType = location.hint->getElementType();
     StInfo *stInfo = SymbolTableInfo::SymbolInfo()->getStructInfo(elementType);
     offset = offset % stInfo->getSize();
     abstractOffset = computeAbstractFieldOffset(offset, elementType);

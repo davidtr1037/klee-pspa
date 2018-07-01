@@ -14,15 +14,17 @@ namespace klee {
 struct DynamicMemoryLocation {
   const llvm::Value *value;
   uint64_t offset;
-  std::vector<llvm::PointerType *> hints;
+  llvm::PointerType *hint;
 
   DynamicMemoryLocation() :
-    value(NULL), offset(0) {
+    value(NULL), offset(0), hint(0) {
 
   }
 
-  DynamicMemoryLocation(const llvm::Value *value, uint64_t offset) :
-    value(value), offset(offset) {
+  DynamicMemoryLocation(const llvm::Value *value,
+                        uint64_t offset,
+                        llvm::PointerType *hint) :
+    value(value), offset(offset), hint(hint) {
 
   }
 
@@ -30,7 +32,6 @@ struct DynamicMemoryLocation {
 
 NodeID computeAbstractMO(PointerAnalysis *pta,
                          DynamicMemoryLocation &location,
-                         llvm::PointerType *hint,
                          bool *canStronglyUpdate = NULL);
 
 uint32_t computeAbstractFieldOffset(uint32_t offset,
