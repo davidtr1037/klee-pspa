@@ -16,6 +16,8 @@ using namespace std;
 NodeID klee::computeAbstractMO(PointerAnalysis *pta,
                                DynamicMemoryLocation &location,
                                bool *canStronglyUpdate) {
+  bool isInArray = false;
+
   if (canStronglyUpdate != NULL) {
     *canStronglyUpdate = true;
   }
@@ -83,7 +85,7 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
     elementType = location.hint->getElementType();
     StInfo *stInfo = SymbolTableInfo::SymbolInfo()->getStructInfo(elementType);
     offset = offset % stInfo->getSize();
-    abstractOffset = computeAbstractFieldOffset(offset, elementType);
+    abstractOffset = computeAbstractFieldOffset(offset, elementType, isInArray);
     return pta->getGepObjNode(nodeId, LocationSet(abstractOffset));
   }
 
@@ -92,12 +94,16 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
     return pta->getFIObjNode(nodeId);
   }
 
-  abstractOffset = computeAbstractFieldOffset(offset, elementType);
+  abstractOffset = computeAbstractFieldOffset(offset, elementType, isInArray);
+  if (isInArray && canStronglyUpdate) {
+    *canStronglyUpdate = false;
+  }
   return pta->getGepObjNode(nodeId, LocationSet(abstractOffset));
 }
 
 uint32_t klee::computeAbstractFieldOffset(uint32_t offset,
-                                          const Type *moType) {
+                                          const Type *moType,
+                                          bool &isInArray) {
   if (moType->isSingleValueType()) {
     /* there are 2 options in this case:
        - a pointer to a primitive type
@@ -112,9 +118,10 @@ uint32_t klee::computeAbstractFieldOffset(uint32_t offset,
   }
 
   if (isa<ArrayType>(moType)) {
+    isInArray = true;
     FieldLayout &fl = stInfo->getFieldLayoutVec().front();
     uint32_t modOffset = offset % fl.size;
-    return computeAbstractFieldOffset(modOffset, fl.type);
+    return computeAbstractFieldOffset(modOffset, fl.type, isInArray);
   }
 
   if (isa<StructType>(moType)) {
@@ -129,7 +136,7 @@ uint32_t klee::computeAbstractFieldOffset(uint32_t offset,
       if (offset < fl.offset + fl.size) {
         unalignedSize = SymbolTableInfo::SymbolInfo()->getTypeSizeInBytes(fl.type);
         nextOffset = min(unalignedSize - 1, offset - fl.offset);
-        return flattenOffset + computeAbstractFieldOffset(nextOffset, fl.type);
+        return flattenOffset + computeAbstractFieldOffset(nextOffset, fl.type, isInArray);
       }
 
       StInfo *fieldStInfo = SymbolTableInfo::SymbolInfo()->getStructInfo(fl.type);
