@@ -69,11 +69,11 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
   }
 
   if (mem->isHeap()) {
+    if (canStronglyUpdate != NULL) {
+      *canStronglyUpdate = false;
+    }
     if (!location.hint) {
       /* handle field-insensitively */
-      if (canStronglyUpdate != NULL) {
-        *canStronglyUpdate = false;
-      }
       NodeID objId = pta->getFIObjNode(nodeId);
       pta->setObjFieldInsensitive(objId);
       return objId;
