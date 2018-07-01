@@ -4038,7 +4038,13 @@ void Executor::handleBitCast(ExecutionState &state,
   }
 
   /* add type hint */
-  mo->types.insert(dstType);
+  if (mo->types.empty()) {
+    mo->types.insert(dstType);
+  } else {
+    if (mo->types.find(dstType) == mo->types.end()) {
+      klee_warning("dropping type information...");
+    }
+  }
 }
 
 void Executor::updatePointsToOnStore(ExecutionState &state,
