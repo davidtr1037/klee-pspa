@@ -16,7 +16,7 @@ using namespace std;
 NodeID klee::computeAbstractMO(PointerAnalysis *pta,
                                DynamicMemoryLocation &location,
                                bool *canStronglyUpdate) {
-  bool isInArray = false;
+  bool isArrayElement = false;
 
   if (canStronglyUpdate != NULL) {
     *canStronglyUpdate = true;
@@ -85,7 +85,7 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
     elementType = location.hint->getElementType();
     StInfo *stInfo = SymbolTableInfo::SymbolInfo()->getStructInfo(elementType);
     offset = offset % stInfo->getSize();
-    abstractOffset = computeAbstractFieldOffset(offset, elementType, isInArray);
+    abstractOffset = computeAbstractFieldOffset(offset, elementType, isArrayElement);
     return pta->getGepObjNode(nodeId, LocationSet(abstractOffset));
   }
 
@@ -94,8 +94,8 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
     return pta->getFIObjNode(nodeId);
   }
 
-  abstractOffset = computeAbstractFieldOffset(offset, elementType, isInArray);
-  if (isInArray && canStronglyUpdate) {
+  abstractOffset = computeAbstractFieldOffset(offset, elementType, isArrayElement);
+  if (canStronglyUpdate && isArrayElement) {
     *canStronglyUpdate = false;
   }
   return pta->getGepObjNode(nodeId, LocationSet(abstractOffset));
@@ -103,7 +103,7 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
 
 uint32_t klee::computeAbstractFieldOffset(uint32_t offset,
                                           const Type *moType,
-                                          bool &isInArray) {
+                                          bool &isArrayElement) {
   if (moType->isSingleValueType()) {
     /* there are 2 options in this case:
        - a pointer to a primitive type
@@ -118,10 +118,10 @@ uint32_t klee::computeAbstractFieldOffset(uint32_t offset,
   }
 
   if (isa<ArrayType>(moType)) {
-    isInArray = true;
+    isArrayElement = true;
     FieldLayout &fl = stInfo->getFieldLayoutVec().front();
     uint32_t modOffset = offset % fl.size;
-    return computeAbstractFieldOffset(modOffset, fl.type, isInArray);
+    return computeAbstractFieldOffset(modOffset, fl.type, isArrayElement);
   }
 
   if (isa<StructType>(moType)) {
@@ -136,7 +136,9 @@ uint32_t klee::computeAbstractFieldOffset(uint32_t offset,
       if (offset < fl.offset + fl.size) {
         unalignedSize = SymbolTableInfo::SymbolInfo()->getTypeSizeInBytes(fl.type);
         nextOffset = min(unalignedSize - 1, offset - fl.offset);
-        return flattenOffset + computeAbstractFieldOffset(nextOffset, fl.type, isInArray);
+        return flattenOffset + computeAbstractFieldOffset(nextOffset,
+                                                          fl.type,
+                                                          isArrayElement);
       }
 
       StInfo *fieldStInfo = SymbolTableInfo::SymbolInfo()->getStructInfo(fl.type);

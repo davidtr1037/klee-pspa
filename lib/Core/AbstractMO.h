@@ -36,7 +36,7 @@ NodeID computeAbstractMO(PointerAnalysis *pta,
 
 uint32_t computeAbstractFieldOffset(uint32_t offset,
                                     const llvm::Type *moType,
-                                    bool &isArray);
+                                    bool &isArrayElement);
 
 }
 
