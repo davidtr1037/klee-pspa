@@ -42,7 +42,13 @@ namespace klee {
     /// Destination register index.
     unsigned dest;
 
+    /* a flag for points-to relevance */
+    bool isRelevant;
+
   public:
+    KInstruction() : isRelevant(true) {
+
+    }
     virtual ~KInstruction();
     void printFileLine(llvm::raw_ostream &) const;
     std::string printFileLine() const;

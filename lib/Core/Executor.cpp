@@ -4079,7 +4079,10 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
                                      const MemoryObject *mo,
                                      ref<Expr> offset,
                                      ref<Expr> value) {
-  bool result;
+  if (!state.prevPC->isRelevant) {
+    return;
+  }
+
   StoreInst *storeInst = dyn_cast<StoreInst>(state.prevPC->inst);
   if (!storeInst) {
     /* TODO: check other cases... */
@@ -4093,7 +4096,7 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
   }
 
   DynamicMemoryLocation location;
-  result = getDynamicMemoryLocation(state, value, valueType, location);
+  bool result = getDynamicMemoryLocation(state, value, valueType, location);
   if (!result) {
     /* TODO: handle... */
     assert(false);

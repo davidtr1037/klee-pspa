@@ -544,7 +544,7 @@ public:
 
   llvm::PointerType *getTypeHint(const MemoryObject *mo);
 
-  void getDynamicMemoryLocation(ExecutionState &state,
+  bool getDynamicMemoryLocation(ExecutionState &state,
                                 ref<Expr> value,
                                 llvm::PointerType *valueType,
                                 DynamicMemoryLocation &location);

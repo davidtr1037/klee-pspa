@@ -106,6 +106,9 @@ namespace klee {
     // Mark function with functionName as part of the KLEE runtime
     void addInternalFunction(const char* functionName);
 
+    // add docs
+    void markNonRelevantStores(KFunction *kf);
+
   public:
     KModule(llvm::Module *_module);
     ~KModule();

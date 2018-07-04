@@ -371,6 +371,11 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
       escapingFunctions.insert(kf->function);
   }
 
+  /* TODO: add docs */
+  for (KFunction *kf : functions) {
+    markNonRelevantStores(kf);
+  }
+
   if (DebugPrintEscapingFunctions && !escapingFunctions.empty()) {
     llvm::errs() << "KLEE: escaping functions: [";
     for (std::set<Function*>::iterator it = escapingFunctions.begin(), 
@@ -378,6 +383,33 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
       llvm::errs() << (*it)->getName() << ", ";
     }
     llvm::errs() << "]\n";
+  }
+}
+
+void KModule::markNonRelevantStores(KFunction *kf) {
+  for (unsigned i = 0; i < kf->numInstructions; ++i) {
+    KInstruction *ki = kf->instructions[i];
+    CallInst *callInst = dyn_cast<CallInst>(ki->inst);
+    if (callInst) {
+      return;
+    }
+  }
+
+  for (unsigned i = 0; i < kf->numInstructions; ++i) {
+    KInstruction *ki = kf->instructions[i];
+    StoreInst *storeInst = dyn_cast<StoreInst>(ki->inst);
+    if (!storeInst) {
+      continue;
+    }
+
+    Value *pointer = storeInst->getPointerOperand();
+    AllocaInst *allocaInst = dyn_cast<AllocaInst>(pointer);
+    if (allocaInst) {
+      Function *src = allocaInst->getParent()->getParent();
+      if (src == kf->function) {
+        ki->isRelevant = false;
+      }
+    }
   }
 }
 
