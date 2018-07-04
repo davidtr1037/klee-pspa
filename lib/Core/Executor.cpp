@@ -3966,7 +3966,7 @@ PointerType *Executor::getTypeHint(const MemoryObject *mo) {
   return hint;
 }
 
-void Executor::getDynamicMemoryLocation(ExecutionState &state,
+bool Executor::getDynamicMemoryLocation(ExecutionState &state,
                                         ref<Expr> value,
                                         PointerType *valueType,
                                         DynamicMemoryLocation &location) {
@@ -3976,27 +3976,31 @@ void Executor::getDynamicMemoryLocation(ExecutionState &state,
   solver->setTimeout(coreSolverTimeout);
   if (!state.addressSpace.resolveOne(state, solver, value, op, wasResolved)) {
     /* TODO: should we concretize here? */
-    assert(false);
+    return false;
   }
   solver->setTimeout(0);
 
   if (!wasResolved) {
-    /* it may be a function pointer */
     ConstantExpr *ce = dyn_cast<ConstantExpr>(value);
     if (ce) {
+      /* it may be a function pointer */
       uint64_t addr = ce->getZExtValue();
       if (legalFunctions.count(addr)) {
         location.value = (const Function *)(addr);
         location.offset = 0;
-        return;
+        return true;
+      }
+
+      /* check if it's a NULL value */
+      if (!addr) {
+        location.value = ConstantPointerNull::get(valueType);
+        location.offset = 0;
+        location.hint = NULL;
+        return true;
       }
     }
 
-    /* TODO: check specifically if it's a NULL value? */
-    location.value = ConstantPointerNull::get(valueType);
-    location.offset = 0;
-    location.hint = NULL;
-    return;
+    return false;
   }
 
   const MemoryObject *mo = op.first;
@@ -4005,12 +4009,13 @@ void Executor::getDynamicMemoryLocation(ExecutionState &state,
   ref<Expr> offsetExpr = mo->getOffsetExpr(value);
   ConstantExpr *ce = dyn_cast<ConstantExpr>(offsetExpr);
   if (!ce) {
-    assert(false);
+    return false;
   }
 
   location.value = getAllocSite(state, mo);
   location.offset = ce->getZExtValue();
   location.hint = getTypeHint(mo);
+  return true;
 }
 
 void Executor::handleBitCast(ExecutionState &state,
@@ -4074,6 +4079,7 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
                                      const MemoryObject *mo,
                                      ref<Expr> offset,
                                      ref<Expr> value) {
+  bool result;
   StoreInst *storeInst = dyn_cast<StoreInst>(state.prevPC->inst);
   if (!storeInst) {
     /* TODO: check other cases... */
@@ -4087,10 +4093,10 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
   }
 
   DynamicMemoryLocation location;
-  getDynamicMemoryLocation(state, value, valueType, location);
-  if (!location.value) {
-    /* TODO: ... */
-    return;
+  result = getDynamicMemoryLocation(state, value, valueType, location);
+  if (!result) {
+    /* TODO: handle... */
+    assert(false);
   }
 
   /* TODO: use hint here? */
@@ -4135,6 +4141,7 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
 void Executor::updatePointsToOnCall(ExecutionState &state,
                                     Function *f,
                                     std::vector<ref<Expr>> &arguments) {
+  bool result;
   unsigned int argIndex = 0;
   for (Function::arg_iterator ai = f->arg_begin(); ai != f->arg_end(); ai++) {
     Argument &arg = *ai;
@@ -4152,10 +4159,10 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
     }
 
     DynamicMemoryLocation location;
-    getDynamicMemoryLocation(state, e, paramType, location);
-    if (!location.value) {
-      /* TODO: ... */
-      continue;
+    result = getDynamicMemoryLocation(state, e, paramType, location);
+    if (!result) {
+      /* TODO: handle... */
+      assert(false);
     }
 
     if (isa<ConstantPointerNull>(location.value)) {
