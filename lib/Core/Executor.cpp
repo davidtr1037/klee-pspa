@@ -316,6 +316,11 @@ namespace {
                    cl::init(true),
                    cl::desc("Use strong updates for points-to information"));
 
+  cl::opt<bool>
+  CreateUniqueAS("create-unique-as",
+                 cl::init(true),
+                 cl::desc("Create unique allocation sites for heap objects"));
+
   cl::opt<std::string>
   DumpPTASummary("dump-pta-summary", cl::desc(""), cl::init(""));
 }
@@ -3927,6 +3932,13 @@ const Value *Executor::addClonedObjNode(ExecutionState &state, const Value *valu
 }
 
 const Value *Executor::getAllocSite(ExecutionState &state, const MemoryObject *mo) {
+  if (!CreateUniqueAS) {
+    if (UseStrongUpdates) {
+      klee_error("Must use weak updates...");
+    }
+    return mo->allocSite;
+  }
+
   if (mo->isLocal || mo->isGlobal) {
     return mo->allocSite;
   }
