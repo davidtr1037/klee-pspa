@@ -109,6 +109,12 @@ namespace klee {
     // add docs
     void markNonRelevantStores(KFunction *kf);
 
+    void markStoresInCallingFunction(KFunction *kf);
+
+    bool isEscapingVariable(llvm::Instruction *inst);
+
+    void markStoresInNonCallingFunction(KFunction *kf);
+
   public:
     KModule(llvm::Module *_module);
     ~KModule();

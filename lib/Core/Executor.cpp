@@ -4144,7 +4144,6 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
 void Executor::updatePointsToOnCall(ExecutionState &state,
                                     Function *f,
                                     std::vector<ref<Expr>> &arguments) {
-  bool result;
   unsigned int argIndex = 0;
   for (Function::arg_iterator ai = f->arg_begin(); ai != f->arg_end(); ai++) {
     Argument &arg = *ai;
@@ -4162,7 +4161,7 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
     }
 
     DynamicMemoryLocation location;
-    result = getDynamicMemoryLocation(state, e, paramType, location);
+    bool result = getDynamicMemoryLocation(state, e, paramType, location);
     if (!result) {
       /* TODO: handle... */
       assert(false);

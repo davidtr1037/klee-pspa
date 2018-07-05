@@ -47,6 +47,8 @@
 #include <llvm/Transforms/Utils/Cloning.h>
 
 #include <sstream>
+#include <stack>
+#include <set>
 
 using namespace llvm;
 using namespace klee;
@@ -387,14 +389,84 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
 }
 
 void KModule::markNonRelevantStores(KFunction *kf) {
+  bool isCallingFunction = false;
+
   for (unsigned i = 0; i < kf->numInstructions; ++i) {
     KInstruction *ki = kf->instructions[i];
     CallInst *callInst = dyn_cast<CallInst>(ki->inst);
     if (callInst) {
-      return;
+      isCallingFunction = true;
+      break;
     }
   }
 
+  if (!isCallingFunction) {
+    markStoresInNonCallingFunction(kf);
+  }
+}
+
+void KModule::markStoresInCallingFunction(KFunction *kf) {
+  for (unsigned i = 0; i < kf->numInstructions; ++i) {
+    KInstruction *ki = kf->instructions[i];
+    StoreInst *storeInst = dyn_cast<StoreInst>(ki->inst);
+    if (!storeInst) {
+      continue;
+    }
+
+    Value *pointer = storeInst->getPointerOperand();
+    AllocaInst *allocaInst = dyn_cast<AllocaInst>(pointer);
+    if (!allocaInst) {
+      continue;
+    }
+
+    if (!isEscapingVariable(allocaInst)) {
+      ki->isRelevant = false;
+    }
+  }
+}
+
+bool KModule::isEscapingVariable(Instruction *allocaInst) {
+  std::stack<Value *> worklist;
+  std::set<Value *> visited;
+
+  /* initialize */
+  worklist.push(allocaInst);
+
+  while (!worklist.empty()) {
+    Value *inst = worklist.top();
+    worklist.pop();
+
+    if (visited.find(inst) != visited.end()) {
+      continue;
+    }
+
+    for (auto i = inst->user_begin(); i != inst->user_end(); i++) {
+      Value *user = *i;
+      if (!isa<Instruction>(user)) {
+        assert(false);
+      }
+
+      if (isa<CallInst>(user)) {
+        return true;
+      }
+
+      if (isa<StoreInst>(user)) {
+        StoreInst *userStore = dyn_cast<StoreInst>(user);
+        if (userStore->getValueOperand() == inst) {
+          return true;
+        }
+      }
+
+      worklist.push(user);
+    }
+
+    visited.insert(inst);
+  }
+
+  return false;
+}
+
+void KModule::markStoresInNonCallingFunction(KFunction *kf) {
   for (unsigned i = 0; i < kf->numInstructions; ++i) {
     KInstruction *ki = kf->instructions[i];
     StoreInst *storeInst = dyn_cast<StoreInst>(ki->inst);
@@ -405,10 +477,7 @@ void KModule::markNonRelevantStores(KFunction *kf) {
     Value *pointer = storeInst->getPointerOperand();
     AllocaInst *allocaInst = dyn_cast<AllocaInst>(pointer);
     if (allocaInst) {
-      Function *src = allocaInst->getParent()->getParent();
-      if (src == kf->function) {
-        ki->isRelevant = false;
-      }
+      ki->isRelevant = false;
     }
   }
 }
