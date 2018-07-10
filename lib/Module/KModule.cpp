@@ -323,6 +323,7 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
      in order to avoid missing instructions */
   BreakConstantGEPs* p1 = new BreakConstantGEPs();
   p1->runOnModule(*module);
+  delete p1;
 
   UnifyFunctionExitNodes* p2 = new UnifyFunctionExitNodes();
   for (Function &f : *module) {
@@ -332,6 +333,7 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
 
     p2->runOnFunction(f);
   }
+  delete p2;
 
   LegacyLLVMPassManagerTy passManager;
   passManager.add(new UnusedValuesRemovalPass(opts.EntryPoint));
