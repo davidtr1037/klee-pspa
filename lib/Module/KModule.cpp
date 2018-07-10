@@ -321,19 +321,15 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
 
   /* running the SVF passes explicitly,
      in order to avoid missing instructions */
-  BreakConstantGEPs* p1 = new BreakConstantGEPs();
-  p1->runOnModule(*module);
-  delete p1;
+  BreakConstantGEPs p1;
+  p1.runOnModule(*module);
 
-  UnifyFunctionExitNodes* p2 = new UnifyFunctionExitNodes();
+  UnifyFunctionExitNodes p2;
   for (Function &f : *module) {
-    if (f.isDeclaration()) {
-      continue;
+    if (!f.isDeclaration()) {
+      p2.runOnFunction(f);
     }
-
-    p2->runOnFunction(f);
   }
-  delete p2;
 
   LegacyLLVMPassManagerTy passManager;
   passManager.add(new UnusedValuesRemovalPass(opts.EntryPoint));
