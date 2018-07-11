@@ -49,6 +49,7 @@ StackFrame::StackFrame(const StackFrame &s)
     kf(s.kf),
     callPathNode(s.callPathNode),
     allocas(s.allocas),
+    localPointers(s.localPointers),
     minDistToUncoveredOnReturn(s.minDistToUncoveredOnReturn),
     varargs(s.varargs) {
   locals = new Cell[s.kf->numRegisters];
@@ -80,7 +81,7 @@ ExecutionState::ExecutionState(KFunction *kf) :
 }
 
 ExecutionState::ExecutionState(const std::vector<ref<Expr> > &assumptions)
-    : constraints(assumptions), queryCost(0.), ptreeNode(0) {}
+    : pta(0), constraints(assumptions), queryCost(0.), ptreeNode(0) {}
 
 ExecutionState::~ExecutionState() {
   for (unsigned int i=0; i<symbolics.size(); i++)
@@ -101,7 +102,7 @@ ExecutionState::~ExecutionState() {
 
 ExecutionState::ExecutionState(const ExecutionState& state):
     fnAliases(state.fnAliases),
-    pta(0), /* TODO: this is temporary */
+    callingFunctions(state.callingFunctions),
     pc(state.pc),
     prevPC(state.prevPC),
     stack(state.stack),
@@ -128,6 +129,13 @@ ExecutionState::ExecutionState(const ExecutionState& state):
 {
   for (unsigned int i=0; i<symbolics.size(); i++)
     symbolics[i].first->refCount++;
+
+  if (state.pta) {
+    pta = new AndersenDynamic(*state.pta);
+    pta->initialize(*state.pta->getModule());
+  } else {
+    pta = NULL;
+  }
 }
 
 ExecutionState *ExecutionState::branch() {

@@ -3584,10 +3584,11 @@ void Executor::runFunctionAsMain(Function *f,
 
   ExecutionState *state = new ExecutionState(kmodule->functionMap[f]);
 
-  /* TODO: add docs */
-  AndersenDynamic *pta = new AndersenDynamic();
-  pta->initialize(*kmodule->module);
-  state->setPTA(pta);
+  if (!interpreterOpts.targetFunctions.empty()) {
+    AndersenDynamic *pta = new AndersenDynamic();
+    pta->initialize(*kmodule->module);
+    state->setPTA(pta);
+  }
   
   if (pathWriter) 
     state->pathOS = pathWriter->open();
