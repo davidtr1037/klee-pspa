@@ -3406,7 +3406,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
 
   // we are on an error path (no resolution, multiple resolution, one
   // resolution with out of bounds)
-  
+
   ResolutionList rl;  
   solver->setTimeout(coreSolverTimeout);
   bool incomplete = state.addressSpace.resolve(state, solver, address, rl,
@@ -3431,8 +3431,14 @@ void Executor::executeMemoryOperation(ExecutionState &state,
           terminateStateOnError(*bound, "memory error: object read only",
                                 ReadOnly);
         } else {
+          ref<Expr> offset = mo->getOffsetExpr(address);
           ObjectState *wos = bound->addressSpace.getWriteable(mo, os);
-          wos->write(mo->getOffsetExpr(address), value);
+          wos->write(offset, value);
+
+          /* TODO: replace with a better check... */
+          if (!interpreterOpts.targetFunctions.empty()) {
+            updatePointsToOnStore(state, mo, offset, value);
+          }
         }
       } else {
         ref<Expr> result = os->read(mo->getOffsetExpr(address), type);
