@@ -1415,7 +1415,10 @@ void Executor::executeCall(ExecutionState &state,
     }
 
     updatePointsToOnCall(state, f, arguments);
+
+    state.getPTA()->createBackup();
     state.getPTA()->analyzeFunction(*kmodule->module, f);
+    state.getPTA()->restoreFromBackup();
 
     PTAStats stats;
     evaluatePTAResults(state.getPTA(), f, stats, false);
@@ -1426,7 +1429,7 @@ void Executor::executeCall(ExecutionState &state,
     context.call_depth = state.stack.size() - 1;
     ptaStatsLogger->dump(context, stats);
 
-    terminateState(state);
+    state.getPTA()->postAnalysisCleanup();
   }
 }
 
