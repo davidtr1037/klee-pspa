@@ -4028,6 +4028,39 @@ bool Executor::getDynamicMemoryLocation(ExecutionState &state,
   return true;
 }
 
+bool Executor::getDynamicMemoryLocations(ExecutionState &state,
+                                         ref<Expr> value,
+                                         PointerType *valueType,
+                                         std::vector<DynamicMemoryLocation> &locations) {
+  DynamicMemoryLocation location;
+  bool result = getDynamicMemoryLocation(state, value, valueType, location);
+  if (result) {
+    locations.push_back(location);
+    return true;
+  }
+
+  /* try to resolve multiple objects... */
+  ResolutionList rl;
+  solver->setTimeout(coreSolverTimeout);
+  bool incomplete = state.addressSpace.resolve(state,
+                                               solver,
+                                               value,
+                                               rl,
+                                               0,
+                                               coreSolverTimeout);
+  solver->setTimeout(0);
+
+  /* TODO: check when it happens */
+  (void)(incomplete);
+
+  if (!rl.empty()) {
+    /* TODO: add all locations */
+    assert(false);
+  }
+
+  return true;
+}
+
 void Executor::handleBitCast(ExecutionState &state,
                              KInstruction *ki,
                              ref<Expr> value) {
@@ -4172,17 +4205,26 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
       continue;
     }
 
-    DynamicMemoryLocation location;
-    bool result = getDynamicMemoryLocation(state, e, paramType, location);
-    if (!result) {
-      /* TODO: handle... */
-      assert(false);
+    /* TODO: check return value */
+    std::vector<DynamicMemoryLocation> locations;
+    getDynamicMemoryLocations(state, e, paramType, locations);
+
+    if (locations.empty()) {
+      klee_warning("argument %d of '%s' is out of bound...",
+                   argIndex - 1,
+                   f->getName().data());
     }
 
-    NodeID dst = computeAbstractMO(state.getPTA(), location);
     NodeID formalParamId = state.getPTA()->getPAG()->getValueNode(&arg);
-
-    state.getPTA()->strongUpdate(formalParamId, dst);
+    for (unsigned int i = 0; i < locations.size(); i++) {
+      DynamicMemoryLocation &location = locations[i];
+      NodeID dst = computeAbstractMO(state.getPTA(), location);
+      if (i == 0) {
+        state.getPTA()->strongUpdate(formalParamId, dst);
+      } else {
+        state.getPTA()->weakUpdate(formalParamId, dst);
+      }
+    }
   }
 }
 
