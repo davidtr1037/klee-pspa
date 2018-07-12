@@ -57,6 +57,13 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
     assert(false);
   }
 
+  if (location.isSymbolicOffset) {
+    /* if the offset is symbolic, we don't have much to do... */
+    NodeID objId = pta->getFIObjNode(nodeId);
+    pta->setObjFieldInsensitive(objId);
+    return objId;
+  }
+
   uint32_t offset = location.offset;
   Type *elementType;
   uint32_t abstractOffset;

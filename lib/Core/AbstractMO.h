@@ -13,18 +13,26 @@ namespace klee {
 
 struct DynamicMemoryLocation {
   const llvm::Value *value;
+  bool isSymbolicOffset;
   uint64_t offset;
   llvm::PointerType *hint;
 
   DynamicMemoryLocation() :
-    value(NULL), offset(0), hint(0) {
+    value(NULL),
+    isSymbolicOffset(false),
+    offset(0),
+    hint(0) {
 
   }
 
   DynamicMemoryLocation(const llvm::Value *value,
+                        bool isSymbolicOffset,
                         uint64_t offset,
                         llvm::PointerType *hint) :
-    value(value), offset(offset), hint(hint) {
+    value(value),
+    isSymbolicOffset(isSymbolicOffset),
+    offset(offset),
+    hint(hint) {
 
   }
 
