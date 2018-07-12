@@ -164,14 +164,14 @@ def getLabels(pr):
                   'TSolver(%)', 'States', 'maxStates', 'Mem(MB)', 'maxMem(MB)')
     else:
         labels = ('Path', 'Instrs', 'Time(s)', 'ICov(%)',
-                  'BCov(%)', 'ICount', 'TSolver(%)', 'SA(%)')
+                  'BCov(%)', 'ICount', 'TSolver(%)', 'SA(%)', 'SAUsage')
     return labels
 
 
 def getRow(record, stats, pr):
     """Compose data for the current run into a row."""
     I, BFull, BPart, BTot, T, St, Mem, QTot, QCon,\
-        _, Treal, SCov, SUnc, _, Ts, Tcex, Tf, Tr, Tsa, QCexMiss, QCexHits, = record
+        _, Treal, SCov, SUnc, _, Ts, Tcex, Tf, Tr, Tsa, QCexMiss, QCexHits, SAUsage = record
     maxMem, avgMem, maxStates, avgStates = stats
 
     # special case for straight-line code: report 100% branch coverage
@@ -201,7 +201,7 @@ def getRow(record, stats, pr):
     else:
         row = (I, Treal, 100 * SCov / (SCov + SUnc),
                100 * (2 * BFull + BPart) / (2 * BTot),
-               SCov + SUnc, 100 * Ts / Treal, 100 * Tsa / Treal)
+               SCov + SUnc, 100 * Ts / Treal, 100 * Tsa / Treal, SAUsage)
     return row
 
 

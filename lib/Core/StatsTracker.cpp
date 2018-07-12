@@ -415,6 +415,7 @@ void StatsTracker::writeStatsHeader() {
              << "'StaticAnalysisTime',"
              << "'QueryCexCacheMisses',"
              << "'QueryCexCacheHits',"
+             << "'StaticAnalysisUsage',"
 #ifdef DEBUG
 	     << "'ArrayHashTime',"
 #endif
@@ -448,6 +449,7 @@ void StatsTracker::writeStatsLine() {
              << "," << stats::staticAnalysisTime / 1000000.
              << "," << stats::queryCexCacheMisses
              << "," << stats::queryCexCacheHits
+             << "," << stats::staticAnalysisUsage
 #ifdef DEBUG
              //<< "," << stats::arrayHashTime / 1000000.
 #endif

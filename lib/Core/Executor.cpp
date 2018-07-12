@@ -1415,6 +1415,7 @@ void Executor::executeCall(ExecutionState &state,
     }
 
     TimerStatIncrementer timer(stats::staticAnalysisTime);
+    ++stats::staticAnalysisUsage;
 
     updatePointsToOnCall(state, f, arguments);
     state.getPTA()->analyzeFunction(*kmodule->module, f);
