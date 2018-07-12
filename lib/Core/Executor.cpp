@@ -1416,6 +1416,8 @@ void Executor::executeCall(ExecutionState &state,
 
     updatePointsToOnCall(state, f, arguments);
 
+    TimerStatIncrementer timer(stats::staticAnalysisTime);
+
     state.getPTA()->createBackup();
     state.getPTA()->analyzeFunction(*kmodule->module, f);
     state.getPTA()->restoreFromBackup();
@@ -4083,6 +4085,8 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
                                      const MemoryObject *mo,
                                      ref<Expr> offset,
                                      ref<Expr> value) {
+  TimerStatIncrementer timer(stats::staticAnalysisTime);
+
   if (!state.prevPC->isRelevant) {
     return;
   }
@@ -4148,6 +4152,8 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
 void Executor::updatePointsToOnCall(ExecutionState &state,
                                     Function *f,
                                     std::vector<ref<Expr>> &arguments) {
+  TimerStatIncrementer timer(stats::staticAnalysisTime);
+
   unsigned int argIndex = 0;
   for (Function::arg_iterator ai = f->arg_begin(); ai != f->arg_end(); ai++) {
     Argument &arg = *ai;

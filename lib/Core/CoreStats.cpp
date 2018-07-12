@@ -24,6 +24,7 @@ Statistic stats::minDistToUncovered("MinDistToUncovered", "UCdist");
 Statistic stats::reachableUncovered("ReachableUncovered", "IuncovReach");
 Statistic stats::resolveTime("ResolveTime", "Rtime");
 Statistic stats::solverTime("SolverTime", "Stime");
+Statistic stats::staticAnalysisTime("StaticAnalysisTime", "SAtime");
 Statistic stats::states("States", "States");
 Statistic stats::trueBranches("TrueBranches", "Bt");
 Statistic stats::uncoveredInstructions("UncoveredInstructions", "Iuncov");

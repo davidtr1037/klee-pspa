@@ -412,6 +412,7 @@ void StatsTracker::writeStatsHeader() {
              << "'CexCacheTime',"
              << "'ForkTime',"
              << "'ResolveTime',"
+             << "'StaticAnalysisTime',"
              << "'QueryCexCacheMisses',"
              << "'QueryCexCacheHits',"
 #ifdef DEBUG
@@ -444,6 +445,7 @@ void StatsTracker::writeStatsLine() {
              << "," << stats::cexCacheTime / 1000000.
              << "," << stats::forkTime / 1000000.
              << "," << stats::resolveTime / 1000000.
+             << "," << stats::staticAnalysisTime / 1000000.
              << "," << stats::queryCexCacheMisses
              << "," << stats::queryCexCacheHits
 #ifdef DEBUG
