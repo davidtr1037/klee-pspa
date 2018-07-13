@@ -1173,7 +1173,7 @@ void parsePTATargetOption(Module *module,
       klee_error("pta-target option: '%s' not found in module.", fname.c_str());
     }
 
-    result.push_back(Interpreter::TargetFunctionOption(fname, lines));
+    result.push_back(Interpreter::TargetFunctionOption(f, lines));
   }
 }
 
