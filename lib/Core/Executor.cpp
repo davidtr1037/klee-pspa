@@ -4068,6 +4068,8 @@ bool Executor::getDynamicMemoryLocations(ExecutionState &state,
 void Executor::handleBitCast(ExecutionState &state,
                              KInstruction *ki,
                              ref<Expr> value) {
+  TimerStatIncrementer timer(stats::staticAnalysisTime);
+
   BitCastInst *castInst = dyn_cast<BitCastInst>(ki->inst);
   if (!castInst) {
     return;

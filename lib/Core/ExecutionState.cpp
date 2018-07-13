@@ -15,8 +15,10 @@
 #include "klee/Internal/Module/KModule.h"
 
 #include "klee/Expr.h"
+#include "klee/TimerStatIncrementer.h"
 
 #include "Memory.h"
+#include "CoreStats.h"
 #include "llvm/IR/Function.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
@@ -95,6 +97,7 @@ ExecutionState::~ExecutionState() {
 
   while (!stack.empty()) popFrame();
 
+  TimerStatIncrementer timer(stats::staticAnalysisTime);
   if (pta) {
     delete pta;
   }
@@ -130,6 +133,7 @@ ExecutionState::ExecutionState(const ExecutionState& state):
   for (unsigned int i=0; i<symbolics.size(); i++)
     symbolics[i].first->refCount++;
 
+  TimerStatIncrementer timer(stats::staticAnalysisTime);
   if (state.pta) {
     pta = new AndersenDynamic(*state.pta);
     pta->initialize(*state.pta->getModule());
