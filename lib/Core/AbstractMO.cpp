@@ -32,13 +32,7 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
     const CallInst *callInst = dyn_cast<CallInst>(location.value);
     if (callInst) {
       /* TODO: handle vararg... */
-      Function *callee = callInst->getCalledFunction();
-      if (callee->getName() == "__uClibc_main") {
-        return 0;
-      }
-      if (callee->getName() == "version_etc") {
-        return 0;
-      }
+      return SymbolTableInfo::SymbolInfo()->blackholeSymID();
     }
 
     /* TODO: check the __uClibc_main wierd case... */
