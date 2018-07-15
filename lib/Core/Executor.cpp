@@ -3594,6 +3594,7 @@ void Executor::runFunctionAsMain(Function *f,
   ExecutionState *state = new ExecutionState(kmodule->functionMap[f]);
 
   if (!interpreterOpts.targetFunctions.empty()) {
+    TimerStatIncrementer timer(stats::staticAnalysisTime);
     AndersenDynamic *pta = new AndersenDynamic();
     pta->initialize(*kmodule->module);
     state->setPTA(pta);
