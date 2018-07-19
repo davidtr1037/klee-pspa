@@ -3927,7 +3927,8 @@ void Executor::evaluateWholeProgramPTA() {
   delete andersen;
 }
 
-const Value *Executor::addClonedObjNode(ExecutionState &state, const Value *value) {
+const Value *Executor::addClonedObjNode(ExecutionState &state,
+                                        const Value *value) {
   if (!isa<Instruction>(value)) {
     assert(false);
   }
@@ -3936,12 +3937,13 @@ const Value *Executor::addClonedObjNode(ExecutionState &state, const Value *valu
   const Value *newValue = dyn_cast<Instruction>(value)->clone();
 
   /* add a node for it in the PAG */
-  state.getPTA()->getPAG()->addExternalObjNode(newValue);
+  PAG::getPAG()->addExternalObjNode(newValue);
 
   return newValue;
 }
 
-const Value *Executor::getAllocSite(ExecutionState &state, const MemoryObject *mo) {
+const Value *Executor::getAllocSite(ExecutionState &state,
+                                    const MemoryObject *mo) {
   if (!CreateUniqueAS) {
     if (UseStrongUpdates) {
       klee_error("Must use weak updates...");
