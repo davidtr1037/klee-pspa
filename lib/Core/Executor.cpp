@@ -3991,19 +3991,20 @@ bool Executor::getDynamicMemoryLocation(ExecutionState &state,
   if (!wasResolved) {
     ConstantExpr *ce = dyn_cast<ConstantExpr>(value);
     if (ce) {
-      /* it may be a function pointer */
       uint64_t addr = ce->getZExtValue();
-      if (legalFunctions.count(addr)) {
-        location.value = (const Function *)(addr);
+
+      /* check if it's a NULL value */
+      if (!addr) {
+        location.value = ConstantPointerNull::get(valueType);
         location.isSymbolicOffset = false;
         location.offset = 0;
         location.hint = NULL;
         return true;
       }
 
-      /* check if it's a NULL value */
-      if (!addr) {
-        location.value = ConstantPointerNull::get(valueType);
+      /* it may be a function pointer */
+      if (legalFunctions.count(addr)) {
+        location.value = (const Function *)(addr);
         location.isSymbolicOffset = false;
         location.offset = 0;
         location.hint = NULL;
