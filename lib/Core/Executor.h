@@ -85,20 +85,11 @@ class PTAInfo : public AttachedInfo {
 
 public:
 
-    PTAInfo(const llvm::Value *allocSite) :
-      allocSite(allocSite) {
+    PTAInfo(const llvm::Value *allocSite);
 
-    }
+    ~PTAInfo();
 
-    ~PTAInfo() {
-      PAG::getPAG()->removeExternalObjNode(allocSite);
-      delete allocSite;
-      allocSite = NULL;
-    }
-
-    const llvm::Value *getAllocSite() {
-      return allocSite;
-    }
+    const llvm::Value *getAllocSite();
 
 private:
 

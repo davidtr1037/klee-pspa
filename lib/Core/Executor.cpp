@@ -346,6 +346,22 @@ const char *Executor::TerminateReasonNames[] = {
   [ Unhandled ] = "xxx",
 };
 
+PTAInfo::PTAInfo(const llvm::Value *allocSite) :
+  allocSite(allocSite) {
+
+}
+
+PTAInfo::~PTAInfo() {
+  TimerStatIncrementer timer(stats::staticAnalysisTime);
+  PAG::getPAG()->removeExternalObjNode(allocSite);
+  delete allocSite;
+  allocSite = NULL;
+}
+
+const llvm::Value *PTAInfo::getAllocSite() {
+  return allocSite;
+}
+
 Executor::Executor(LLVMContext &ctx, const InterpreterOptions &opts,
     InterpreterHandler *ih)
     : Interpreter(opts), kmodule(0), interpreterHandler(ih), searcher(0),
