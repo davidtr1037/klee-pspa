@@ -11,6 +11,7 @@
 #define KLEE_MEMORY_H
 
 #include "Context.h"
+#include "AttachedInfo.h"
 #include "klee/Expr.h"
 
 #include "llvm/ADT/StringExtras.h"
@@ -61,7 +62,7 @@ public:
   const llvm::Value *allocSite;
 
   /* TODO: initialize in the constructor! */
-  mutable const llvm::Value *uniqueAllocSite;
+  mutable AttachedInfo *attachedInfo;
 
   /// A list of boolean expressions the user has requested be true of
   /// a counterexample. Mutable since we play a little fast and loose
@@ -86,7 +87,7 @@ public:
       isFixed(true),
       parent(NULL),
       allocSite(0),
-      uniqueAllocSite(0) {
+      attachedInfo(0) {
   }
 
   MemoryObject(uint64_t _address, unsigned _size, 
@@ -104,7 +105,7 @@ public:
       isUserSpecified(false),
       parent(_parent), 
       allocSite(_allocSite),
-      uniqueAllocSite(0) {
+      attachedInfo(0) {
 
   }
 

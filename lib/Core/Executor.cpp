@@ -449,10 +449,6 @@ const Module *Executor::setModule(llvm::Module *module,
 }
 
 Executor::~Executor() {
-  /* TODO: find a better solution */
-  for (const Value *value : clonedAllocSites) {
-    delete value;
-  }
   delete memory;
   delete externalDispatcher;
   delete processTree;
@@ -3956,13 +3952,13 @@ const Value *Executor::getAllocSite(ExecutionState &state,
   }
 
   /* that should be a dynamic allocation */
-  if (!mo->uniqueAllocSite) {
-    mo->uniqueAllocSite = addClonedObjNode(state, mo->allocSite);
-    /* TODO: find a better solution */
-    clonedAllocSites.push_back(mo->uniqueAllocSite);
+  if (!mo->attachedInfo) {
+    const Value *clonedAllocSite = addClonedObjNode(state, mo->allocSite);
+    mo->attachedInfo = new PTAInfo(clonedAllocSite);
   }
 
-  return mo->uniqueAllocSite;
+  PTAInfo *info = (PTAInfo *)(mo->attachedInfo);
+  return info->getAllocSite();
 }
 
 PointerType *Executor::getTypeHint(const MemoryObject *mo) {

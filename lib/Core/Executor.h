@@ -23,6 +23,7 @@
 #include "klee/util/ArrayCache.h"
 #include "llvm/Support/raw_ostream.h"
 #include "AbstractMO.h"
+#include "AttachedInfo.h"
 #include "klee/Internal/Analysis/PTAStats.h"
 
 #include "llvm/ADT/Twine.h"
@@ -79,6 +80,30 @@ namespace klee {
   /// \todo Add a context object to keep track of data only live
   /// during an instruction step. Should contain addedStates,
   /// removedStates, and haltExecution, among others.
+
+class PTAInfo : public AttachedInfo {
+
+public:
+
+    PTAInfo(const llvm::Value *allocSite) :
+      allocSite(allocSite) {
+
+    }
+
+    ~PTAInfo() {
+      PAG::getPAG()->removeExternalObjNode(allocSite);
+      delete allocSite;
+      allocSite = NULL;
+    }
+
+    const llvm::Value *getAllocSite() {
+      return allocSite;
+    }
+
+private:
+
+    const llvm::Value *allocSite;
+};
 
 class Executor : public Interpreter {
   friend class RandomPathSearcher;
@@ -216,9 +241,6 @@ private:
 
   // @brief buffer to store logs before flushing to file
   llvm::raw_string_ostream debugLogBuffer;
-
-  /* TODO: find a better solution */
-  std::vector<const llvm::Value *> clonedAllocSites;
 
   /* TODO: add docs */
   PTAStatsLogger *ptaStatsLogger;
