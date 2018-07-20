@@ -1432,14 +1432,14 @@ void Executor::executeCall(ExecutionState &state,
     updatePointsToOnCall(state, f, arguments);
     state.getPTA()->analyzeFunction(*kmodule->module, f);
 
-    PTAStats stats;
-    evaluatePTAResults(state.getPTA(), f, stats, false);
+    StatsCollector collector(true);
+    collector.visitReachable(state.getPTA(), f);
 
     CallingContext context;
     context.entry = f;
     context.line = kmodule->infos->getInfo(i).line;
     context.call_depth = state.stack.size() - 1;
-    ptaStatsLogger->dump(context, stats);
+    ptaStatsLogger->dump(context, collector.getStats());
 
     state.getPTA()->postAnalysisCleanup();
   }
@@ -3929,11 +3929,12 @@ void Executor::evaluateWholeProgramPTA() {
 
   for (Function *f : functions) {
     PTAStats stats;
-    evaluatePTAResults(andersen, f, stats, false);
+    StatsCollector collector(false);
+    collector.visitReachable(andersen, f);
 
     CallingContext context;
     context.entry = f;
-    ptaStatsLogger->dump(context, stats);
+    ptaStatsLogger->dump(context, collector.getStats());
   }
 
   delete andersen;

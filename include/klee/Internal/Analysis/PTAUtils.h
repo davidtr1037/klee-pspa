@@ -6,20 +6,70 @@
 #include <MemoryModel/PointerAnalysis.h>
 
 #include <llvm/IR/Function.h>
+#include <llvm/IR/Instruction.h>
 
 namespace klee {
 
 void dumpNodeInfo(PointerAnalysis *pta,
                   NodeID nodeId);
 
-void evaluatePTAResults(PointerAnalysis *pta,
-                        llvm::Function *entry,
-                        PTAStats &state,
-                        bool dump = true);
+class InstructionVisitor {
 
-void evaluatePTAResults(PointerAnalysis *pta,
-                        PTAStats &stats,
-                        bool dump = true);
+public:
+
+  InstructionVisitor() {
+
+  }
+
+  void visitFunction(PointerAnalysis *pta, llvm::Function *f);
+
+  void visitReachable(PointerAnalysis *pta, llvm::Function *entry);
+
+  void visitAll(PointerAnalysis *pta);
+
+  virtual void visitStore(PointerAnalysis *pta,
+                          llvm::Function *f,
+                          llvm::StoreInst *inst) {
+
+  }
+
+  virtual void visitLoad(PointerAnalysis *pta,
+                         llvm::Function *f,
+                         llvm::LoadInst *inst) {
+
+  }
+
+};
+
+
+class StatsCollector : public InstructionVisitor {
+
+public:
+
+  StatsCollector(bool dump) :
+    dump(dump) {
+
+  }
+
+  virtual void visitStore(PointerAnalysis *pta,
+                          llvm::Function *f,
+                          llvm::StoreInst *inst);
+
+  virtual void visitLoad(PointerAnalysis *pta,
+                         llvm::Function *f,
+                         llvm::LoadInst *inst);
+
+  PTAStats &getStats() {
+    return stats;
+  }
+
+private:
+
+  void updateStats(unsigned size);
+
+  bool dump;
+  PTAStats stats;
+};
 
 }
 
