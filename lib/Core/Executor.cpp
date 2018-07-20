@@ -1432,7 +1432,7 @@ void Executor::executeCall(ExecutionState &state,
     updatePointsToOnCall(state, f, arguments);
     state.getPTA()->analyzeFunction(*kmodule->module, f);
 
-    StatsCollector collector(true);
+    StatsCollector collector(false);
     collector.visitReachable(state.getPTA(), f);
 
     CallingContext context;
