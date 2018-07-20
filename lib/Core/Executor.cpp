@@ -321,8 +321,11 @@ namespace {
                  cl::init(true),
                  cl::desc("Create unique allocation sites for heap objects"));
 
+  cl::opt<bool>
+  CollectPTAStats("collect-pta-stats", cl::init(false), cl::desc(""));
+
   cl::opt<std::string>
-  DumpPTASummary("dump-pta-summary", cl::desc(""), cl::init(""));
+  DumpPTASummary("dump-pta-summary", cl::init(""), cl::desc(""));
 }
 
 
@@ -1432,14 +1435,16 @@ void Executor::executeCall(ExecutionState &state,
     updatePointsToOnCall(state, f, arguments);
     state.getPTA()->analyzeFunction(*kmodule->module, f);
 
-    StatsCollector collector(false);
-    collector.visitReachable(state.getPTA(), f);
+    if (CollectPTAStats) {
+      StatsCollector collector(false);
+      collector.visitReachable(state.getPTA(), f);
 
-    CallingContext context;
-    context.entry = f;
-    context.line = kmodule->infos->getInfo(i).line;
-    context.call_depth = state.stack.size() - 1;
-    ptaStatsLogger->dump(context, collector.getStats());
+      CallingContext context;
+      context.entry = f;
+      context.line = kmodule->infos->getInfo(i).line;
+      context.call_depth = state.stack.size() - 1;
+      ptaStatsLogger->dump(context, collector.getStats());
+    }
 
     state.getPTA()->postAnalysisCleanup();
   }
@@ -3927,14 +3932,16 @@ void Executor::evaluateWholeProgramPTA() {
   PointerAnalysis *andersen = new Andersen();
   andersen->analyze(*kmodule->module);
 
-  for (Function *f : functions) {
-    PTAStats stats;
-    StatsCollector collector(false);
-    collector.visitReachable(andersen, f);
+  if (CollectPTAStats) {
+    for (Function *f : functions) {
+      PTAStats stats;
+      StatsCollector collector(false);
+      collector.visitReachable(andersen, f);
 
-    CallingContext context;
-    context.entry = f;
-    ptaStatsLogger->dump(context, collector.getStats());
+      CallingContext context;
+      context.entry = f;
+      ptaStatsLogger->dump(context, collector.getStats());
+    }
   }
 
   delete andersen;
