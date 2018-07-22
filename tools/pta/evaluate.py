@@ -2,12 +2,14 @@
 
 import optparse
 import os
+import hashlib
 
 
 class Analysis(object):
 
     def __init__(self):
         self.points_to = {}
+        self.hashes = {}
 
     def update(self, function, value, pts):
         if function not in self.points_to:
@@ -15,11 +17,34 @@ class Analysis(object):
 
         self.points_to[function][value] = pts
 
+    def compute_hash(self):
+        for f, m in self.points_to.iteritems():
+            h = hashlib.md5()
+            for value, pts in m.iteritems():
+                h.update("%d %r" % (value, pts, ))
+            self.hashes[f] = int(h.hexdigest(), 16)
+
     def dump(self):
         for f, m in self.points_to.iteritems():
             print "Function: %s" % f
             for value, pts in m.iteritems():
                 print "%d: %r" % (value, pts, )
+
+    def __eq__(self, other):
+        if len(self.hashes.keys()) != len(other.hashes.keys()):
+            return False
+
+        for f, h in self.hashes.iteritems():
+            if f not in other.hashes:
+                return False
+
+            if h != other.hashes[f]:
+                return False
+
+        return True
+
+    def __ne__(self, other):
+        return not self == other
 
 
 class PTALogParser(object):
@@ -35,6 +60,9 @@ class PTALogParser(object):
             for line in f.readlines():
                 self.parse_line(line.strip())
 
+        for a in self.analyses:
+            a.compute_hash()
+
     def parse_line(self, line):
         if line == self.BANNER:
             self.current = Analysis()
@@ -48,6 +76,14 @@ class PTALogParser(object):
 
     def add_result(self, function, value, pts):
         self.current.update(function, value, pts)
+
+    def find_unique(self):
+        unique = []
+        for a in set(self.analyses):
+            if a not in unique:
+                unique.append(a)
+
+        return unique
 
     def dump(self):
         for a in self.analyses:
@@ -68,7 +104,8 @@ def main():
 
     parser = PTALogParser(log_file)
     parser.parse()
-    parser.dump()
+    u = parser.find_unique()
+    print "%d / %d" % (len(u), len(parser.analyses), )
 
 if __name__ == '__main__':
     main()
