@@ -77,6 +77,12 @@ class PTALogParser(object):
     def add_result(self, function, value, pts):
         self.current.update(function, value, pts)
 
+    def get_results_count(self):
+        return len(self.analyses)
+
+    def get_unique_results_count(self):
+        return len(self.find_unique())
+
     def find_unique(self):
         unique = []
         for a in set(self.analyses):
