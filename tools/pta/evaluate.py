@@ -110,8 +110,7 @@ def main():
 
     parser = PTALogParser(log_file)
     parser.parse()
-    u = parser.find_unique()
-    print "%d / %d" % (len(u), len(parser.analyses), )
+    print "%d / %d" % (parser.get_unique_results_count(), parser.get_results_count(), )
 
 if __name__ == '__main__':
     main()
