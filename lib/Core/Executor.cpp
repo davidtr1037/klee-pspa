@@ -324,6 +324,9 @@ namespace {
   cl::opt<bool>
   CollectPTAStats("collect-pta-stats", cl::init(false), cl::desc(""));
 
+  cl::opt<bool>
+  CollectPTAResults("collect-pta-results", cl::init(false), cl::desc(""));
+
   cl::opt<std::string>
   DumpPTASummary("dump-pta-summary", cl::init(""), cl::desc(""));
 }
@@ -437,6 +440,12 @@ Executor::Executor(LLVMContext &ctx, const InterpreterOptions &opts,
   } else {
     ptaStatsLogger = new PTAStatsCSVLogger(DumpPTASummary);
   }
+
+  if (CollectPTAResults) {
+    ptaLog = interpreterHandler->openOutputFile("pta.log");
+  } else {
+    ptaLog = NULL;
+  }
 }
 
 
@@ -482,6 +491,9 @@ Executor::~Executor() {
   delete debugInstFile;
   if (ptaStatsLogger) {
     delete ptaStatsLogger;
+  }
+  if (ptaLog) {
+    delete ptaLog;
   }
 }
 
@@ -1444,6 +1456,11 @@ void Executor::executeCall(ExecutionState &state,
       context.line = kmodule->infos->getInfo(i).line;
       context.call_depth = state.stack.size() - 1;
       ptaStatsLogger->dump(context, collector.getStats());
+    }
+
+    if (CollectPTAResults) {
+      ResultsCollector collector(*ptaLog);
+      collector.visitReachable(state.getPTA(), f);
     }
 
     state.getPTA()->postAnalysisCleanup();

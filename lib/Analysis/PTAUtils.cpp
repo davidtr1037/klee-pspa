@@ -110,3 +110,37 @@ void StatsCollector::updateStats(unsigned size) {
     stats.max_size = size;
   }
 }
+
+void ResultsCollector::visitReachable(PointerAnalysis *pta,
+                                      llvm::Function *entry) {
+  log << "----\n";
+  InstructionVisitor::visitReachable(pta, entry);
+}
+
+void ResultsCollector::visitStore(PointerAnalysis *pta,
+                                  Function *f,
+                                  StoreInst *inst) {
+  NodeID id = pta->getPAG()->getValueNode(inst->getPointerOperand());
+  PointsTo &pts = pta->getPts(id);
+
+  log << f->getName() << " " << id << " ";
+  for (PointsTo::iterator i = pts.begin(); i != pts.end(); ++i) {
+    NodeID nodeId = *i;
+    log << nodeId << " ";
+  }
+  log << "\n";
+}
+
+void ResultsCollector::visitLoad(PointerAnalysis *pta,
+                                 Function *f,
+                                 LoadInst *inst) {
+  NodeID id = pta->getPAG()->getValueNode(inst->getPointerOperand());
+  PointsTo &pts = pta->getPts(id);
+
+  log << f->getName() << " " << id << " ";
+  for (PointsTo::iterator i = pts.begin(); i != pts.end(); ++i) {
+    NodeID nodeId = *i;
+    log << nodeId << " ";
+  }
+  log << "\n";
+}

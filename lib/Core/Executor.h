@@ -236,6 +236,9 @@ private:
   /* TODO: add docs */
   PTAStatsLogger *ptaStatsLogger;
 
+  /* TODO: add docs */
+  llvm::raw_ostream *ptaLog;
+
   llvm::Function* getTargetFunction(llvm::Value *calledVal,
                                     ExecutionState &state);
   

@@ -21,11 +21,11 @@ public:
 
   }
 
-  void visitFunction(PointerAnalysis *pta, llvm::Function *f);
+  virtual void visitFunction(PointerAnalysis *pta, llvm::Function *f);
 
-  void visitReachable(PointerAnalysis *pta, llvm::Function *entry);
+  virtual void visitReachable(PointerAnalysis *pta, llvm::Function *entry);
 
-  void visitAll(PointerAnalysis *pta);
+  virtual void visitAll(PointerAnalysis *pta);
 
   virtual void visitStore(PointerAnalysis *pta,
                           llvm::Function *f,
@@ -69,6 +69,31 @@ private:
 
   bool dump;
   PTAStats stats;
+};
+
+class ResultsCollector : public InstructionVisitor {
+
+public:
+
+  ResultsCollector(llvm::raw_ostream &log) :
+    log(log) {
+
+  }
+
+  virtual void visitReachable(PointerAnalysis *pta,
+                              llvm::Function *entry);
+
+  virtual void visitStore(PointerAnalysis *pta,
+                          llvm::Function *f,
+                          llvm::StoreInst *inst);
+
+  virtual void visitLoad(PointerAnalysis *pta,
+                         llvm::Function *f,
+                         llvm::LoadInst *inst);
+
+private:
+
+  llvm::raw_ostream &log;
 };
 
 }
