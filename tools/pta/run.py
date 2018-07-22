@@ -59,9 +59,9 @@ def main():
 
             klee_out_dir = os.path.join(bc_dir, "klee-last")
             pta_log_file = os.path.join(klee_out_dir, "pta.log")
+
             parser = PTALogParser(pta_log_file)
             parser.parse()
-            u = parser.find_unique()
 
             writer.writerow(
                 [
