@@ -43,7 +43,9 @@ def main():
     targets = []
     with open(functions_file) as f:
         for line in f.readlines():
-            targets.append(line.strip())
+            line = line.strip()
+            if line != "" and not line.startswith("#"):
+                targets.append(line)
 
     with open(csv_file, "w+") as out:
         writer = csv.writer(out)
