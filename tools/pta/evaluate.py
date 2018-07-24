@@ -72,7 +72,7 @@ class PTALogParser(object):
         tokens = line.split()
         function, value = tokens[:2]
         pts = tokens[2:]
-        self.add_result(function, int(value), map(int, pts))
+        self.add_result(function, int(value), sorted(map(int, pts)))
 
     def add_result(self, function, value, pts):
         self.current.update(function, value, pts)
