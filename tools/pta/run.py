@@ -49,7 +49,11 @@ def main():
 
     with open(csv_file, "w+") as out:
         writer = csv.writer(out)
+
+        # write header
         writer.writerow(["Function", "Unique", "Total"])
+        out.flush()
+
         for pta_target in targets:
             status = run_klee(int(use_strong_updates),
                               int(create_unique_as),
@@ -65,6 +69,7 @@ def main():
             parser = PTALogParser(pta_log_file)
             parser.parse()
 
+            # add row
             writer.writerow(
                 [
                     pta_target,
@@ -72,6 +77,7 @@ def main():
                     parser.get_results_count(),
                 ]
             )
+            out.flush()
 
 if __name__ == '__main__':
     main()
