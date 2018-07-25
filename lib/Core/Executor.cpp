@@ -4067,7 +4067,6 @@ bool Executor::getDynamicMemoryLocation(ExecutionState &state,
 
   const MemoryObject *mo = op.first;
 
-  /* TODO: try to concretize? */
   ref<Expr> offsetExpr = mo->getOffsetExpr(value);
   ConstantExpr *ce = dyn_cast<ConstantExpr>(offsetExpr);
   if (!ce) {
@@ -4202,7 +4201,6 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
     assert(false);
   }
 
-  /* TODO: use hint here? */
   NodeID dst = computeAbstractMO(state.getPTA(), location);
 
   ConstantExpr *ce = dyn_cast<ConstantExpr>(offset);
