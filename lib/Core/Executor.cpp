@@ -4021,13 +4021,15 @@ bool Executor::getDynamicMemoryLocation(ExecutionState &state,
                                         DynamicMemoryLocation &location) {
   ObjectPair op;
   bool wasResolved;
+  bool complete;
 
   solver->setTimeout(coreSolverTimeout);
-  if (!state.addressSpace.resolveOne(state, solver, value, op, wasResolved)) {
+  complete = state.addressSpace.resolveOne(state, solver, value, op, wasResolved);
+  solver->setTimeout(0);
+  if (!complete) {
     /* TODO: should we concretize here? */
     return false;
   }
-  solver->setTimeout(0);
 
   if (!wasResolved) {
     ConstantExpr *ce = dyn_cast<ConstantExpr>(value);
@@ -4053,7 +4055,14 @@ bool Executor::getDynamicMemoryLocation(ExecutionState &state,
       }
     }
 
-    return false;
+    ref<Expr> subValue = SubExpr::create(value,
+                                         ConstantExpr::alloc(1, value->getWidth()));
+    solver->setTimeout(coreSolverTimeout);
+    complete = state.addressSpace.resolveOne(state, solver, subValue, op, wasResolved);
+    solver->setTimeout(0);
+    if (!complete || !wasResolved) {
+      return false;
+    }
   }
 
   const MemoryObject *mo = op.first;
@@ -4190,7 +4199,6 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
   DynamicMemoryLocation location;
   bool result = getDynamicMemoryLocation(state, value, valueType, location);
   if (!result) {
-    /* TODO: handle... */
     assert(false);
   }
 
