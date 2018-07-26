@@ -31,13 +31,12 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
   if (!moType) {
     const CallInst *callInst = dyn_cast<CallInst>(location.value);
     if (callInst) {
-      /* TODO: handle vararg... */
-      return SymbolTableInfo::SymbolInfo()->blackholeSymID();
+      /* TODO: better solution for varargs? */
+      return pta->getPAG()->getBlackHoleNode();
     }
 
     /* TODO: check the __uClibc_main wierd case... */
     llvm::report_fatal_error("Unexpected type of allocation site");
-    return 0;
   }
 
   NodeID nodeId = pta->getPAG()->getObjectNode(location.value);
