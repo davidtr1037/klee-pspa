@@ -4055,6 +4055,7 @@ bool Executor::getDynamicMemoryLocation(ExecutionState &state,
       }
     }
 
+    /* decrement 1 from the address expression and retry... */
     ref<Expr> subValue = SubExpr::create(value,
                                          ConstantExpr::alloc(1, value->getWidth()));
     solver->setTimeout(coreSolverTimeout);
