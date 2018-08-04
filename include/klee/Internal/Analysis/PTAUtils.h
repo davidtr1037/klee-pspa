@@ -65,10 +65,11 @@ public:
 
 private:
 
-  void updateStats(unsigned size);
+  void updateStats(NodeID nodeId, unsigned size);
 
   bool dump;
   PTAStats stats;
+  std::set<NodeID> visited;
 };
 
 class ResultsCollector : public InstructionVisitor {

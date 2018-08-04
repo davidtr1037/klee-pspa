@@ -83,7 +83,7 @@ void StatsCollector::visitStore(PointerAnalysis *pta,
     }
   }
 
-  updateStats(pts.count());
+  updateStats(id, pts.count());
 }
 
 void StatsCollector::visitLoad(PointerAnalysis *pta,
@@ -100,15 +100,21 @@ void StatsCollector::visitLoad(PointerAnalysis *pta,
     }
   }
 
-  updateStats(pts.count());
+  updateStats(id, pts.count());
 }
 
-void StatsCollector::updateStats(unsigned size) {
+void StatsCollector::updateStats(NodeID nodeId, unsigned size) {
+  if (visited.find(nodeId) != visited.end()) {
+    return;
+  }
+
   stats.queries += 1;
   stats.total += size;
   if (size > stats.max_size) {
     stats.max_size = size;
   }
+
+  visited.insert(nodeId);
 }
 
 void ResultsCollector::visitReachable(PointerAnalysis *pta,
