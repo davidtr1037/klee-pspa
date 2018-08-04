@@ -3930,18 +3930,18 @@ bool Executor::isTargetFunction(ExecutionState &state, Function *f) {
 
 void Executor::evaluateWholeProgramPTA() {
   /* functions to analyze */
-  std::set<Function *> functions;
+  std::vector<Function *> functions;
 
   if (interpreterOpts.targetFunctions.empty()) {
     /* analyze all the functions of the module */
     for (Function &f : *kmodule->module) {
       if (!f.isDeclaration()) {
-        functions.insert(&f);
+        functions.push_back(&f);
       }
     }
   } else {
     for (const TargetFunctionOption &option : interpreterOpts.targetFunctions) {
-      functions.insert(option.f);
+      functions.push_back(option.f);
     }
   }
 
