@@ -10,6 +10,7 @@
 klee_add_component(kleeAnalysis
     PTAStats.cpp
     PTAUtils.cpp
+    PTAGraph.cpp
     Reachability.cpp
 )
 

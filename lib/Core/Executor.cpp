@@ -49,6 +49,7 @@
 #include "klee/Internal/System/Time.h"
 #include "klee/Internal/System/MemoryUsage.h"
 #include "klee/SolverStats.h"
+#include "klee/Internal/Analysis/PTAGraph.h"
 #include "klee/Internal/Analysis/PTAStats.h"
 #include "klee/Internal/Analysis/PTAUtils.h"
 
@@ -327,6 +328,9 @@ namespace {
   cl::opt<bool>
   CollectPTAResults("collect-pta-results", cl::init(false), cl::desc(""));
 
+  cl::opt<bool>
+  DumpPTAGraph("dump-pta-graph", cl::init(false), cl::desc(""));
+
   cl::opt<std::string>
   DumpPTASummary("dump-pta-summary", cl::init(""), cl::desc(""));
 }
@@ -446,6 +450,12 @@ Executor::Executor(LLVMContext &ctx, const InterpreterOptions &opts,
   } else {
     ptaLog = NULL;
   }
+
+  if (DumpPTAGraph) {
+    ptaGraphLog = interpreterHandler->openOutputFile("ptagraph.log");
+  } else {
+    ptaGraphLog = NULL;
+  }
 }
 
 
@@ -494,6 +504,9 @@ Executor::~Executor() {
   }
   if (ptaLog) {
     delete ptaLog;
+  }
+  if (ptaGraphLog) {
+    delete ptaGraphLog;
   }
 }
 
@@ -1448,7 +1461,7 @@ void Executor::executeCall(ExecutionState &state,
     state.getPTA()->analyzeFunction(*kmodule->module, f);
 
     if (CollectPTAStats) {
-      StatsCollector collector(false);
+      StatsCollector collector(true);
       collector.visitReachable(state.getPTA(), f);
 
       CallingContext context;
@@ -1461,6 +1474,11 @@ void Executor::executeCall(ExecutionState &state,
     if (CollectPTAResults) {
       ResultsCollector collector(*ptaLog);
       collector.visitReachable(state.getPTA(), f);
+    }
+
+    if (DumpPTAGraph) {
+      PTAGraphDumper dumper(*ptaGraphLog);
+      dumper.dump(state.getPTA());
     }
 
     state.getPTA()->postAnalysisCleanup();
