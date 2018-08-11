@@ -1461,7 +1461,7 @@ void Executor::executeCall(ExecutionState &state,
     state.getPTA()->analyzeFunction(*kmodule->module, f);
 
     if (CollectPTAStats) {
-      StatsCollector collector(true);
+      StatsCollector collector(false);
       collector.visitReachable(state.getPTA(), f);
 
       CallingContext context;
