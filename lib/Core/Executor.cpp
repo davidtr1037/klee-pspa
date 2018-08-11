@@ -4055,7 +4055,7 @@ bool Executor::getDynamicMemoryLocation(ExecutionState &state,
       uint64_t addr = ce->getZExtValue();
 
       /* check if it's a NULL value */
-      if (!addr) {
+      if (addr == 0 || addr == (uint64_t)(-1)) {
         location.value = ConstantPointerNull::get(valueType);
         location.isSymbolicOffset = false;
         location.offset = 0;
