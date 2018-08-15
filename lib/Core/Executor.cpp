@@ -2193,7 +2193,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   case Instruction::BitCast: {
     ref<Expr> result = eval(ki, 0, state).value;
     bindLocal(ki, state, result);
-    handleBitCast(state, ki, result);
+    if (!interpreterOpts.targetFunctions.empty()) {
+      handleBitCast(state, ki, result);
+    }
     break;
   }
 
