@@ -150,3 +150,52 @@ void ResultsCollector::visitLoad(PointerAnalysis *pta,
   }
   log << "\n";
 }
+
+void ModRefCollector::visitStore(PointerAnalysis *pta,
+                                 Function *f,
+                                 StoreInst *inst) {
+  NodeID id = pta->getPAG()->getValueNode(inst->getPointerOperand());
+  PointsTo &pts = pta->getPts(id);
+
+  for (NodeID nodeId : pts) {
+    PAGNode *pagNode = pta->getPAG()->getPAGNode(nodeId);
+    ObjPN *obj = dyn_cast<ObjPN>(pagNode);
+    if (obj) {
+      const Value *value = obj->getMemObj()->getRefVal();
+      if (value && isa<AllocaInst>(value)) {
+        AllocaInst *alloca = (AllocaInst *)(dyn_cast<AllocaInst>(value));
+        Function *src = alloca->getParent()->getParent();
+        if (called.find(src) == called.end()) {
+          continue;
+        }
+      }
+    }
+
+    mod.insert(nodeId);
+  }
+}
+
+void ModRefCollector::visitLoad(PointerAnalysis *pta,
+                                Function *f,
+                                LoadInst *inst) {
+  NodeID id = pta->getPAG()->getValueNode(inst->getPointerOperand());
+  PointsTo &pts = pta->getPts(id);
+
+  for (NodeID nodeId : pts) {
+    ref.insert(nodeId);
+  }
+}
+
+void ModRefCollector::dumpModSet(PointerAnalysis *pta) {
+  errs() << "--- Mod Set ---\n";
+  for (NodeID nodeId : mod) {
+    dumpNodeInfo(pta, nodeId);
+  }
+}
+
+void ModRefCollector::dumpRefSet(PointerAnalysis *pta) {
+  errs() << "--- Ref Set ---\n";
+  for (NodeID nodeId : ref) {
+    dumpNodeInfo(pta, nodeId);
+  }
+}

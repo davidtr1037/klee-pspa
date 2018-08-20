@@ -331,6 +331,9 @@ namespace {
   cl::opt<bool>
   DumpPTAGraph("dump-pta-graph", cl::init(false), cl::desc(""));
 
+  cl::opt<bool>
+  CollectModRef("collect-modref", cl::init(false), cl::desc(""));
+
   cl::opt<std::string>
   DumpPTASummary("dump-pta-summary", cl::init(""), cl::desc(""));
 }
@@ -1479,6 +1482,18 @@ void Executor::executeCall(ExecutionState &state,
     if (DumpPTAGraph) {
       PTAGraphDumper dumper(*ptaGraphLog);
       dumper.dump(state.getPTA());
+    }
+
+    if (CollectModRef) {
+      set<Function *> functions;
+      for (unsigned int i = 0; i < state.stack.size() - 1; i++) {
+        StackFrame &sf = state.stack[i];
+        functions.insert(sf.kf->function);
+      }
+
+      ModRefCollector collector(functions);
+      collector.visitReachable(state.getPTA(), f);
+      collector.dumpModSet(state.getPTA());
     }
 
     state.getPTA()->postAnalysisCleanup();

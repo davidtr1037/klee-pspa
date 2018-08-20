@@ -8,6 +8,9 @@
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Instruction.h>
 
+#include <set>
+
+
 namespace klee {
 
 void dumpNodeInfo(PointerAnalysis *pta,
@@ -95,6 +98,34 @@ public:
 private:
 
   llvm::raw_ostream &log;
+};
+
+class ModRefCollector : public InstructionVisitor {
+
+public:
+
+  ModRefCollector(std::set<llvm::Function *> called) :
+    called(called) {
+
+  }
+
+  virtual void visitStore(PointerAnalysis *pta,
+                          llvm::Function *f,
+                          llvm::StoreInst *inst);
+
+  virtual void visitLoad(PointerAnalysis *pta,
+                         llvm::Function *f,
+                         llvm::LoadInst *inst);
+
+  void dumpModSet(PointerAnalysis *pta);
+
+  void dumpRefSet(PointerAnalysis *pta);
+
+private:
+
+  std::set<llvm::Function *> called;
+  std::set<NodeID> mod;
+  std::set<NodeID> ref;
 };
 
 }
