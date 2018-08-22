@@ -75,10 +75,10 @@ void StatsCollector::visitStore(PointerAnalysis *pta,
   NodeID id = pta->getPAG()->getValueNode(inst->getPointerOperand());
   PointsTo &pts = pta->getPts(id);
 
-  if (dump) {
-    errs() << f->getName() << ": "  << *inst << ":\n";
-    for (PointsTo::iterator i = pts.begin(); i != pts.end(); ++i) {
-      NodeID nodeId = *i;
+  errs() << f->getName() << ": "  << *inst << ":\n";
+  for (NodeID nodeId : pts) {
+    mod.insert(nodeId);
+    if (dump) {
       dumpNodeInfo(pta, nodeId);
     }
   }
@@ -94,8 +94,10 @@ void StatsCollector::visitLoad(PointerAnalysis *pta,
 
   if (dump) {
     errs() << f->getName() << ": "  << *inst << ":\n";
-    for (PointsTo::iterator i = pts.begin(); i != pts.end(); ++i) {
-      NodeID nodeId = *i;
+  }
+  for (NodeID nodeId : pts) {
+    ref.insert(nodeId);
+    if (dump) {
       dumpNodeInfo(pta, nodeId);
     }
   }
@@ -113,6 +115,9 @@ void StatsCollector::updateStats(NodeID nodeId, unsigned size) {
   if (size > stats.max_size) {
     stats.max_size = size;
   }
+
+  stats.mod_size = mod.size();
+  stats.ref_size = ref.size();
 
   visited.insert(nodeId);
 }

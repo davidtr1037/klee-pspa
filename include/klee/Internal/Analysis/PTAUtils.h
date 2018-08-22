@@ -73,6 +73,8 @@ private:
   bool dump;
   PTAStats stats;
   std::set<NodeID> visited;
+  std::set<NodeID> mod;
+  std::set<NodeID> ref;
 };
 
 class ResultsCollector : public InstructionVisitor {

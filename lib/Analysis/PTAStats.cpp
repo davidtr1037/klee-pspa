@@ -18,6 +18,8 @@ void PTAStatsLogger::dump(CallingContext &context, PTAStats &stats) {
   summary.queries = stats.queries;
   summary.average_size = stats.queries > 0 ? double(stats.total) / double(stats.queries) : 0;
   summary.max_size = stats.max_size;
+  summary.mod_size = stats.mod_size;
+  summary.ref_size = stats.ref_size;
   dump(summary);
 }
 
@@ -33,6 +35,8 @@ void PTAStatsPrintLogger::dump(PTAStatsSummary &summary) {
   errs() << "  -- queries: " << summary.queries << "\n";
   errs() << "  -- average size: " << formatted << "\n";
   errs() << "  -- max size: " << summary.max_size << "\n";
+  errs() << "  -- mod size: " << summary.mod_size << "\n";
+  errs() << "  -- ref size: " << summary.ref_size << "\n";
 }
 
 PTAStatsCSVLogger::PTAStatsCSVLogger(string path) {

@@ -12,8 +12,10 @@ struct PTAStats {
   uint32_t queries;
   uint32_t total;
   uint32_t max_size;
+  uint32_t mod_size;
+  uint32_t ref_size;
 
-  PTAStats() : queries(0), total(0), max_size(0) {
+  PTAStats() : queries(0), total(0), max_size(0), mod_size(0), ref_size(0) {
 
   }
 };
@@ -33,8 +35,10 @@ struct PTAStatsSummary {
   uint32_t queries;
   double average_size;
   uint32_t max_size;
+  uint32_t mod_size;
+  uint32_t ref_size;
 
-  PTAStatsSummary() : context(), queries(0), average_size(0), max_size(0) {
+  PTAStatsSummary() : context(), queries(0), average_size(0), max_size(0), mod_size(0), ref_size(0) {
 
   }
 };
