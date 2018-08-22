@@ -52,7 +52,7 @@ PTAStatsCSVLogger::PTAStatsCSVLogger(string path) {
   }
 
   if (!sys::fs::exists(result)) {
-    *file << "Function,Line,Call-Depth,Queries,Average,Max\n";
+    *file << "Function,Line,Call-Depth,Queries,Average,Max,Mod,Ref\n";
   }
 }
 
@@ -71,5 +71,7 @@ void PTAStatsCSVLogger::dump(PTAStatsSummary &summary) {
   *file << summary.context.call_depth << ",";
   *file << summary.queries << ",";
   *file << formatted << ",";
-  *file << summary.max_size << "\n";
+  *file << summary.max_size << ",";
+  *file << summary.mod_size << ",";
+  *file << summary.ref_size << "\n";
 }
