@@ -75,7 +75,9 @@ void StatsCollector::visitStore(PointerAnalysis *pta,
   NodeID id = pta->getPAG()->getValueNode(inst->getPointerOperand());
   PointsTo &pts = pta->getPts(id);
 
-  errs() << f->getName() << ": "  << *inst << ":\n";
+  if (dump) {
+    errs() << f->getName() << ": "  << *inst << ":\n";
+  }
   for (NodeID nodeId : pts) {
     mod.insert(nodeId);
     if (dump) {
