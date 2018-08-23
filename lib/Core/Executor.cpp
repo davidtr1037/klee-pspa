@@ -1460,6 +1460,10 @@ void Executor::executeCall(ExecutionState &state,
       return;
     }
 
+    if (!isDynamicMode()) {
+      return;
+    }
+
     TimerStatIncrementer timer(stats::staticAnalysisTime);
     ++stats::staticAnalysisUsage;
 
@@ -2211,7 +2215,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   case Instruction::BitCast: {
     ref<Expr> result = eval(ki, 0, state).value;
     bindLocal(ki, state, result);
-    if (!interpreterOpts.targetFunctions.empty()) {
+    if (isDynamicMode()) {
       handleBitCast(state, ki, result);
     }
     break;
@@ -3458,8 +3462,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
           ObjectState *wos = state.addressSpace.getWriteable(mo, os);
           wos->write(offset, value);
 
-          /* TODO: replace with a better check... */
-          if (!interpreterOpts.targetFunctions.empty()) {
+          if (isDynamicMode()) {
             updatePointsToOnStore(state, mo, offset, value);
           }
         }
@@ -3507,8 +3510,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
           ObjectState *wos = bound->addressSpace.getWriteable(mo, os);
           wos->write(offset, value);
 
-          /* TODO: replace with a better check... */
-          if (!interpreterOpts.targetFunctions.empty()) {
+          if (isDynamicMode()) {
             updatePointsToOnStore(state, mo, offset, value);
           }
         }
@@ -3665,7 +3667,7 @@ void Executor::runFunctionAsMain(Function *f,
 
   ExecutionState *state = new ExecutionState(kmodule->functionMap[f]);
 
-  if (!interpreterOpts.targetFunctions.empty()) {
+  if (isDynamicMode()) {
     TimerStatIncrementer timer(stats::staticAnalysisTime);
     AndersenDynamic *pta = new AndersenDynamic();
     pta->initialize(*kmodule->module);
@@ -4149,6 +4151,10 @@ bool Executor::getDynamicMemoryLocations(ExecutionState &state,
   }
 
   return true;
+}
+
+bool Executor::isDynamicMode() {
+  return !RunStaticPTA && !interpreterOpts.targetFunctions.empty();
 }
 
 void Executor::handleBitCast(ExecutionState &state,

@@ -576,6 +576,8 @@ public:
                                  llvm::PointerType *valueType,
                                  std::vector<DynamicMemoryLocation> &locations);
 
+  bool isDynamicMode();
+
   void handleBitCast(ExecutionState &state,
                      KInstruction *ki,
                      ref<Expr> value);
