@@ -234,6 +234,9 @@ private:
   llvm::raw_string_ostream debugLogBuffer;
 
   /* TODO: add docs */
+  PointerAnalysis *staticPTA;
+
+  /* TODO: add docs */
   PTAStatsLogger *ptaStatsLogger;
 
   /* TODO: add docs */

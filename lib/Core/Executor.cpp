@@ -387,7 +387,7 @@ Executor::Executor(LLVMContext &ctx, const InterpreterOptions &opts,
                             ? std::min(MaxCoreSolverTime, MaxInstructionTime)
                             : std::max(MaxCoreSolverTime, MaxInstructionTime)),
       debugInstFile(0), debugLogBuffer(debugBufferString),
-      ptaStatsLogger(0) {
+      staticPTA(0), ptaStatsLogger(0) {
 
   if (coreSolverTimeout) UseForkedCoreSolver = true;
   Solver *coreSolver = klee::createCoreSolver(CoreSolverToUse);
@@ -510,6 +510,9 @@ Executor::~Executor() {
   }
   if (ptaGraphLog) {
     delete ptaGraphLog;
+  }
+  if (staticPTA) {
+    delete staticPTA;
   }
 }
 
@@ -3981,22 +3984,20 @@ void Executor::evaluateWholeProgramPTA() {
   }
 
   klee_message("Running whole program pointer analysis...");
-  PointerAnalysis *andersen = new Andersen();
-  andersen->analyze(*kmodule->module);
+  staticPTA = new Andersen();
+  staticPTA->analyze(*kmodule->module);
 
   if (CollectPTAStats) {
     for (Function *f : functions) {
       PTAStats stats;
       StatsCollector collector(false);
-      collector.visitReachable(andersen, f);
+      collector.visitReachable(staticPTA, f);
 
       CallingContext context;
       context.entry = f;
       ptaStatsLogger->dump(context, collector.getStats());
     }
   }
-
-  delete andersen;
 }
 
 const Value *Executor::addClonedObjNode(ExecutionState &state,
