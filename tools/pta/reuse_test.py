@@ -1,11 +1,8 @@
 import optparse
 import os
-import subprocess
 import csv
 from evaluate import PTALogParser
-
-
-from run import run_klee, parse_command_file
+from run import run_klee, parse_command_file, get_targets
 
 PTA_ARGS = [
     "-run-static-pta=0",
@@ -22,15 +19,12 @@ def main():
 
     use_strong_updates, create_unique_as, command_file, functions_file, csv_file = args
     
+    # get application parameters
     app_args = parse_command_file(command_file)
+    # get bitcode file path
     bc_dir = os.path.dirname(app_args[0])
-
-    targets = []
-    with open(functions_file) as f:
-        for line in f.readlines():
-            line = line.strip()
-            if line != "" and not line.startswith("#"):
-                targets.append(line)
+    # get function targets
+    targets = get_targets(functions_file)
 
     with open(csv_file, "w+") as out:
         writer = csv.writer(out)
@@ -67,5 +61,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
 
