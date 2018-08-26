@@ -4019,6 +4019,11 @@ const Value *Executor::addClonedObjNode(ExecutionState &state,
 
 const Value *Executor::getAllocSite(ExecutionState &state,
                                     const MemoryObject *mo) {
+  if (RunStaticPTA) {
+    /* force non-unique allocation sites in this case... */
+    return mo->allocSite;
+  }
+
   if (!CreateUniqueAS) {
     if (UseStrongUpdates) {
       klee_error("Must use weak updates...");
