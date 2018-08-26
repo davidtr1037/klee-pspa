@@ -125,6 +125,9 @@ public:
 
 private:
 
+  bool canEscape(PointerAnalysis *pta,
+                 NodeID nodeId);
+
   std::set<llvm::Function *> called;
   std::set<NodeID> mod;
   std::set<NodeID> ref;
