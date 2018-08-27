@@ -309,7 +309,7 @@ namespace {
 
   cl::opt<bool>
   RunStaticPTA("run-static-pta",
-               cl::init(true),
+               cl::init(false),
                cl::desc("Run statis pointer analysis (before the execution)"));
 
   cl::opt<bool>
