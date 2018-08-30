@@ -3943,9 +3943,7 @@ size_t Executor::getAllocationAlignment(const llvm::Value *allocSite) const {
 
 bool Executor::isTargetFunction(ExecutionState &state, Function *f) {
   for (const TargetFunctionOption &option :  interpreterOpts.targetFunctions) {
-    if (option.f == f) {
-      Instruction *callInst = state.prevPC->inst;
-      const InstructionInfo &info = kmodule->infos->getInfo(callInst);
+    if (f->getName() == option.name) {
       const std::vector<unsigned int> &lines = option.lines;
 
       /* skip any call site */
@@ -3953,11 +3951,14 @@ bool Executor::isTargetFunction(ExecutionState &state, Function *f) {
         return true;
       }
 
+      Instruction *callInst = state.prevPC->inst;
+      const InstructionInfo &info = kmodule->infos->getInfo(callInst);
+
       /* check if we have debug information */
       if (info.line == 0) {
         klee_warning_once(0,
                           "call filter for %s: debug info not found...",
-                          option.f->getName().data());
+                          option.name.c_str());
         return true;
       }
 
@@ -3981,7 +3982,10 @@ void Executor::evaluateWholeProgramPTA() {
     }
   } else {
     for (const TargetFunctionOption &option : interpreterOpts.targetFunctions) {
-      functions.push_back(option.f);
+      Function *f = kmodule->module->getFunction(option.name);
+      if (f) {
+        functions.push_back(f);
+      }
     }
   }
 

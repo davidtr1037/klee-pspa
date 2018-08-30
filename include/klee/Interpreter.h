@@ -72,11 +72,11 @@ public:
   };
 
   struct TargetFunctionOption {
-    llvm::Function *f;
+    std::string name;
     std::vector<unsigned int> lines;
 
-    TargetFunctionOption(llvm::Function *f, std::vector<unsigned int> &lines) :
-      f(f), lines(lines)
+    TargetFunctionOption(std::string &name, std::vector<unsigned int> &lines) :
+      name(name), lines(lines)
     {
 
     }

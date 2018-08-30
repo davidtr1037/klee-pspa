@@ -1173,7 +1173,7 @@ void parsePTATargetOption(Module *module,
       klee_error("pta-target option: '%s' not found in module.", fname.c_str());
     }
 
-    result.push_back(Interpreter::TargetFunctionOption(f, lines));
+    result.push_back(Interpreter::TargetFunctionOption(fname, lines));
   }
 }
 
@@ -1319,9 +1319,6 @@ int main(int argc, char **argv, char **envp) {
     klee_error("'%s' function not found in module.", EntryPoint.c_str());
   }
 
-  std::vector<Interpreter::TargetFunctionOption> targetFunctions;
-  parsePTATargetOption(mainModule, PTATarget, targetFunctions);
-
   // FIXME: Change me to std types.
   int pArgc;
   char **pArgv;
@@ -1366,6 +1363,9 @@ int main(int argc, char **argv, char **envp) {
   if (ReplayPathFile != "") {
     KleeHandler::loadPathFile(ReplayPathFile, replayPath);
   }
+
+  std::vector<Interpreter::TargetFunctionOption> targetFunctions;
+  parsePTATargetOption(mainModule, PTATarget, targetFunctions);
 
   Interpreter::InterpreterOptions IOpts;
   IOpts.MakeConcreteSymbolic = MakeConcreteSymbolic;
