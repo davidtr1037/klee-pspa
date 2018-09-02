@@ -1460,19 +1460,21 @@ void Executor::executeCall(ExecutionState &state,
       return;
     }
 
-    if (!isDynamicMode()) {
-      return;
+    if (isDynamicMode()) {
+      /* update statistics */
+      TimerStatIncrementer timer(stats::staticAnalysisTime);
+      ++stats::staticAnalysisUsage;
+      /* run dynamic pointer analysis */
+      updatePointsToOnCall(state, f, arguments);
+      state.getPTA()->analyzeFunction(*kmodule->module, f);
     }
 
-    TimerStatIncrementer timer(stats::staticAnalysisTime);
-    ++stats::staticAnalysisUsage;
-
-    updatePointsToOnCall(state, f, arguments);
-    state.getPTA()->analyzeFunction(*kmodule->module, f);
+    /* get the appropriate analyzer */
+    PointerAnalysis *pta = RunStaticPTA ? staticPTA : state.getPTA();
 
     if (CollectPTAStats) {
       StatsCollector collector(false);
-      collector.visitReachable(state.getPTA(), f);
+      collector.visitReachable(pta, f);
 
       CallingContext context;
       context.entry = f;
@@ -1483,10 +1485,14 @@ void Executor::executeCall(ExecutionState &state,
 
     if (CollectPTAResults) {
       ResultsCollector collector(*ptaLog);
-      collector.visitReachable(state.getPTA(), f);
+      collector.visitReachable(pta, f);
     }
 
     if (DumpPTAGraph) {
+      if (RunStaticPTA) {
+        /* TODO: use getAllValidPtrs? */
+        klee_error("Doesn't suppot static mode...");
+      }
       PTAGraphDumper dumper(*ptaGraphLog);
       dumper.dump(state.getPTA());
     }
@@ -1499,11 +1505,13 @@ void Executor::executeCall(ExecutionState &state,
       }
 
       ModRefCollector collector(functions);
-      collector.visitReachable(state.getPTA(), f);
-      collector.dumpModSet(state.getPTA());
+      collector.visitReachable(pta, f);
+      collector.dumpModSet(pta);
     }
 
-    state.getPTA()->postAnalysisCleanup();
+    if (!RunStaticPTA) {
+      state.getPTA()->postAnalysisCleanup();
+    }
   }
 }
 
