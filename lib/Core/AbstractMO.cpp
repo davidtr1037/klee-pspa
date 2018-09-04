@@ -54,6 +54,7 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
     /* if the offset is symbolic, we don't have much to do... */
     NodeID objId = pta->getFIObjNode(nodeId);
     pta->setObjFieldInsensitive(objId);
+    pta->setObjPermanentlyFI(objId);
     return objId;
   }
 
@@ -78,6 +79,7 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
       /* handle field-insensitively */
       NodeID objId = pta->getFIObjNode(nodeId);
       pta->setObjFieldInsensitive(objId);
+      pta->setObjPermanentlyFI(objId);
       return objId;
     }
 
