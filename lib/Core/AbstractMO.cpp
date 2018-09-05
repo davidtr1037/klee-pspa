@@ -13,6 +13,7 @@ using namespace klee;
 using namespace llvm;
 using namespace std;
 
+/* TODO: try to avoid as many lookups as possible */
 NodeID klee::computeAbstractMO(PointerAnalysis *pta,
                                DynamicMemoryLocation &location,
                                bool *canStronglyUpdate) {
