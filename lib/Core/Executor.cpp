@@ -1491,7 +1491,7 @@ void Executor::executeCall(ExecutionState &state,
     if (DumpPTAGraph) {
       if (RunStaticPTA) {
         /* TODO: use getAllValidPtrs? */
-        klee_error("Doesn't suppot static mode...");
+        klee_error("Doesn't support static mode...");
       }
       PTAGraphDumper dumper(*ptaGraphLog);
       dumper.dump(state.getPTA());
