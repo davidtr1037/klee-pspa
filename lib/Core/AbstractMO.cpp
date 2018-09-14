@@ -60,10 +60,8 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
     if (canStronglyUpdate) {
       *canStronglyUpdate = false;
     }
-    NodeID objId = pta->getPAG()->getFIObjNode(mem);
-    pta->setObjFieldInsensitive(objId);
-    pta->setObjPermanentlyFI(objId);
-    return objId;
+    makeFieldInsensitive(const_cast<MemObj *>(mem));
+    return pta->getPAG()->getFIObjNode(mem);
   }
 
   bool isArrayElement = false;
@@ -87,15 +85,14 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
     if (canStronglyUpdate) {
       *canStronglyUpdate = false;
     }
+
     if (!location.hint) {
       /* handle field-insensitively */
       if (canStronglyUpdate) {
         *canStronglyUpdate = false;
       }
-      NodeID objId = pta->getPAG()->getFIObjNode(mem);
-      pta->setObjFieldInsensitive(objId);
-      pta->setObjPermanentlyFI(objId);
-      return objId;
+      makeFieldInsensitive(const_cast<MemObj *>(mem));
+      return pta->getPAG()->getFIObjNode(mem);
     }
 
     /* we have a type hint... */
@@ -173,4 +170,9 @@ uint32_t klee::computeAbstractFieldOffset(uint32_t offset,
 
   assert(false);
   return 0;
+}
+
+void klee::makeFieldInsensitive(MemObj *mem) {
+  mem->setFieldInsensitive();
+  mem->setPermanentlyFI();
 }

@@ -46,6 +46,8 @@ uint32_t computeAbstractFieldOffset(uint32_t offset,
                                     const llvm::Type *moType,
                                     bool &isArrayElement);
 
+void makeFieldInsensitive(MemObj *mem);
+
 }
 
 #endif
