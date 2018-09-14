@@ -41,19 +41,25 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
   }
 
   NodeID nodeId = pta->getPAG()->getObjectNode(location.value);
-  if (SymbolTableInfo::isConstantObj(nodeId)) {
+  const MemObj *mem = pta->getPAG()->getObject(nodeId);
+  if (!mem) {
+    /* this shouldn't happen */
+    assert(false);
+  }
+
+  if (mem->isConstantObj()) {
     /* strings, ... */
     return nodeId;
   }
 
-  if (SymbolTableInfo::isBlkObj(nodeId)) {
+  if (mem->isBlackHoleObj()) {
     /* TODO: handle... */
     assert(false);
   }
 
   if (location.isSymbolicOffset) {
     /* if the offset is symbolic, we don't have much to do... */
-    NodeID objId = pta->getFIObjNode(nodeId);
+    NodeID objId = pta->getPAG()->getFIObjNode(mem);
     pta->setObjFieldInsensitive(objId);
     pta->setObjPermanentlyFI(objId);
     return objId;
@@ -63,11 +69,6 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
   Type *elementType;
   uint32_t abstractOffset;
 
-  const MemObj *mem = pta->getPAG()->getObject(nodeId);
-  if (!mem) {
-    assert(false);
-  }
-
   if (mem->isFieldInsensitive()) {
     if (canStronglyUpdate != NULL) {
       *canStronglyUpdate = false;
@@ -76,7 +77,7 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
   }
 
   if (mem->isFunction()) {
-    return pta->getFIObjNode(nodeId);
+    return pta->getPAG()->getFIObjNode(mem);
   }
 
   if (mem->isHeap()) {
@@ -85,7 +86,7 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
     }
     if (!location.hint) {
       /* handle field-insensitively */
-      NodeID objId = pta->getFIObjNode(nodeId);
+      NodeID objId = pta->getPAG()->getFIObjNode(mem);
       pta->setObjFieldInsensitive(objId);
       pta->setObjPermanentlyFI(objId);
       return objId;
@@ -101,7 +102,7 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
 
   elementType = moType->getElementType();
   if (elementType->isSingleValueType()) {
-    return pta->getFIObjNode(nodeId);
+    return pta->getPAG()->getFIObjNode(mem);
   }
 
   abstractOffset = computeAbstractFieldOffset(offset, elementType, isArrayElement);
