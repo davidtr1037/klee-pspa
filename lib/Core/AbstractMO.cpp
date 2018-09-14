@@ -68,6 +68,13 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
     assert(false);
   }
 
+  if (mem->isFieldInsensitive()) {
+    if (canStronglyUpdate != NULL) {
+      *canStronglyUpdate = false;
+    }
+    return pta->getPAG()->getFIObjNode(mem);
+  }
+
   if (mem->isFunction()) {
     return pta->getFIObjNode(nodeId);
   }
