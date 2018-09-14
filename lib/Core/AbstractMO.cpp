@@ -16,6 +16,7 @@ using namespace std;
 /* TODO: try to avoid as many lookups as possible */
 NodeID klee::computeAbstractMO(PointerAnalysis *pta,
                                DynamicMemoryLocation &location,
+                               bool enforceFI,
                                bool *canStronglyUpdate) {
   if (canStronglyUpdate) {
     *canStronglyUpdate = true;
@@ -60,7 +61,9 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
     if (canStronglyUpdate) {
       *canStronglyUpdate = false;
     }
-    makeFieldInsensitive(const_cast<MemObj *>(mem));
+    if (enforceFI) {
+      makeFieldInsensitive(const_cast<MemObj *>(mem));
+    }
     return pta->getPAG()->getFIObjNode(mem);
   }
 
@@ -91,7 +94,9 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
       if (canStronglyUpdate) {
         *canStronglyUpdate = false;
       }
-      makeFieldInsensitive(const_cast<MemObj *>(mem));
+      if (enforceFI) {
+        makeFieldInsensitive(const_cast<MemObj *>(mem));
+      }
       return pta->getPAG()->getFIObjNode(mem);
     }
 

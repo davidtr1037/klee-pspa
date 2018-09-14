@@ -4259,7 +4259,9 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
     assert(false);
   }
 
-  NodeID dst = computeAbstractMO(state.getPTA(), location);
+  NodeID dst = computeAbstractMO(state.getPTA(),
+                                 location,
+                                 true);
 
   ConstantExpr *ce = dyn_cast<ConstantExpr>(offset);
   if (!ce) {
@@ -4275,6 +4277,7 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
   bool canStronglyUpdate;
   NodeID src = computeAbstractMO(state.getPTA(),
                                  storeLocation,
+                                 true,
                                  &canStronglyUpdate);
 
   /* ... */
@@ -4329,7 +4332,7 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
     NodeID formalParamId = state.getPTA()->getPAG()->getValueNode(&arg);
     for (unsigned int i = 0; i < locations.size(); i++) {
       DynamicMemoryLocation &location = locations[i];
-      NodeID dst = computeAbstractMO(state.getPTA(), location);
+      NodeID dst = computeAbstractMO(state.getPTA(), location, false);
       if (i == 0) {
         state.getPTA()->strongUpdate(formalParamId, dst);
       } else {

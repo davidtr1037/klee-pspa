@@ -40,6 +40,7 @@ struct DynamicMemoryLocation {
 
 NodeID computeAbstractMO(PointerAnalysis *pta,
                          DynamicMemoryLocation &location,
+                         bool enforceFI,
                          bool *canStronglyUpdate = NULL);
 
 uint32_t computeAbstractFieldOffset(uint32_t offset,
