@@ -17,9 +17,7 @@ using namespace std;
 NodeID klee::computeAbstractMO(PointerAnalysis *pta,
                                DynamicMemoryLocation &location,
                                bool *canStronglyUpdate) {
-  bool isArrayElement = false;
-
-  if (canStronglyUpdate != NULL) {
+  if (canStronglyUpdate) {
     *canStronglyUpdate = true;
   }
 
@@ -59,18 +57,22 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
 
   if (location.isSymbolicOffset) {
     /* if the offset is symbolic, we don't have much to do... */
+    if (canStronglyUpdate) {
+      *canStronglyUpdate = false;
+    }
     NodeID objId = pta->getPAG()->getFIObjNode(mem);
     pta->setObjFieldInsensitive(objId);
     pta->setObjPermanentlyFI(objId);
     return objId;
   }
 
+  bool isArrayElement = false;
   uint32_t offset = location.offset;
   Type *elementType;
   uint32_t abstractOffset;
 
   if (mem->isFieldInsensitive()) {
-    if (canStronglyUpdate != NULL) {
+    if (canStronglyUpdate) {
       *canStronglyUpdate = false;
     }
     return pta->getPAG()->getFIObjNode(mem);
@@ -81,11 +83,15 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
   }
 
   if (mem->isHeap()) {
-    if (canStronglyUpdate != NULL) {
+    /* TODO: check the number of array elements? */
+    if (canStronglyUpdate) {
       *canStronglyUpdate = false;
     }
     if (!location.hint) {
       /* handle field-insensitively */
+      if (canStronglyUpdate) {
+        *canStronglyUpdate = false;
+      }
       NodeID objId = pta->getPAG()->getFIObjNode(mem);
       pta->setObjFieldInsensitive(objId);
       pta->setObjPermanentlyFI(objId);
