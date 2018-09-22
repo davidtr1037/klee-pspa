@@ -513,12 +513,28 @@ const Module *Executor::setModule(llvm::Module *module,
     /* prepare reachability analysis */
     ra->prepare();
 
-    klee_message("Runnining reachability analysis...");
+    klee_message("Running reachability analysis...");
     ra->run(staticPTA);
 
     /* run mod-ref analysis */
-    klee_message("Runnining mod-ref analysis...");
+    klee_message("Running mod-ref analysis...");
     mra->run();
+  }
+
+  for (KFunction *kf : kmodule->functions) {
+    if (kf->function->isDeclaration()) {
+      continue;
+    }
+
+    for (unsigned i = 0; i < kf->numInstructions; ++i) {
+      KInstruction *ki = kf->instructions[i];
+      if (ki->inst->getOpcode() == Instruction::Load) {
+        ki->mayBlock = mra->mayBlock(ki->inst);
+      }
+      if (ki->inst->getOpcode() == Instruction::Store) {
+        ki->mayOverride = mra->mayOverride(ki->inst);
+      }
+    }
   }
 
   specialFunctionHandler->bind();

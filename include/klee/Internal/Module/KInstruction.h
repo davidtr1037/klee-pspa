@@ -45,8 +45,14 @@ namespace klee {
     /* a flag for points-to relevance */
     bool isRelevant;
 
+    /* relevant only for load instructions */
+    bool mayBlock;
+
+    /* relevant only for store instructions */
+    bool mayOverride;
+
   public:
-    KInstruction() : isRelevant(true) {
+    KInstruction() : isRelevant(true), mayBlock(false), mayOverride(false) {
 
     }
     virtual ~KInstruction();

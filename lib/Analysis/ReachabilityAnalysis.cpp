@@ -344,7 +344,7 @@ void ReachabilityAnalysis::dumpReachableFunctions() {
   debugs << "### " << reachable.size() << " reachable functions ###\n";
   for (FunctionSet::iterator i = reachable.begin(); i != reachable.end(); i++) {
     Function *f = *i;
-    debugs << "    " << f->getName() << "\n";
+    debugs << f->getName() << "\n";
   }
   debugs << "\n";
 }
