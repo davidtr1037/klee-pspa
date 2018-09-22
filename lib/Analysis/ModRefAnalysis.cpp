@@ -389,7 +389,9 @@ bool ModRefAnalysis::hasReturnValue(Function *f) {
 }
 
 /* TODO: validate that a load can't have two ModInfo's with the same allocation site */
-void ModRefAnalysis::getApproximateModInfos(Instruction *inst, AllocSite hint, set<ModInfo> &result) {
+void ModRefAnalysis::getApproximateModInfos(Instruction *inst,
+                                            AllocSite hint,
+                                            set<ModInfo> &result) {
     assert(inst->getOpcode() == Instruction::Load);
 
     LoadToModInfoMap::iterator entry = loadToModInfoMap.find(inst);
