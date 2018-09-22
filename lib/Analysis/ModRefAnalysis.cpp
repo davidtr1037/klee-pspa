@@ -55,8 +55,7 @@ void ModRefAnalysis::run() {
         errs() << "entry function '" << entry << "' is not found (or unreachable)\n";
         assert(false);
     }
-    for (vector<string>::iterator i = targets.begin(); i != targets.end(); i++) {
-        string name = *i;
+    for (string &name : targets) {
         Function *f = module->getFunction(name);
         if (!f) {
             errs() << "function '" << name << "' is not found (or unreachable)\n";
@@ -66,14 +65,12 @@ void ModRefAnalysis::run() {
     }
 
     /* collect mod information for each target function */
-    for (vector<Function *>::iterator i = targetFunctions.begin(); i != targetFunctions.end(); i++) {
-        Function *f = *i;
+    for (Function * f : targetFunctions) {
         collectModInfo(f);
     }
 
     /* collect ref information with respect to the relevant call sites */
-    for (vector<Function *>::iterator i = targetFunctions.begin(); i != targetFunctions.end(); i++) {
-        Function *f = *i;
+    for (Function *f : targetFunctions) {
         collectRefInfo(f);
     }
 
@@ -146,8 +143,7 @@ bool ModRefAnalysis::getRetSliceId(llvm::Function *f, uint32_t &id) {
 void ModRefAnalysis::collectModInfo(Function *entry) {
     set<Function *> &reachable = ra->getReachableFunctions(entry);
 
-    for (set<Function *>::iterator i = reachable.begin(); i != reachable.end(); i++) {
-        Function *f = *i;
+    for (Function *f : reachable) {
         if (f->isDeclaration()) {
             continue;
         }
@@ -171,9 +167,7 @@ void ModRefAnalysis::addStore(Function *f, Instruction *inst) {
 
     PointsTo &modPts = modPtsMap[f];
 
-    for (PointsTo::iterator i = pts.begin(); i != pts.end(); ++i) {
-        NodeID nodeId = *i;
-
+    for (NodeID nodeId : pts) {
         /* get allocation site */
         PAGNode *pagNode = pta->getPAG()->getPAGNode(nodeId);
         ObjPN *obj = dyn_cast<ObjPN>(pagNode);
@@ -246,9 +240,7 @@ void ModRefAnalysis::collectRefInfo(Function *entry) {
     set<Instruction *> reachable;
     ra->getReachableInstructions(callSites, reachable);
 
-    for (set<Instruction *>::iterator i = reachable.begin(); i != reachable.end(); i++) {
-        Instruction *inst = *i;
-
+    for (Instruction *inst : reachable) {
         /* handle load */
         if (inst->getOpcode() == Instruction::Load) {
             addLoad(entry, inst);
@@ -269,8 +261,7 @@ void ModRefAnalysis::addLoad(Function *f, Instruction *inst) {
     PointsTo &refPts = refPtsMap[f];
     refPts |= pts;
 
-    for (PointsTo::iterator i = pts.begin(); i != pts.end(); ++i) {
-        NodeID nodeId = *i;
+    for (NodeID nodeId : pts) {
         pair<Function *, NodeID> k = make_pair(f, nodeId);
         objToLoadMap[k].insert(load);
     }
@@ -281,16 +272,15 @@ void ModRefAnalysis::addOverridingStore(Instruction *inst) {
     NodeID id = pta->getPAG()->getValueNode(store->getPointerOperand());
     PointsTo &pts = pta->getPts(id);
 
-    for (PointsTo::iterator i = pts.begin(); i != pts.end(); ++i) {
-        NodeID nodeId = *i;
+    for (NodeID nodeId : pts) {
         objToOverridingStoreMap[nodeId].insert(store);
     }
 }
 
 void ModRefAnalysis::computeModRefInfo() {
-    for (ModPtsMap::iterator i = modPtsMap.begin(); i != modPtsMap.end(); i++) {
-        Function *f = i->first;
-        PointsTo &modPts = i->second;
+    for (auto i : modPtsMap) {
+        Function *f = i.first;
+        PointsTo &modPts = i.second;
 
         /* get the corresponding ref-set */
         PointsTo &refPts = refPtsMap[f];
@@ -299,9 +289,7 @@ void ModRefAnalysis::computeModRefInfo() {
         /* get the corresponding modifies-set */
         InstructionSet &modSet = modSetMap[f];
 
-        for (PointsTo::iterator ni = pts.begin(); ni != pts.end(); ++ni) {
-            NodeID nodeId = *ni;
-
+        for (NodeID nodeId : pts) {
             /* set key */
             pair<Function *, NodeID> k = make_pair(f, nodeId);
 
@@ -313,9 +301,7 @@ void ModRefAnalysis::computeModRefInfo() {
             AllocSite allocSite = getAllocSite(nodeId);
 
             InstructionSet &loads = objToLoadMap[k];
-            for (InstructionSet::iterator i = loads.begin(); i != loads.end(); i++) {
-                Instruction *load = *i;
-
+            for (Instruction *load : loads) {
                 /* update with store instructions */
                 loadToStoreMap[load].insert(stores.begin(), stores.end());
 
@@ -334,8 +320,7 @@ void ModRefAnalysis::computeModRefInfo() {
 void ModRefAnalysis::computeModInfoToStoreMap() {
     uint32_t sliceId = 1;
 
-    for (vector<Function *>::iterator i = targetFunctions.begin(); i != targetFunctions.end(); i++) {
-        Function *f = *i;
+    for (Function *f : targetFunctions) {
         InstructionSet &modSet = modSetMap[f];
 
         uint32_t retSliceId = sliceId++;
@@ -351,15 +336,12 @@ void ModRefAnalysis::computeModInfoToStoreMap() {
             sideEffects.push_back(sideEffect);
         }
 
-        for (InstructionSet::iterator i = modSet.begin(); i != modSet.end(); i++) {
-            Instruction *inst = *i;
+        for (Instruction *inst : modSet) {
             StoreInst *store = dyn_cast<StoreInst>(inst);
             NodeID id = pta->getPAG()->getValueNode(store->getPointerOperand());
             PointsTo &pts = pta->getPts(id);
 
-            for (PointsTo::iterator ni = pts.begin(); ni != pts.end(); ++ni) {
-                NodeID nodeId = *ni;
-
+            for (NodeID nodeId : pts) {
                 /* update store instructions */
                 AllocSite allocSite = getAllocSite(nodeId);
                 ModInfo modInfo = make_pair(f, allocSite);
@@ -418,8 +400,8 @@ void ModRefAnalysis::getApproximateModInfos(Instruction *inst, AllocSite hint, s
 
     set<ModInfo> &modifiers = entry->second;
 
-    for (set<ModInfo>::iterator i = modifiers.begin(); i != modifiers.end(); i++) {
-        ModInfo modInfo = *i;
+    for (auto i : modifiers) {
+        ModInfo modInfo = i;
         AllocSite allocSite = modInfo.second;
 
         /* compare only the allocation sites (values) */
@@ -434,13 +416,12 @@ void ModRefAnalysis::getApproximateModInfos(Instruction *inst, AllocSite hint, s
 void ModRefAnalysis::dumpModSetMap() {
     debugs << "### ModSetMap ###\n";
 
-    for (ModSetMap::iterator i = modSetMap.begin(); i != modSetMap.end(); i++) {
-        Function *f = i->first;
-        InstructionSet &modSet = i->second;
+    for (auto i : modSetMap) {
+        Function *f = i.first;
+        InstructionSet &modSet = i.second;
 
         debugs << "# " << f->getName() << " #\n";
-        for (InstructionSet::iterator j = modSet.begin(); j != modSet.end(); j++) {
-            Instruction *inst = *j;
+        for (Instruction *inst : modSet) {
             dumpInst(inst);
         }
     }
@@ -450,14 +431,12 @@ void ModRefAnalysis::dumpModSetMap() {
 void ModRefAnalysis::dumpLoadToStoreMap() {
     debugs << "### LoadToStoreMap ###\n";
 
-    for (LoadToStoreMap::iterator i = loadToStoreMap.begin(); i != loadToStoreMap.end(); i++) {
-        Instruction *load = i->first;
-        InstructionSet &stores = i->second;
+    for (auto i : loadToStoreMap) {
+        Instruction *load = i.first;
+        InstructionSet &stores = i.second;
 
         dumpInst(load);
-        for (InstructionSet::iterator j = stores.begin(); j != stores.end(); j++) {
-            Instruction *store = *j;
-
+        for (Instruction *store : stores) {
             dumpInst(store, "\t");
         }
     }
@@ -467,13 +446,12 @@ void ModRefAnalysis::dumpLoadToStoreMap() {
 void ModRefAnalysis::dumpLoadToModInfoMap() {
     debugs << "### LoadToModInfoMap ###\n";
 
-    for (LoadToModInfoMap::iterator i = loadToModInfoMap.begin(); i != loadToModInfoMap.end(); i++) {
-        Instruction *load = i->first;
-        set<ModInfo> &modInfos = i->second;
+    for (auto i : loadToModInfoMap) {
+        Instruction *load = i.first;
+        set<ModInfo> &modInfos = i.second;
 
         dumpInst(load);
-        for (set<ModInfo>::iterator j = modInfos.begin(); j != modInfos.end(); j++) {
-            const ModInfo &modInfo = *j;
+        for (ModInfo modInfo : modInfos) {
             dumpModInfo(modInfo, "\t");
         }
     }
@@ -483,13 +461,12 @@ void ModRefAnalysis::dumpLoadToModInfoMap() {
 void ModRefAnalysis::dumpModInfoToStoreMap() {
     debugs << "### ModInfoToStoreMap ###\n";
 
-    for (ModInfoToStoreMap::iterator i = modInfoToStoreMap.begin(); i != modInfoToStoreMap.end(); i++) {
-        const ModInfo &modInfo = i->first;
-        InstructionSet &stores = i->second;
+    for (auto i : modInfoToStoreMap) {
+        const ModInfo &modInfo = i.first;
+        InstructionSet &stores = i.second;
 
         dumpModInfo(modInfo);
-        for (InstructionSet::iterator j = stores.begin(); j != stores.end(); j++) {
-            Instruction *store = *j;
+        for (Instruction *store : stores) {
             dumpInst(store, "\t");
         }
     }
@@ -499,9 +476,9 @@ void ModRefAnalysis::dumpModInfoToStoreMap() {
 void ModRefAnalysis::dumpModInfoToIdMap() {
     debugs << "### ModInfoToIdMap ###\n";
 
-    for (ModInfoToIdMap::iterator i = modInfoToIdMap.begin(); i != modInfoToIdMap.end(); i++) {
-        const ModInfo &modInfo = i->first;
-        uint32_t id = i->second;
+    for (auto i : modInfoToIdMap) {
+        const ModInfo &modInfo = i.first;
+        uint32_t id = i.second;
         
         dumpModInfo(modInfo);
         debugs << "id: " << id << "\n";
@@ -512,8 +489,7 @@ void ModRefAnalysis::dumpModInfoToIdMap() {
 void ModRefAnalysis::dumpOverridingStores() {
     debugs << "### Overriding Stores ###\n";
 
-    for (InstructionSet::iterator j = overridingStores.begin(); j != overridingStores.end(); j++) {
-        Instruction *inst = *j;
+    for (Instruction *inst : overridingStores) {
         dumpInst(inst);
     }
     debugs << "\n";
