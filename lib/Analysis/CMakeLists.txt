@@ -12,6 +12,7 @@ klee_add_component(kleeAnalysis
     PTAUtils.cpp
     PTAGraph.cpp
     Reachability.cpp
+    ReachabilityAnalysis.cpp
 )
 
 # TODO: Work out what the correct LLVM components are for kleeCore.
