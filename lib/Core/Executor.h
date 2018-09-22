@@ -25,6 +25,8 @@
 #include "AbstractMO.h"
 #include "AttachedInfo.h"
 #include "klee/Internal/Analysis/PTAStats.h"
+#include "klee/Internal/Analysis/ReachabilityAnalysis.h"
+#include "klee/Internal/Analysis/ModRefAnalysis.h"
 
 #include "llvm/ADT/Twine.h"
 
@@ -244,6 +246,15 @@ private:
 
   /* TODO: add docs */
   llvm::raw_ostream *ptaGraphLog;
+
+  /* TODO: add docs */
+  llvm::raw_ostream *saLog;
+
+  /* TODO: add docs */
+  ReachabilityAnalysis *ra;
+
+  /* TODO: add docs */
+  ModRefAnalysis *mra;
 
   llvm::Function* getTargetFunction(llvm::Value *calledVal,
                                     ExecutionState &state);

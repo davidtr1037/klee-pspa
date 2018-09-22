@@ -52,6 +52,8 @@
 #include "klee/Internal/Analysis/PTAGraph.h"
 #include "klee/Internal/Analysis/PTAStats.h"
 #include "klee/Internal/Analysis/PTAUtils.h"
+#include "klee/Internal/Analysis/ReachabilityAnalysis.h"
+#include "klee/Internal/Analysis/ModRefAnalysis.h"
 
 #include "WPA/AndersenDynamic.h"
 
@@ -387,7 +389,8 @@ Executor::Executor(LLVMContext &ctx, const InterpreterOptions &opts,
                             ? std::min(MaxCoreSolverTime, MaxInstructionTime)
                             : std::max(MaxCoreSolverTime, MaxInstructionTime)),
       debugInstFile(0), debugLogBuffer(debugBufferString),
-      staticPTA(0), ptaStatsLogger(0) {
+      staticPTA(0), ptaStatsLogger(0),
+      saLog(0), ra(0), mra(0) {
 
   if (coreSolverTimeout) UseForkedCoreSolver = true;
   Solver *coreSolver = klee::createCoreSolver(CoreSolverToUse);
@@ -474,9 +477,50 @@ const Module *Executor::setModule(llvm::Module *module,
                       (Expr::Width) TD->getPointerSizeInBits());
 
   specialFunctionHandler = new SpecialFunctionHandler(*this);
-
   specialFunctionHandler->prepare();
+
   kmodule->prepare(opts, interpreterHandler);
+
+  if (RunStaticPTA) {
+    evaluateWholeProgramPTA();
+  }
+
+  if (!interpreterOpts.skippedFunctions.empty()) {
+    if (!RunStaticPTA) {
+      klee_error("static pointer analysis must be enabled...");
+    }
+
+    /* build target functions */
+    std::vector<std::string> targets;
+    for (auto i : interpreterOpts.skippedFunctions) {
+      targets.push_back(i.name);
+    }
+
+    saLog = interpreterHandler->openOutputFile("sa.log");
+
+    ra = new ReachabilityAnalysis(kmodule->module,
+                                  opts.EntryPoint,
+                                  targets,
+                                  *saLog);
+
+    mra = new ModRefAnalysis(kmodule->module,
+                             ra,
+                             staticPTA,
+                             opts.EntryPoint,
+                             targets,
+                             *saLog);
+
+    /* prepare reachability analysis */
+    ra->prepare();
+
+    klee_message("Runnining reachability analysis...");
+    ra->run(staticPTA);
+
+    /* run mod-ref analysis */
+    klee_message("Runnining mod-ref analysis...");
+    mra->run();
+  }
+
   specialFunctionHandler->bind();
 
   if (StatsTracker::useStatistics() || userSearcherRequiresMD2U()) {
@@ -513,6 +557,15 @@ Executor::~Executor() {
   }
   if (staticPTA) {
     delete staticPTA;
+  }
+  if (saLog) {
+    delete saLog;
+  }
+  if (ra) {
+    delete ra;
+  }
+  if (mra) {
+    delete mra;
   }
 }
 
@@ -3624,10 +3677,6 @@ void Executor::runFunctionAsMain(Function *f,
 				 char **argv,
 				 char **envp) {
   std::vector<ref<Expr> > arguments;
-
-  if (RunStaticPTA) {
-    evaluateWholeProgramPTA();
-  }
 
   // force deterministic initialization of memory objects
   srand(1);
