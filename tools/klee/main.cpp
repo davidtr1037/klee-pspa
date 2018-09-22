@@ -212,6 +212,10 @@ namespace {
   PTATarget("pta-target",
             cl::desc("..."));
 
+  cl::opt<std::string>
+  SkippedFunctions("skip-functions",
+                   cl::desc("..."));
+
 }
 
 extern cl::opt<double> MaxTime;
@@ -1155,9 +1159,9 @@ bool parseNameLineOption(std::string option,
   return true;
 }
 
-void parsePTATargetOption(Module *module,
-                          std::string parameter,
-                          std::vector<Interpreter::TargetFunctionOption> &result) {
+void parseFunctionListParameter(Module *module,
+                                std::string parameter,
+                                std::vector<Interpreter::FunctionOption> &result) {
   std::istringstream stream(parameter);
   std::string token;
   std::string fname;
@@ -1173,7 +1177,7 @@ void parsePTATargetOption(Module *module,
       klee_error("pta-target option: '%s' not found in module.", fname.c_str());
     }
 
-    result.push_back(Interpreter::TargetFunctionOption(fname, lines));
+    result.push_back(Interpreter::FunctionOption(fname, lines));
   }
 }
 
@@ -1364,12 +1368,16 @@ int main(int argc, char **argv, char **envp) {
     KleeHandler::loadPathFile(ReplayPathFile, replayPath);
   }
 
-  std::vector<Interpreter::TargetFunctionOption> targetFunctions;
-  parsePTATargetOption(mainModule, PTATarget, targetFunctions);
+  std::vector<Interpreter::FunctionOption> targetFunctions;
+  parseFunctionListParameter(mainModule, PTATarget, targetFunctions);
+
+  std::vector<Interpreter::FunctionOption> skippedFunctions;
+  parseFunctionListParameter(mainModule, SkippedFunctions, skippedFunctions);
 
   Interpreter::InterpreterOptions IOpts;
   IOpts.MakeConcreteSymbolic = MakeConcreteSymbolic;
   IOpts.targetFunctions = targetFunctions;
+  IOpts.skippedFunctions = skippedFunctions;
   KleeHandler *handler = new KleeHandler(pArgc, pArgv);
   Interpreter *interpreter =
     theInterpreter = Interpreter::create(ctx, IOpts, handler);

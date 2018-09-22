@@ -3948,7 +3948,7 @@ size_t Executor::getAllocationAlignment(const llvm::Value *allocSite) const {
 }
 
 bool Executor::isTargetFunction(ExecutionState &state, Function *f) {
-  for (const TargetFunctionOption &option :  interpreterOpts.targetFunctions) {
+  for (const FunctionOption &option :  interpreterOpts.targetFunctions) {
     if (f->getName() == option.name) {
       const std::vector<unsigned int> &lines = option.lines;
 
@@ -3987,7 +3987,7 @@ void Executor::evaluateWholeProgramPTA() {
       }
     }
   } else {
-    for (const TargetFunctionOption &option : interpreterOpts.targetFunctions) {
+    for (const FunctionOption &option : interpreterOpts.targetFunctions) {
       Function *f = kmodule->module->getFunction(option.name);
       if (f) {
         functions.push_back(f);

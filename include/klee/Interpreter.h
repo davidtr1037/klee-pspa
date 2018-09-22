@@ -71,11 +71,11 @@ public:
 	  SMTLIB2 //.SMT2 files (SMTLIB version 2 files)
   };
 
-  struct TargetFunctionOption {
+  struct FunctionOption {
     std::string name;
     std::vector<unsigned int> lines;
 
-    TargetFunctionOption(std::string &name, std::vector<unsigned int> &lines) :
+    FunctionOption(std::string &name, std::vector<unsigned int> &lines) :
       name(name), lines(lines)
     {
 
@@ -89,7 +89,8 @@ public:
     /// symbolic values. This is used to test the correctness of the
     /// symbolic execution on concrete programs.
     unsigned MakeConcreteSymbolic;
-    std::vector<TargetFunctionOption> targetFunctions;
+    std::vector<FunctionOption> targetFunctions;
+    std::vector<FunctionOption> skippedFunctions;
 
     InterpreterOptions()
       : MakeConcreteSymbolic(false)
