@@ -94,13 +94,11 @@ ModRefAnalysis::ModInfoToStoreMap &ModRefAnalysis::getModInfoToStoreMap() {
 }
 
 bool ModRefAnalysis::mayBlock(Instruction *load) {
-    LoadToStoreMap::iterator i = loadToStoreMap.find(load);
-    return i != loadToStoreMap.end();
+    return dependentLoads.find(load) != dependentLoads.end();
 }
 
 bool ModRefAnalysis::mayOverride(Instruction *store) {
-    InstructionSet::iterator i = find(overridingStores.begin(), overridingStores.end(), store);
-    return i != overridingStores.end();
+    return overridingStores.find(store) != overridingStores.end();
 }
 
 ModRefAnalysis::SideEffects &ModRefAnalysis::getSideEffects() {
@@ -302,8 +300,8 @@ void ModRefAnalysis::computeModRefInfo() {
 
             InstructionSet &loads = objToLoadMap[k];
             for (Instruction *load : loads) {
-                /* update with store instructions */
-                loadToStoreMap[load].insert(stores.begin(), stores.end());
+                /* update dependent load instructions */
+                dependentLoads.insert(load);
 
                 /* update with allocation site */
                 ModInfo modInfo = make_pair(f, allocSite);
@@ -430,17 +428,11 @@ void ModRefAnalysis::dumpModSetMap() {
     debugs << "\n";
 }
 
-void ModRefAnalysis::dumpLoadToStoreMap() {
-    debugs << "### LoadToStoreMap ###\n";
+void ModRefAnalysis::dumpDependentLoads() {
+    debugs << "### DependentLoads ###\n";
 
-    for (auto i : loadToStoreMap) {
-        Instruction *load = i.first;
-        InstructionSet &stores = i.second;
-
-        dumpInst(load);
-        for (Instruction *store : stores) {
-            dumpInst(store, "\t");
-        }
+    for (Instruction *inst : dependentLoads) {
+        dumpInst(inst);
     }
     debugs << "\n";
 }

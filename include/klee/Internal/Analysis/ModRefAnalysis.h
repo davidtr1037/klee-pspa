@@ -98,7 +98,7 @@ public:
 
   void dumpModSetMap();
 
-  void dumpLoadToStoreMap();
+  void dumpDependentLoads();
 
   void dumpLoadToModInfoMap();
 
@@ -159,8 +159,7 @@ private:
 
   ModSetMap modSetMap;
 
-  /* TODO: no need to hold the store instructions */
-  LoadToStoreMap loadToStoreMap;
+  InstructionSet dependentLoads;
 
   LoadToModInfoMap loadToModInfoMap;
   ModInfoToStoreMap modInfoToStoreMap;
