@@ -4799,7 +4799,7 @@ void Executor::onRecoveryStateExit(ExecutionState &state) {
 void Executor::notifyDependentState(ExecutionState &recoveryState) {
   ExecutionState *dependentState = recoveryState.getDependentState();
   DEBUG_WITH_TYPE(
-    DEBUG_BASIC, 
+    DEBUG_BASIC,
     klee_message(
       "%p: notifying dependent state %p",
       &recoveryState,
