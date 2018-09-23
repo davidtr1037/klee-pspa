@@ -66,7 +66,23 @@ StackFrame::~StackFrame() {
 /***/
 
 ExecutionState::ExecutionState(KFunction *kf) :
+    refCount(0),
+
     pta(0),
+
+    type(NORMAL_STATE),
+
+    /* state properties */
+    suspendStatus(false),
+    recoveryState(0),
+    blockingLoadStatus(true),
+
+    /* recovery state properties */
+    exitInst(0),
+    dependentState(0),
+    originatingState(0),
+    recoveryInfo(0),
+    level(0),
 
     pc(kf->instructions),
     prevPC(pc),
@@ -104,8 +120,33 @@ ExecutionState::~ExecutionState() {
 }
 
 ExecutionState::ExecutionState(const ExecutionState& state):
+    refCount(0),
     fnAliases(state.fnAliases),
     callingFunctions(state.callingFunctions),
+
+    type(state.type),
+
+    /* state properties */
+    suspendStatus(state.suspendStatus),
+    snapshots(state.snapshots),
+    recoveryState(state.recoveryState),
+    blockingLoadStatus(state.blockingLoadStatus),
+    recoveredLoads(state.recoveredLoads),
+    allocationRecord(state.allocationRecord),
+    /* TODO: copy only for originating states */
+    //guidingConstraints(state.guidingConstraints),
+    writtenAddresses(state.writtenAddresses),
+    pendingRecoveryInfos(state.pendingRecoveryInfos),
+    recoveryCache(state.recoveryCache),
+
+    /* recovery state properties */
+    exitInst(state.exitInst),
+    dependentState(state.dependentState),
+    originatingState(state.originatingState),
+    recoveryInfo(state.recoveryInfo),
+    guidingAllocationRecord(state.guidingAllocationRecord),
+    level(state.level),
+
     pc(state.pc),
     prevPC(state.prevPC),
     stack(state.stack),

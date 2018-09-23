@@ -1471,6 +1471,31 @@ void Executor::executeCall(ExecutionState &state,
       }
     }
 
+    if (state.isNormalState() && !state.isRecoveryState() && isFunctionToSkip(state, f)) {
+      /* first, check if the skipped function has side effects */
+      if (mra->hasSideEffects(f)) {
+        /* create snapshot, recovery state will be created on demand... */
+        unsigned int index = state.getSnapshots().size();
+        DEBUG_WITH_TYPE(
+          DEBUG_BASIC,
+          klee_message("%p: adding snapshot (index = %u)", &state, index)
+        );
+        ref<ExecutionState> snapshotState(createSnapshotState(state));
+        ref<Snapshot> snapshot(new Snapshot(snapshotState, f));
+        state.addSnapshot(snapshot);
+        interpreterHandler->incSnapshotsCount();
+
+        /* TODO: will be replaced later... */
+        state.clearRecoveredAddresses();
+
+        DEBUG_WITH_TYPE(
+          DEBUG_BASIC,
+          klee_message("%p: skipping function call to %s", &state, f->getName().data())
+        );
+      }
+      return;
+    }
+
     KFunction *kf = kmodule->functionMap[f];
     state.pushFrame(state.prevPC, kf);
     state.pc = kf->instructions;
