@@ -1742,6 +1742,11 @@ static inline const llvm::fltSemantics * fpWidthToSemantics(unsigned width) {
 
 void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   Instruction *i = ki->inst;
+  /* TODO: replace with a better predicate (call stack counter?) */
+  if (state.isRecoveryState() && state.getExitInst() == i) {
+    onRecoveryStateExit(state);
+    return;
+  }
   switch (i->getOpcode()) {
     // Control flow
   case Instruction::Ret: {
@@ -3021,6 +3026,7 @@ void Executor::run(ExecutionState &initialState) {
   searcher->update(0, newStates, std::vector<ExecutionState *>());
 
   while (!states.empty() && !haltExecution) {
+    assert(!searcher->empty());
     ExecutionState &state = searcher->selectState();
     KInstruction *ki = state.pc;
     stepInstruction(state);
@@ -3119,7 +3125,9 @@ void Executor::terminateState(ExecutionState &state) {
                       "replay did not consume all objects in test input.");
   }
 
-  interpreterHandler->incPathsExplored();
+  if (!state.isRecoveryState()) {
+    interpreterHandler->incPathsExplored();
+  }
 
   std::vector<ExecutionState *>::iterator it =
       std::find(addedStates.begin(), addedStates.end(), &state);
