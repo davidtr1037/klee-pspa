@@ -1415,6 +1415,62 @@ void Executor::executeCall(ExecutionState &state,
     // guess. This just done to avoid having to pass KInstIterator everywhere
     // instead of the actual instruction, since we can't make a KInstIterator
     // from just an instruction (unlike LLVM).
+
+    if (isTargetFunction(state, f)) {
+      if (isDynamicMode()) {
+        /* update statistics */
+        TimerStatIncrementer timer(stats::staticAnalysisTime);
+        ++stats::staticAnalysisUsage;
+        /* run dynamic pointer analysis */
+        updatePointsToOnCall(state, f, arguments);
+        state.getPTA()->analyzeFunction(*kmodule->module, f);
+      }
+
+      /* get the appropriate analyzer */
+      PointerAnalysis *pta = RunStaticPTA ? staticPTA : state.getPTA();
+
+      if (CollectPTAStats) {
+        StatsCollector collector(false);
+        collector.visitReachable(pta, f);
+
+        CallingContext context;
+        context.entry = f;
+        context.line = kmodule->infos->getInfo(i).line;
+        context.call_depth = state.stack.size() - 1;
+        ptaStatsLogger->dump(context, collector.getStats());
+      }
+
+      if (CollectPTAResults) {
+        ResultsCollector collector(*ptaLog);
+        collector.visitReachable(pta, f);
+      }
+
+      if (DumpPTAGraph) {
+        if (RunStaticPTA) {
+          /* TODO: use getAllValidPtrs? */
+          klee_error("Doesn't support static mode...");
+        }
+        PTAGraphDumper dumper(*ptaGraphLog);
+        dumper.dump(state.getPTA());
+      }
+
+      if (CollectModRef) {
+        set<Function *> functions;
+        for (unsigned int i = 0; i < state.stack.size() - 1; i++) {
+          StackFrame &sf = state.stack[i];
+          functions.insert(sf.kf->function);
+        }
+
+        ModRefCollector collector(functions);
+        collector.visitReachable(pta, f);
+        collector.dumpModSet(pta);
+      }
+
+      if (!RunStaticPTA) {
+        state.getPTA()->postAnalysisCleanup();
+      }
+    }
+
     KFunction *kf = kmodule->functionMap[f];
     state.pushFrame(state.prevPC, kf);
     state.pc = kf->instructions;
@@ -1525,63 +1581,6 @@ void Executor::executeCall(ExecutionState &state,
     unsigned numFormals = f->arg_size();
     for (unsigned i=0; i<numFormals; ++i) 
       bindArgument(kf, i, state, arguments[i]);
-
-    if (!isTargetFunction(state, f)) {
-      return;
-    }
-
-    if (isDynamicMode()) {
-      /* update statistics */
-      TimerStatIncrementer timer(stats::staticAnalysisTime);
-      ++stats::staticAnalysisUsage;
-      /* run dynamic pointer analysis */
-      updatePointsToOnCall(state, f, arguments);
-      state.getPTA()->analyzeFunction(*kmodule->module, f);
-    }
-
-    /* get the appropriate analyzer */
-    PointerAnalysis *pta = RunStaticPTA ? staticPTA : state.getPTA();
-
-    if (CollectPTAStats) {
-      StatsCollector collector(false);
-      collector.visitReachable(pta, f);
-
-      CallingContext context;
-      context.entry = f;
-      context.line = kmodule->infos->getInfo(i).line;
-      context.call_depth = state.stack.size() - 1;
-      ptaStatsLogger->dump(context, collector.getStats());
-    }
-
-    if (CollectPTAResults) {
-      ResultsCollector collector(*ptaLog);
-      collector.visitReachable(pta, f);
-    }
-
-    if (DumpPTAGraph) {
-      if (RunStaticPTA) {
-        /* TODO: use getAllValidPtrs? */
-        klee_error("Doesn't support static mode...");
-      }
-      PTAGraphDumper dumper(*ptaGraphLog);
-      dumper.dump(state.getPTA());
-    }
-
-    if (CollectModRef) {
-      set<Function *> functions;
-      for (unsigned int i = 0; i < state.stack.size() - 1; i++) {
-        StackFrame &sf = state.stack[i];
-        functions.insert(sf.kf->function);
-      }
-
-      ModRefCollector collector(functions);
-      collector.visitReachable(pta, f);
-      collector.dumpModSet(pta);
-    }
-
-    if (!RunStaticPTA) {
-      state.getPTA()->postAnalysisCleanup();
-    }
   }
 }
 
