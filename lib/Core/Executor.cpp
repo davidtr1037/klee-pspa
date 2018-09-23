@@ -520,20 +520,20 @@ const Module *Executor::setModule(llvm::Module *module,
     /* run mod-ref analysis */
     klee_message("Running mod-ref analysis...");
     mra->run();
-  }
 
-  for (KFunction *kf : kmodule->functions) {
-    if (kf->function->isDeclaration()) {
-      continue;
-    }
-
-    for (unsigned i = 0; i < kf->numInstructions; ++i) {
-      KInstruction *ki = kf->instructions[i];
-      if (ki->inst->getOpcode() == Instruction::Load) {
-        ki->mayBlock = mra->mayBlock(ki->inst);
+    for (KFunction *kf : kmodule->functions) {
+      if (kf->function->isDeclaration()) {
+        continue;
       }
-      if (ki->inst->getOpcode() == Instruction::Store) {
-        ki->mayOverride = mra->mayOverride(ki->inst);
+
+      for (unsigned i = 0; i < kf->numInstructions; ++i) {
+        KInstruction *ki = kf->instructions[i];
+        if (ki->inst->getOpcode() == Instruction::Load) {
+          ki->mayBlock = mra->mayBlock(ki->inst);
+        }
+        if (ki->inst->getOpcode() == Instruction::Store) {
+          ki->mayOverride = mra->mayOverride(ki->inst);
+        }
       }
     }
   }
