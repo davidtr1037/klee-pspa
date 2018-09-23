@@ -5064,79 +5064,82 @@ MemoryObject *Executor::onExecuteAlloc(ExecutionState &state,
                                        bool isLocal,
                                        Instruction *allocInst,
                                        bool zeroMemory) {
-    MemoryObject *mo = NULL;
+  MemoryObject *mo = NULL;
 
-    /* get the context of the allocation instruction */
-    std::vector<Instruction *> callTrace;
-    state.getCallTrace(callTrace);
-    ASContext context(callTrace, allocInst);
+  /* get the context of the allocation instruction */
+  std::vector<Instruction *> callTrace;
+  state.getCallTrace(callTrace);
+  ASContext context(callTrace, allocInst);
 
-    ExecutionState *dependentState = state.getDependentState();
-    AllocationRecord &guidingAllocationRecord = state.getGuidingAllocationRecord();
-    AllocationRecord &allocationRecord = dependentState->getAllocationRecord();
+  ExecutionState *dependentState = state.getDependentState();
+  AllocationRecord &guidingAllocationRecord = state.getGuidingAllocationRecord();
+  AllocationRecord &allocationRecord = dependentState->getAllocationRecord();
 
-    if (guidingAllocationRecord.exists(context)) {
-        /* the address should be already bound */
-        mo = guidingAllocationRecord.getAddr(context);
-        if (mo) {
-            DEBUG_WITH_TYPE(
-                DEBUG_BASIC,
-                klee_message("%p: reusing allocated address: %lx, size: %lu", &state, mo->address, size)
-            );
-        } else {
-            DEBUG_WITH_TYPE(
-                DEBUG_BASIC,
-                klee_message("%p: reusing null address", &state)
-            );
-        }
-    } else {
-        size_t allocationAlignment = getAllocationAlignment(allocInst);
-        mo = memory->allocate(size, isLocal, false, allocInst, allocationAlignment);
-        DEBUG_WITH_TYPE(
-            DEBUG_BASIC,
-            klee_message("%p: allocating new address: %lx, size: %lu", &state, mo->address, size)
-        );
-
-        /* TODO: do we need to add the MemoryObject here? */
-        allocationRecord.addAddr(context, mo);
-        if (state.isNormalState()) {
-          state.getAllocationRecord().addAddr(context, mo);
-        }
-    }
-
+  if (guidingAllocationRecord.exists(context)) {
+    /* the address should be already bound */
+    mo = guidingAllocationRecord.getAddr(context);
     if (mo) {
-        /* bind the address to the dependent states */
-        bindAll(dependentState, mo, isLocal, zeroMemory);
+      DEBUG_WITH_TYPE(
+        DEBUG_BASIC,
+        klee_message(
+          "%p: reusing allocated address: %lx, size: %lu", &state, mo->address, size
+        )
+      );
+    } else {
+      DEBUG_WITH_TYPE(
+        DEBUG_BASIC,
+        klee_message("%p: reusing null address", &state)
+      );
     }
+  } else {
+    size_t allocationAlignment = getAllocationAlignment(allocInst);
+    mo = memory->allocate(size, isLocal, false, allocInst, allocationAlignment);
+    DEBUG_WITH_TYPE(
+      DEBUG_BASIC,
+      klee_message("%p: allocating new address: %lx, size: %lu", &state, mo->address, size)
+    );
 
-    return mo;
+    /* TODO: do we need to add the MemoryObject here? */
+    allocationRecord.addAddr(context, mo);
+    if (state.isNormalState()) {
+      state.getAllocationRecord().addAddr(context, mo);
+    }
+  }
+
+  if (mo) {
+    /* bind the address to the dependent states */
+    bindAll(dependentState, mo, isLocal, zeroMemory);
+  }
+
+  return mo;
 }
 
 bool Executor::isDynamicAlloc(Instruction *allocInst) {
-    CallInst *callInst = dyn_cast<CallInst>(allocInst);
-    if (!callInst) {
-        return false;
-    }
-
-    Value *calledValue = callInst->getCalledValue();
-    const char *functions[] = {
-        "malloc",
-        "calloc",
-        "realloc",
-    };
-
-    for (unsigned int i = 0; i < sizeof(functions) / sizeof(functions[0]); i++) {
-        if (calledValue->getName() == StringRef(functions[i])) {
-            return true;
-        }
-    }
-
+  CallInst *callInst = dyn_cast<CallInst>(allocInst);
+  if (!callInst) {
     return false;
+  }
+
+  Value *calledValue = callInst->getCalledValue();
+  const char *functions[] = {
+    "malloc",
+    "calloc",
+    "realloc",
+  };
+
+  for (unsigned int i = 0; i < sizeof(functions) / sizeof(functions[0]); i++) {
+    if (calledValue->getName() == StringRef(functions[i])) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
-void Executor::onExecuteFree(ExecutionState *state, const MemoryObject *mo) {
-    ExecutionState *dependentState = state->getDependentState();
-    unbindAll(dependentState, mo);
+void Executor::onExecuteFree(ExecutionState *state,
+                             const MemoryObject *mo) {
+  ExecutionState *dependentState = state->getDependentState();
+  unbindAll(dependentState, mo);
 }
 
 void Executor::terminateStateRecursively(ExecutionState &state) {
@@ -5159,150 +5162,167 @@ void Executor::terminateStateRecursively(ExecutionState &state) {
 }
 
 void Executor::mergeConstraints(ExecutionState &dependentState, ref<Expr> condition) {
-    assert(dependentState.isNormalState());
-    addConstraint(dependentState, condition);
+  assert(dependentState.isNormalState());
+  addConstraint(dependentState, condition);
 }
 
 bool Executor::isFunctionToSkip(ExecutionState &state, Function *f) {
-    for (auto i = interpreterOpts.skippedFunctions.begin(), e = interpreterOpts.skippedFunctions.end(); i != e; i++) {
-        const FunctionOption &option = *i;
-        if ((option.name == f->getName().str())) {
-            Instruction *callInst = state.prevPC->inst;
-            const InstructionInfo &info = kmodule->infos->getInfo(callInst);
-            const std::vector<unsigned int> &lines = option.lines;
+  for (const FunctionOption &option : interpreterOpts.skippedFunctions) {
+    if ((option.name == f->getName().str())) {
+      Instruction *callInst = state.prevPC->inst;
+      const InstructionInfo &info = kmodule->infos->getInfo(callInst);
+      const std::vector<unsigned int> &lines = option.lines;
 
-            /* skip any call site */
-            if (lines.empty()) {
-                return true;
-            }
+      /* skip any call site */
+      if (lines.empty()) {
+        return true;
+      }
 
-            /* check if we have debug information */
-            if (info.line == 0) {
-                klee_warning_once(0, "call filter for %s: debug info not found...", option.name.data());
-                return true;
-            }
+      /* check if we have debug information */
+      if (info.line == 0) {
+        klee_warning_once(0,
+                          "call filter for %s: debug info not found...",
+                          option.name.data());
+        return true;
+      }
 
-            return std::find(lines.begin(), lines.end(), info.line) != lines.end();
-        }
+      return std::find(lines.begin(), lines.end(), info.line) != lines.end();
+    }
+  }
+
+  return false;
+}
+
+void Executor::bindAll(ExecutionState *state,
+                       MemoryObject *mo,
+                       bool isLocal,
+                       bool zeroMemory) {
+  ExecutionState *next;
+  do {
+    /* this state is a normal state (and might be a recovery state as well) */
+    next = NULL;
+    if (state->isRecoveryState()) {
+      next = state->getDependentState();
     }
 
-    return false;
+    DEBUG_WITH_TYPE(
+      DEBUG_BASIC,
+      klee_message("%p: binding address: %lx", state, mo->address)
+    );
+    if (!state->addressSpace.findObject(mo)) {
+      ObjectState *os = bindObjectInState(*state, mo, isLocal);
+      /* initialize allocated object */
+      if (zeroMemory) {
+        os->initializeToZero();
+      } else {
+        os->initializeToRandom();
+      }
+    }
+
+    state = next;
+  } while (next);
 }
 
-void Executor::bindAll(ExecutionState *state, MemoryObject *mo, bool isLocal, bool zeroMemory) {
-    ExecutionState *next;
-    do {
-        /* this state is a normal state (and might be a recovery state as well) */
-        next = NULL;
-        if (state->isRecoveryState()) {
-            next = state->getDependentState();
-        }
+void Executor::unbindAll(ExecutionState *state,
+                         const MemoryObject *mo) {
+  ExecutionState *next;
+  do {
+    /* this state is a normal state (and might be a recovery state as well) */
+    next = NULL;
+    if (state->isRecoveryState()) {
+      next = state->getDependentState();
+    }
 
-        DEBUG_WITH_TYPE(DEBUG_BASIC, klee_message("%p: binding address: %lx", state, mo->address));
-        if (!state->addressSpace.findObject(mo)) {
-            ObjectState *os = bindObjectInState(*state, mo, isLocal);
-            /* initialize allocated object */
-            if (zeroMemory) {
-                os->initializeToZero();
-            } else {
-                os->initializeToRandom();
-            }
-        }
+    DEBUG_WITH_TYPE(
+      DEBUG_BASIC,
+      klee_message("%p: unbinding address %lx", state, mo->address)
+    );
+    state->addressSpace.unbindObject(mo);
 
-        state = next;
-    } while (next);
-}
-
-void Executor::unbindAll(ExecutionState *state, const MemoryObject *mo) {
-    ExecutionState *next;
-    do {
-        /* this state is a normal state (and might be a recovery state as well) */
-        next = NULL;
-        if (state->isRecoveryState()) {
-            next = state->getDependentState();
-        }
-
-        DEBUG_WITH_TYPE(DEBUG_BASIC, klee_message("%p: unbinding address %lx", state, mo->address));
-        state->addressSpace.unbindObject(mo);
-
-        state = next;
-    } while (next);
+    state = next;
+  } while (next);
 }
 
 void Executor::forkDependentStates(ExecutionState *trueState, ExecutionState *falseState) {
-    ExecutionState *current = trueState->getDependentState();
-    ExecutionState *forked = NULL;
-    ExecutionState *prevForked = falseState;
-    ExecutionState *forkedOriginatingState = NULL;
+  ExecutionState *current = trueState->getDependentState();
+  ExecutionState *forked = NULL;
+  ExecutionState *prevForked = falseState;
+  ExecutionState *forkedOriginatingState = NULL;
 
-    /* fork the chain of dependent states */
-    do {
-        forked = new ExecutionState(*current);
-        assert(forked->isSuspended());
-        DEBUG_WITH_TYPE(DEBUG_BASIC, klee_message("forked dependent state: %p (from %p)", forked, current));
+  /* fork the chain of dependent states */
+  do {
+    forked = new ExecutionState(*current);
+    assert(forked->isSuspended());
+    DEBUG_WITH_TYPE(
+      DEBUG_BASIC,
+      klee_message("forked dependent state: %p (from %p)", forked, current)
+    );
 
-        if (forked->isRecoveryState()) {
-            interpreterHandler->incRecoveryStatesCount();
-        }
+    if (forked->isRecoveryState()) {
+      interpreterHandler->incRecoveryStatesCount();
+    }
 
-        forked->setRecoveryState(prevForked);
-        prevForked->setDependentState(forked);
+    forked->setRecoveryState(prevForked);
+    prevForked->setDependentState(forked);
 
-        current->ptreeNode->data = 0;
-        std::pair<PTree::Node*, PTree::Node*> res = processTree->split(current->ptreeNode, forked, current);
-        forked->ptreeNode = res.first;
-        current->ptreeNode = res.second;
+    current->ptreeNode->data = 0;
+    std::pair<PTree::Node*, PTree::Node*> res = processTree->split(current->ptreeNode,
+                                                                   forked,
+                                                                   current);
+    forked->ptreeNode = res.first;
+    current->ptreeNode = res.second;
 
-        if (current->isRecoveryState()) {
-            prevForked = forked;
-            current = current->getDependentState();
-        } else {
-            forkedOriginatingState = forked;
-            current = NULL;
-        }
-    } while (current);
+    if (current->isRecoveryState()) {
+      prevForked = forked;
+      current = current->getDependentState();
+    } else {
+      forkedOriginatingState = forked;
+      current = NULL;
+    }
+  } while (current);
 
-    /* update originating state */
-    current = falseState;
-    do {
-        if (current->isRecoveryState()) {
-            DEBUG_WITH_TYPE(
-              DEBUG_BASIC,
-              klee_message("%p: updating originating state %p", current, forkedOriginatingState)
-            );
-            current->setOriginatingState(forkedOriginatingState);
-            current = current->getDependentState();
-        } else {
-            /* TODO: initialize originating state to NULL? */
-            current = NULL;
-        }
-    } while (current);
+  /* update originating state */
+  current = falseState;
+  do {
+    if (current->isRecoveryState()) {
+      DEBUG_WITH_TYPE(
+        DEBUG_BASIC,
+        klee_message("%p: updating originating state %p", current, forkedOriginatingState)
+      );
+      current->setOriginatingState(forkedOriginatingState);
+      current = current->getDependentState();
+    } else {
+      /* TODO: initialize originating state to NULL? */
+      current = NULL;
+    }
+  } while (current);
 }
 
-void Executor::mergeConstraintsForAll(ExecutionState &recoveryState, ref<Expr> condition) {
-    ExecutionState *next = recoveryState.getDependentState();
-    do {
-        mergeConstraints(*next, condition);
+void Executor::mergeConstraintsForAll(ExecutionState &recoveryState,
+                                      ref<Expr> condition) {
+  ExecutionState *next = recoveryState.getDependentState();
+  do {
+    mergeConstraints(*next, condition);
 
-        if (next->isRecoveryState()) {
-            next = next->getDependentState();
-        } else {
-            next = NULL;
-        }
-    } while (next);
+    if (next->isRecoveryState()) {
+      next = next->getDependentState();
+    } else {
+      next = NULL;
+    }
+  } while (next);
 
-    /* add the guiding constraints only to the originating state */
-    ExecutionState *originatingState = recoveryState.getOriginatingState();
-    originatingState->addGuidingConstraint(condition);
+  /* add the guiding constraints only to the originating state */
+  ExecutionState *originatingState = recoveryState.getOriginatingState();
+  originatingState->addGuidingConstraint(condition);
 }
 
 ExecutionState *Executor::createSnapshotState(ExecutionState &state) {
-    ExecutionState *snapshotState = new ExecutionState(state);
+  ExecutionState *snapshotState = new ExecutionState(state);
 
-    /* remove guiding constraints */
-    snapshotState->clearGuidingConstraints();
+  /* remove guiding constraints */
+  snapshotState->clearGuidingConstraints();
 
-    return snapshotState;
+  return snapshotState;
 }
 
 void Executor::prepareForEarlyExit() {
