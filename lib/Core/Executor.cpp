@@ -4494,6 +4494,7 @@ bool Executor::isRecoveryRequired(ExecutionState &state, KInstruction *ki) {
 bool Executor::handleMayBlockingLoad(ExecutionState &state, KInstruction *ki,
                                      bool &success) {
   success = true;
+
   /* find which slices should be executed... */
   std::list< ref<RecoveryInfo> > &recoveryInfos = state.getPendingRecoveryInfos();
   if (!getAllRecoveryInfo(state, ki, recoveryInfos)) {
@@ -4557,8 +4558,7 @@ bool Executor::getAllRecoveryInfo(ExecutionState &state, KInstruction *ki,
     ref<Snapshot> snapshot = snapshots[index];
     Function *snapshotFunction = snapshot->f;
 
-    for (std::set<ModRefAnalysis::ModInfo>::iterator j = approximateModInfos.begin(); j != approximateModInfos.end(); j++) {
-      ModRefAnalysis::ModInfo modInfo = *j;
+    for (ModRefAnalysis::ModInfo modInfo : approximateModInfos) {
       if (modInfo.first != snapshotFunction) {
         /* the function of the snapshot must match the modifier */
         continue;
@@ -4590,8 +4590,7 @@ bool Executor::getAllRecoveryInfo(ExecutionState &state, KInstruction *ki,
   }
 
   /* do some filtering... */
-  for (std::list< ref<RecoveryInfo> >::reverse_iterator i = required.rbegin(); i != required.rend(); i++) {
-    ref<RecoveryInfo> recoveryInfo = *i;
+  for (ref<RecoveryInfo> recoveryInfo : required) {
     unsigned int index = recoveryInfo->snapshotIndex;
     unsigned int sliceId = recoveryInfo->sliceId;
 
@@ -4759,7 +4758,13 @@ void Executor::resumeState(ExecutionState &state, bool implicitlyCreated) {
   state.setRecoveryState(0);
   state.markLoadAsUnrecovered();
   if (implicitlyCreated) {
-    DEBUG_WITH_TYPE(DEBUG_BASIC, klee_message("adding an implicitly created state: %p", &state));
+    DEBUG_WITH_TYPE(
+      DEBUG_BASIC,
+      klee_message(
+        "adding an implicitly created state: %p",
+        &state
+      )
+    );
     addedStates.push_back(&state);
   } else {
     resumedStates.push_back(&state);
@@ -4770,7 +4775,13 @@ void Executor::resumeState(ExecutionState &state, bool implicitlyCreated) {
 }
 
 void Executor::onRecoveryStateExit(ExecutionState &state) {
-  DEBUG_WITH_TYPE(DEBUG_BASIC, klee_message("%p: recovery state reached exit instruction", &state));
+  DEBUG_WITH_TYPE(
+    DEBUG_BASIC,
+    klee_message(
+      "%p: recovery state reached exit instruction",
+      &state
+    )
+  );
 
   ExecutionState *dependentState = state.getDependentState();
   //dumpConstrains(*dependentState);
@@ -4787,10 +4798,18 @@ void Executor::onRecoveryStateExit(ExecutionState &state) {
 
 void Executor::notifyDependentState(ExecutionState &recoveryState) {
   ExecutionState *dependentState = recoveryState.getDependentState();
-  DEBUG_WITH_TYPE(DEBUG_BASIC, klee_message("%p: notifying dependent state %p", &recoveryState, dependentState));
+  DEBUG_WITH_TYPE(
+    DEBUG_BASIC, 
+    klee_message(
+      "%p: notifying dependent state %p",
+      &recoveryState,
+      dependentState
+    )
+  );
 
   if (recoveryState.isNormalState()) {
-    /* the allocation record of the recovery states contains the allocation record of the dependent state */
+    /* the allocation record of the recovery states contains the allocation record
+       of the dependent state */
     dependentState->setAllocationRecord(recoveryState.getAllocationRecord());
   }
 
@@ -4801,7 +4820,8 @@ void Executor::notifyDependentState(ExecutionState &recoveryState) {
   }
 }
 
-void Executor::startRecoveryState(ExecutionState &state, ref<RecoveryInfo> recoveryInfo) {
+void Executor::startRecoveryState(ExecutionState &state,
+                                  ref<RecoveryInfo> recoveryInfo) {
   DEBUG_WITH_TYPE(
     DEBUG_BASIC,
     klee_message(
@@ -4896,7 +4916,9 @@ void Executor::startRecoveryState(ExecutionState &state, ref<RecoveryInfo> recov
 
   /* update process tree */
   state.ptreeNode->data = 0;
-  std::pair<PTree::Node*, PTree::Node*> res = processTree->split(state.ptreeNode, recoveryState, &state);
+  std::pair<PTree::Node*, PTree::Node*> res = processTree->split(state.ptreeNode,
+                                                                 recoveryState,
+                                                                 &state);
   recoveryState->ptreeNode = res.first;
   state.ptreeNode = res.second;
 
@@ -4908,13 +4930,11 @@ void Executor::startRecoveryState(ExecutionState &state, ref<RecoveryInfo> recov
 }
 
 /* TODO: handle vastart calls */
-void Executor::onRecoveryStateWrite(
-  ExecutionState &state,
-  ref<Expr> address,
-  const MemoryObject *mo,
-  ref<Expr> offset,
-  ref<Expr> value
-) {
+void Executor::onRecoveryStateWrite(ExecutionState &state,
+                                    ref<Expr> address,
+                                    const MemoryObject *mo,
+                                    ref<Expr> offset,
+                                    ref<Expr> value) {
   assert(isa<ConstantExpr>(address));
   assert(isa<ConstantExpr>(offset));
 
@@ -4965,11 +4985,9 @@ void Executor::onRecoveryStateWrite(
   );
 }
 
-void Executor::onNormalStateWrite(
-  ExecutionState &state,
-  ref<Expr> address,
-  ref<Expr> value
-) {
+void Executor::onNormalStateWrite(ExecutionState &state,
+                                  ref<Expr> address,
+                                  ref<Expr> value) {
   if (!state.isInDependentMode()) {
     return;
   }
@@ -5013,11 +5031,9 @@ bool Executor::isOverridingStore(KInstruction *ki) {
   return ki->mayOverride;
 }
 
-void Executor::onNormalStateRead(
-  ExecutionState &state,
-  ref<Expr> address,
-  Expr::Width width
-) {
+void Executor::onNormalStateRead(ExecutionState &state,
+                                 ref<Expr> address,
+                                 Expr::Width width) {
   if (!state.isInDependentMode()) {
     return;
   }
@@ -5038,9 +5054,8 @@ void Executor::onNormalStateRead(
 
 void Executor::dumpConstrains(ExecutionState &state) {
   DEBUG_WITH_TYPE(DEBUG_BASIC, klee_message("constraints (state = %p):", &state));
-  for (ConstraintManager::constraint_iterator i = state.constraints.begin(); i != state.constraints.end(); i++) {
-      ref<Expr> e = *i;
-      DEBUG_WITH_TYPE(DEBUG_BASIC, errs() << "  -- "; e->dump());
+  for (ref<Expr> e : state.constraints) {
+    DEBUG_WITH_TYPE(DEBUG_BASIC, errs() << "  -- "; e->dump());
   }
 }
 
