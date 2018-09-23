@@ -253,6 +253,38 @@ namespace klee {
     }
   };
 
+  class SplittedSearcher : public Searcher {
+
+  public:
+
+    SplittedSearcher(Searcher *baseSearcher,
+                     Searcher *recoverySearcher,
+                     unsigned int ratio);
+
+    ~SplittedSearcher();
+
+    ExecutionState &selectState();
+
+    void update(ExecutionState *current,
+                const std::vector<ExecutionState *> &addedStates,
+                const std::vector<ExecutionState *> &removedStates);
+
+    bool empty();
+
+    void printName(llvm::raw_ostream &os) {
+      os << "SplittedSearcher\n";
+      os << "- base searcher: "; baseSearcher->printName(os);
+      os << "- recovery searcher: "; recoverySearcher->printName(os);
+      os << "- ratio = " << ratio << "\n";
+    }
+
+  private:
+
+    Searcher *baseSearcher;
+    Searcher *recoverySearcher;
+    unsigned int ratio;
+  };
+
 }
 
 #endif

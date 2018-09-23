@@ -431,3 +431,82 @@ void InterleavedSearcher::update(
          ie = searchers.end(); it != ie; ++it)
     (*it)->update(current, addedStates, removedStates);
 }
+
+/* splitted searcher */
+SplittedSearcher::SplittedSearcher(Searcher *baseSearcher, Searcher *recoverySearcher, unsigned int ratio)
+  : baseSearcher(baseSearcher), recoverySearcher(recoverySearcher), ratio(ratio)
+{
+
+}
+
+SplittedSearcher::~SplittedSearcher() {
+  delete baseSearcher;
+  delete recoverySearcher;
+}
+
+ExecutionState &SplittedSearcher::selectState() {
+  if (baseSearcher->empty()) {
+    /* the recovery states are supposed to be not empty */
+    return recoverySearcher->selectState();
+  }
+
+  if (recoverySearcher->empty()) {
+    /* the base searcher is supposed to be not empty */
+    return baseSearcher->selectState();
+  }
+
+  /* in this case, both searchers are supposed to be not empty */
+  if (theRNG.getInt32() % 100 < ratio) {
+    /* we handle recovery states in a DFS manner */
+    return recoverySearcher->selectState();
+  } else {
+    return baseSearcher->selectState();
+  }
+}
+
+void SplittedSearcher::update(
+  ExecutionState *current,
+  const std::vector<ExecutionState *> &addedStates,
+  const std::vector<ExecutionState *> &removedStates
+) {
+  std::vector<ExecutionState *> addedOriginatingStates;
+  std::vector<ExecutionState *> addedRecoveryStates;
+  std::vector<ExecutionState *> removedOriginatingStates;
+  std::vector<ExecutionState *> removedRecoveryStates;
+
+  /* split added states */
+  for (auto i = addedStates.begin(); i != addedStates.end(); i++) {
+    ExecutionState *es = *i;
+    if (es->isRecoveryState()) {
+      addedRecoveryStates.push_back(es);
+    } else {
+      addedOriginatingStates.push_back(es);
+    }
+  }
+
+  /* split removed states */
+  for (auto i = removedStates.begin(); i != removedStates.end(); i++) {
+    ExecutionState *es = *i;
+    if (es->isRecoveryState()) {
+      removedRecoveryStates.push_back(es);
+    } else {
+      removedOriginatingStates.push_back(es);
+    }
+  }
+
+  if (current && current->isRecoveryState()) {
+    baseSearcher->update(NULL, addedOriginatingStates, removedOriginatingStates);
+  } else {
+    baseSearcher->update(current, addedOriginatingStates, removedOriginatingStates);
+  }
+
+  if (current && !current->isRecoveryState()) {
+    recoverySearcher->update(NULL, addedRecoveryStates, removedRecoveryStates);
+  } else {
+    recoverySearcher->update(current, addedRecoveryStates, removedRecoveryStates);
+  }
+}
+
+bool SplittedSearcher::empty() {
+  return baseSearcher->empty() && recoverySearcher->empty();
+}
