@@ -284,7 +284,11 @@ ExecutionState &RandomPathSearcher::selectState() {
     }
   }
 
-  return *n->data;
+  ExecutionState *es = n->data;
+  while (es->isSuspended()) {
+    es = es->getRecoveryState();
+  }
+  return *es;
 }
 
 void
