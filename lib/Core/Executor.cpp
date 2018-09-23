@@ -845,6 +845,9 @@ void Executor::branch(ExecutionState &state,
     for (unsigned i=1; i<N; ++i) {
       ExecutionState *es = result[theRNG.getInt32() % i];
       ExecutionState *ns = es->branch();
+      if (ns->isRecoveryState()) {
+        interpreterHandler->incRecoveryStatesCount();
+      }
       addedStates.push_back(ns);
       result.push_back(ns);
       es->ptreeNode->data = 0;
@@ -902,9 +905,33 @@ void Executor::branch(ExecutionState &state,
     }
   }
 
-  for (unsigned i=0; i<N; ++i)
-    if (result[i])
-      addConstraint(*result[i], conditions[i]);
+  /* handle the forks */
+  for (unsigned i = 0; i < N; ++i) {
+    ExecutionState *current = result[i];
+    if (current && current->isRecoveryState()) {
+      if (i != 0) {
+        /* here we must fork the dependent state */
+        DEBUG_WITH_TYPE(
+          DEBUG_BASIC,
+          klee_message("forked recovery state (switch): %p", current)
+        );
+        ExecutionState *prev = result[i - 1];
+        forkDependentStates(prev, current);
+      }
+    }
+  }
+
+  /* handle the constraints */
+  for (unsigned i = 0; i < N; ++i) {
+    ExecutionState *current = result[i];
+    if (current) {
+      ref<Expr> condition = conditions[i];
+      addConstraint(*current, condition);
+      if (current->isRecoveryState()) {
+        mergeConstraintsForAll(*current, condition);
+      }
+    }
+  }
 }
 
 Executor::StatePair 
@@ -1059,11 +1086,20 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
   } else {
     TimerStatIncrementer timer(stats::forkTime);
     ExecutionState *falseState, *trueState = &current;
+    ref<Expr> negatedCondition = Expr::createIsZero(condition);
 
     ++stats::forks;
 
     falseState = trueState->branch();
     addedStates.push_back(falseState);
+
+    if (trueState->isRecoveryState()) {
+      DEBUG_WITH_TYPE(
+        DEBUG_BASIC,
+        klee_message("forked recovery state: %p", falseState)
+      );
+      interpreterHandler->incRecoveryStatesCount();
+    }
 
     if (it != seedMap.end()) {
       std::vector<SeedInfo> seeds = it->second;
@@ -1130,6 +1166,14 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
       terminateStateEarly(*trueState, "max-depth exceeded.");
       terminateStateEarly(*falseState, "max-depth exceeded.");
       return StatePair(0, 0);
+    }
+
+    if (trueState->isRecoveryState()) {
+      forkDependentStates(trueState, falseState);
+
+      /* propagate constraints if required */
+      mergeConstraintsForAll(*trueState, condition);
+      mergeConstraintsForAll(*falseState, negatedCondition);
     }
 
     return StatePair(trueState, falseState);
@@ -2244,6 +2288,20 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   }
 
   case Instruction::Load: {
+    if (state.isNormalState() && state.isInDependentMode()) {
+      if (state.isBlockingLoadRecovered() && isMayBlockingLoad(state, ki)) {
+        /* TODO: rename variable */
+        bool success;
+        bool isBlocking = handleMayBlockingLoad(state, ki, success);
+        if (!success) {
+          return;
+        }
+        if (isBlocking) {
+          /* TODO: break? */
+          return;
+        }
+      }
+    }
     ref<Expr> base = eval(ki, 0, state).value;
     executeMemoryOperation(state, false, base, 0, ki);
     break;
@@ -2716,7 +2774,32 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
 void Executor::updateStates(ExecutionState *current) {
   if (searcher) {
-    searcher->update(current, addedStates, removedStates);
+    if (!removedStates.empty()) {
+        /* we don't want to pass suspended states to the searcher */
+        std::vector<ExecutionState *> filteredStates;
+        for (ExecutionState *removedState : removedStates) {
+            if (removedState->isNormalState() && removedState->isSuspended()) {
+                continue;
+            }
+            filteredStates.push_back(removedState);
+        }
+        searcher->update(current, addedStates, filteredStates);
+    } else {
+        searcher->update(current, addedStates, removedStates);
+    }
+
+    /* handle suspended states */
+    for (ExecutionState *es : suspendedStates) {
+      searcher->removeState(es);
+    }
+    suspendedStates.clear();
+
+    /* handle resumed states */
+    for (ExecutionState *es : resumedStates) {
+      searcher->addState(es);
+    }
+    resumedStates.clear();
+
     searcher->update(nullptr, continuedStates, pausedStates);
     pausedStates.clear();
     continuedStates.clear();
@@ -2730,8 +2813,13 @@ void Executor::updateStates(ExecutionState *current) {
        it != ie; ++it) {
     ExecutionState *es = *it;
     std::set<ExecutionState*>::iterator it2 = states.find(es);
-    assert(it2!=states.end());
-    states.erase(it2);
+    if (it2 == states.end()) {
+      /* TODO: trying to handle removal of suspended states. Find a better solution... */
+      assert(es->isNormalState() && es->isSuspended());
+      continue;
+    } else {
+      states.erase(it2);
+    }
     std::map<ExecutionState*, std::vector<SeedInfo> >::iterator it3 = 
       seedMap.find(es);
     if (it3 != seedMap.end())
@@ -3057,14 +3145,22 @@ void Executor::terminateStateEarly(ExecutionState &state,
       (AlwaysOutputSeeds && seedMap.count(&state)))
     interpreterHandler->processTestCase(state, (message + "\n").str().c_str(),
                                         "early");
-  terminateState(state);
+  if (state.isRecoveryState()) {
+    terminateStateRecursively(state);
+  } else {
+    terminateState(state);
+  }
 }
 
 void Executor::terminateStateOnExit(ExecutionState &state) {
   if (!OnlyOutputStatesCoveringNew || state.coveredNew || 
       (AlwaysOutputSeeds && seedMap.count(&state)))
     interpreterHandler->processTestCase(state, 0, 0);
-  terminateState(state);
+  if (state.isRecoveryState()) {
+    terminateStateRecursively(state);
+  } else {
+    terminateState(state);
+  }
 }
 
 const InstructionInfo & Executor::getLastNonKleeInternalInstruction(const ExecutionState &state,
@@ -3166,7 +3262,11 @@ void Executor::terminateStateOnError(ExecutionState &state,
     interpreterHandler->processTestCase(state, msg.str().c_str(), suffix);
   }
     
-  terminateState(state);
+  if (state.isRecoveryState()) {
+    terminateStateRecursively(state);
+  } else {
+    terminateState(state);
+  }
 
   if (shouldExitOn(termReason))
     haltExecution = true;
@@ -3345,9 +3445,17 @@ void Executor::executeAlloc(ExecutionState &state,
   if (ConstantExpr *CE = dyn_cast<ConstantExpr>(size)) {
     const llvm::Value *allocSite = state.prevPC->inst;
     size_t allocationAlignment = getAllocationAlignment(allocSite);
-    MemoryObject *mo =
-        memory->allocate(CE->getZExtValue(), isLocal, /*isGlobal=*/false,
-                         allocSite, allocationAlignment);
+    MemoryObject *mo = NULL;
+    if (state.isRecoveryState() && isDynamicAlloc(state.prevPC->inst)) {
+      mo = onExecuteAlloc(state,
+                          CE->getZExtValue(),
+                          isLocal,
+                          state.prevPC->inst,
+                          zeroMemory);
+    } else {
+      mo = memory->allocate(CE->getZExtValue(), isLocal, /*isGlobal=*/false,
+                            allocSite, allocationAlignment);
+    }
     if (!mo) {
       bindLocal(target, state, 
                 ConstantExpr::alloc(0, Context::get().getPointerWidth()));
@@ -3469,6 +3577,9 @@ void Executor::executeFree(ExecutionState &state,
                               getAddressInfo(*it->second, address));
       } else {
         it->second->addressSpace.unbindObject(mo);
+        if (it->second->isRecoveryState()) {
+            onExecuteFree(it->second, mo);
+        }
         if (target)
           bindLocal(target, *it->second, Expr::createPointer(0));
       }
@@ -3565,9 +3676,19 @@ void Executor::executeMemoryOperation(ExecutionState &state,
           if (isDynamicMode()) {
             updatePointsToOnStore(state, mo, offset, value);
           }
+
+          if (state.isRecoveryState()) {
+            onRecoveryStateWrite(state, address, mo, offset, value);
+          }
+          if (state.isNormalState()) {
+            onNormalStateWrite(state, address, value);
+          }
         }
       } else {
         ref<Expr> result = os->read(offset, type);
+        if (state.isNormalState()) {
+          onNormalStateRead(state, address, type);
+        }
         
         if (interpreterOpts.MakeConcreteSymbolic)
           result = replaceReadWithSymbolic(state, result);

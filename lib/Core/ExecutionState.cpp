@@ -181,6 +181,11 @@ ExecutionState::ExecutionState(const ExecutionState& state):
   } else {
     pta = NULL;
   }
+
+  /* TODO: possibly not required if snapshots are cleared */
+  if (isNormalState() && !isRecoveryState()) {
+    guidingConstraints = state.guidingConstraints;
+  }
 }
 
 ExecutionState *ExecutionState::branch() {
@@ -192,6 +197,13 @@ ExecutionState *ExecutionState::branch() {
 
   weight *= .5;
   falseState->weight -= weight;
+
+  /* TODO remove assertions */
+  if (this->isNormalState()) {
+    assert(falseState->isNormalState() && "false state is not a normal state");
+  } else {
+    assert(falseState->isRecoveryState() && "false state is not a recovery state");
+  }
 
   return falseState;
 }
