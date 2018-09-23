@@ -421,3 +421,15 @@ bool ExecutionState::isCalledRecursively(Function *f) {
 
   return count > 1;
 }
+
+void ExecutionState::getCallTrace(std::vector<Instruction *> &callTrace) {
+  for (StackFrame &sf : stack) {
+    /* skip the main frame */
+    if (sf.kf->function->getName() == "main") {
+      continue;
+    }
+
+    Instruction *inst = sf.caller->inst;
+    callTrace.push_back(inst);
+  }
+}

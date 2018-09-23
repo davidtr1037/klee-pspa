@@ -248,6 +248,12 @@ private:
   llvm::raw_ostream *ptaGraphLog;
 
   /* TODO: add docs */
+  std::vector<ExecutionState *> suspendedStates;
+
+  /* TODO: add docs */
+  std::vector<ExecutionState *> resumedStates;
+
+  /* TODO: add docs */
   llvm::raw_ostream *saLog;
 
   /* TODO: add docs */
@@ -604,6 +610,93 @@ public:
 
   void logCall(ExecutionState &state,
                llvm::Function *f);
+
+  bool isMayBlockingLoad(ExecutionState &state,
+                         KInstruction *ki);
+
+  bool isRecoveryRequired(ExecutionState &state,
+                          KInstruction *ki);
+
+  bool handleMayBlockingLoad(ExecutionState &state,
+                             KInstruction *ki,
+                             bool &success);
+
+  bool getAllRecoveryInfo(ExecutionState &state,
+                          KInstruction *kinst,
+                          std::list<ref<RecoveryInfo> > &result);
+
+  bool getLoadInfo(ExecutionState &state,
+                   KInstruction *kinst,
+                   uint64_t &loadAddr,
+                   uint64_t &loadSize,
+                   ModRefAnalysis::AllocSite &allocSite);
+
+  void suspendState(ExecutionState &state);
+
+  void resumeState(ExecutionState &state,
+                   bool implicitlyCreated);
+
+  void notifyDependentState(ExecutionState &recoveryState);
+
+  void onRecoveryStateExit(ExecutionState &state);
+
+  void startRecoveryState(ExecutionState &state,
+                          ref<RecoveryInfo> recoveryInfo);
+
+  void onRecoveryStateWrite(ExecutionState &state,
+                            ref<Expr> address,
+                            const MemoryObject *mo,
+                            ref<Expr> offset,
+                            ref<Expr> value);
+
+  void onNormalStateWrite(ExecutionState &state,
+                          ref<Expr> address,
+                          ref<Expr> value);
+
+  bool isOverridingStore(KInstruction *kinst);
+
+  void onNormalStateRead(ExecutionState &state,
+                         ref<Expr> address,
+                         Expr::Width width);
+
+  void dumpConstrains(ExecutionState &state);
+
+  MemoryObject *onExecuteAlloc(ExecutionState &state,
+                               uint64_t size,
+                               bool isLocal,
+                               llvm::Instruction *allocInst,
+                               bool zeroMemory);
+
+  bool isDynamicAlloc(llvm::Instruction *allocInst);
+
+  void onExecuteFree(ExecutionState *state,
+                     const MemoryObject *mo);
+
+  void terminateStateRecursively(ExecutionState &state);
+
+  void mergeConstraints(ExecutionState &dependedState,
+                        ref<Expr> condition);
+
+  bool isFunctionToSkip(ExecutionState &state,
+                        llvm::Function *f);
+
+  bool canSkipCallSite(ExecutionState &state,
+                       llvm::Function *f);
+  void bindAll(ExecutionState *state,
+               MemoryObject *mo,
+               bool isLocal,
+               bool zeroMemory);
+
+  void unbindAll(ExecutionState *state,
+                 const MemoryObject *mo);
+
+  void forkDependentStates(ExecutionState *trueState,
+                           ExecutionState *falseState);
+
+  void mergeConstraintsForAll(ExecutionState &recoveryState,
+                              ref<Expr> condition);
+
+  ExecutionState *createSnapshotState(ExecutionState &state);
 
 };
   
