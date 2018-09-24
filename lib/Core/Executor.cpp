@@ -3133,7 +3133,9 @@ void Executor::terminateState(ExecutionState &state) {
   if (it==addedStates.end()) {
     state.pc = state.prevPC;
 
-    removedStates.push_back(&state);
+    if (std::find(removedStates.begin(), removedStates.end(), &state) == removedStates.end()) {
+      removedStates.push_back(&state);
+    }
   } else {
     // never reached searcher, just delete immediately
     std::map< ExecutionState*, std::vector<SeedInfo> >::iterator it3 = 
