@@ -1742,8 +1742,7 @@ static inline const llvm::fltSemantics * fpWidthToSemantics(unsigned width) {
 
 void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   Instruction *i = ki->inst;
-  /* TODO: replace with a better predicate (call stack counter?) */
-  if (state.isRecoveryState() && state.getExitInst() == i) {
+  if (state.isRecoveryState() && state.isRecoveryDone()) {
     onRecoveryStateExit(state);
     return;
   }
@@ -5016,7 +5015,7 @@ void Executor::startRecoveryState(ExecutionState &state,
   }
 
   /* set exit instruction */
-  recoveryState->setExitInst(snapshotState->pc->inst);
+  recoveryState->resetRecoveryCallStack();
 
   /* set dependent state */
   recoveryState->setDependentState(&state);

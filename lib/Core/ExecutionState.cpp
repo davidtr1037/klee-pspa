@@ -78,7 +78,8 @@ ExecutionState::ExecutionState(KFunction *kf) :
     blockingLoadStatus(true),
 
     /* recovery state properties */
-    exitInst(0),
+    recoveryCallStack(0),
+    didReturnFromRecovery(false),
     dependentState(0),
     originatingState(0),
     recoveryInfo(0),
@@ -140,7 +141,8 @@ ExecutionState::ExecutionState(const ExecutionState& state):
     recoveryCache(state.recoveryCache),
 
     /* recovery state properties */
-    exitInst(state.exitInst),
+    recoveryCallStack(state.recoveryCallStack),
+    didReturnFromRecovery(state.didReturnFromRecovery),
     dependentState(state.dependentState),
     originatingState(state.originatingState),
     recoveryInfo(state.recoveryInfo),
@@ -214,6 +216,10 @@ void ExecutionState::pushFrame(KInstIterator caller, KFunction *kf) {
   /* ... */
   uint32_t &count = callingFunctions[kf->function];
   count++;
+
+  if (isRecoveryState()) {
+    recoveryCallStack++;
+  }
 }
 
 void ExecutionState::popFrame() {
@@ -233,6 +239,11 @@ void ExecutionState::popFrame() {
   count--;
 
   stack.pop_back();
+
+  if (isRecoveryState()) {
+    recoveryCallStack--;
+    didReturnFromRecovery = recoveryCallStack == 0;
+  }
 }
 
 void ExecutionState::addSymbolic(const MemoryObject *mo, const Array *array) { 

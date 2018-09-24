@@ -178,8 +178,9 @@ private:
 
   /* recovery state properties */
 
-  /* a recovery state must stop when reaching this instruction */
-  llvm::Instruction *exitInst;
+  /* a recovery state must stop according to the call stack */
+  unsigned int recoveryCallStack;
+  bool didReturnFromRecovery;
   /* a recovery state has its own dependent state */
   ExecutionState *dependentState;
   /* a reference to the originating state */
@@ -399,14 +400,13 @@ public:
     recoveredLoads.clear();
   }
 
-  llvm::Instruction *getExitInst() {
-    assert(isRecoveryState());
-    return exitInst;
+  void resetRecoveryCallStack() {
+    recoveryCallStack = 0;
+    didReturnFromRecovery = false;
   }
 
-  void setExitInst(llvm::Instruction *exitInst) {
-    assert(isRecoveryState());
-    this->exitInst = exitInst;
+  unsigned int isRecoveryDone() {
+    return didReturnFromRecovery;
   }
 
   ExecutionState *getDependentState() {
