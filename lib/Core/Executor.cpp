@@ -4925,7 +4925,7 @@ void Executor::resumeState(ExecutionState &state, bool implicitlyCreated) {
   }
 
   /* debug... */
-  state.getAllocationRecord().dump();
+  //state.getAllocationRecord().dump();
 }
 
 void Executor::onRecoveryStateExit(ExecutionState &state) {
