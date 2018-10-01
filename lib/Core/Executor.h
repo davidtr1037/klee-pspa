@@ -101,7 +101,8 @@ private:
 struct LoadInfo {
   uint64_t addr;
   uint64_t size;
-  ModRefAnalysis::AllocSite allocSite;
+  const llvm::Value *value;
+  ref<Expr> offset;
 };
 
 class Executor : public Interpreter {

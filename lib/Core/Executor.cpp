@@ -4776,9 +4776,14 @@ bool Executor::getRequiredRecoveryInfo(ExecutionState &state,
     return false;
   }
 
+  /* the offset of the allocation site does not matter here */
+  ModRefAnalysis::AllocSite preciseAllocSite;
+  preciseAllocSite.first = loadInfo.value;
+  preciseAllocSite.second = 0;
+
   /* get the allocation site computed by static analysis */
   std::set<ModRefAnalysis::ModInfo> approximateModInfos;
-  mra->getApproximateModInfos(ki->inst, loadInfo.allocSite, approximateModInfos);
+  mra->getApproximateModInfos(ki->inst, preciseAllocSite, approximateModInfos);
 
   /* the snapshots of the state */
   std::vector< ref<Snapshot> > &snapshots = state.getSnapshots();
@@ -4870,17 +4875,12 @@ bool Executor::getLoadInfo(ExecutionState &state,
     /* get allocation site value and offset */
     const MemoryObject *mo = op.first;
     /* TODO: we don't actually need the offset... */
-    ref<Expr> offsetExpr = mo->getOffsetExpr(address);
-    offsetExpr = toConstant(state, offsetExpr, "...");
-    ce = dyn_cast<ConstantExpr>(offsetExpr);
-    assert(ce);
-
-    /* translate value... */
-    const Value *translatedValue = mo->allocSite;
-    uint64_t offset = ce->getZExtValue();
+    ref<Expr> offset = mo->getOffsetExpr(address);
+    offset = toConstant(state, offset, "...");
 
     /* get the precise allocation site */
-    info.allocSite = std::make_pair(translatedValue, offset);
+    info.value = mo->allocSite;
+    info.offset = offset;
 
     return true;
   } else {
