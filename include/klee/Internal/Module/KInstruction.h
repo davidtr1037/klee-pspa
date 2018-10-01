@@ -52,7 +52,7 @@ namespace klee {
     bool mayOverride;
 
   public:
-    KInstruction() : isRelevant(true), mayBlock(false), mayOverride(false) {
+    KInstruction() : isRelevant(true), mayBlock(true), mayOverride(true) {
 
     }
     virtual ~KInstruction();
