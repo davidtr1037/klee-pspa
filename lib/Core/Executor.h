@@ -689,8 +689,10 @@ public:
   bool isFunctionToSkip(ExecutionState &state,
                         llvm::Function *f);
 
-  bool canSkipCallSite(ExecutionState &state,
-                       llvm::Function *f);
+  void saveModSet(ExecutionState &state,
+                  llvm::Function *f,
+                  unsigned int index);
+
   void bindAll(ExecutionState *state,
                MemoryObject *mo,
                bool isLocal,

@@ -119,6 +119,10 @@ public:
                          llvm::Function *f,
                          llvm::LoadInst *inst);
 
+  std::set<NodeID> &getModSet() {
+    return mod;
+  }
+
   void dumpModSet(PointerAnalysis *pta);
 
   void dumpRefSet(PointerAnalysis *pta);

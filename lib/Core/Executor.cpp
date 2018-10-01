@@ -5362,6 +5362,36 @@ bool Executor::isFunctionToSkip(ExecutionState &state, Function *f) {
   return false;
 }
 
+void Executor::saveModSet(ExecutionState &state,
+                          Function *f,
+                          unsigned int index) {
+  set<Function *> called;
+  for (unsigned int i = 0; i < state.stack.size() - 1; i++) {
+    StackFrame &sf = state.stack[i];
+    called.insert(sf.kf->function);
+  }
+
+  PointerAnalysis *pta = RunStaticPTA ? staticPTA : state.getPTA();
+  ModRefCollector collector(called);
+  collector.visitReachable(pta, f);
+
+  std::set<NodeID> mod = collector.getModSet();
+  std::set<NodeID> fiMod;
+  std::set<NodeID> baseMod;
+  for (NodeID nodeId : mod) {
+    NodeID base = pta->getFIObjNode(nodeId);
+    baseMod.insert(base);
+    if (nodeId == base) {
+      /* this side effect is field insensitive */
+      fiMod.insert(base);
+    }
+  }
+
+  state.updateMod(index, mod);
+  state.updateFIMod(index, fiMod);
+  state.updateBaseMod(index, baseMod);
+}
+
 void Executor::bindAll(ExecutionState *state,
                        MemoryObject *mo,
                        bool isLocal,
