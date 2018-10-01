@@ -74,6 +74,12 @@ struct Snapshot {
   unsigned int refCount;
   ref<ExecutionState> state;
   llvm::Function *f;
+  /* TODO: add docs */
+  std::set<NodeID> mod;
+  /* TODO: add docs */
+  std::set<NodeID> fiMod;
+  /* TODO: add docs */
+  std::set<NodeID> baseMod;
 
   /* TODO: is it required? */
   Snapshot() :
@@ -587,6 +593,36 @@ public:
 
   void setLevel(unsigned int level) {
     this->level = level;
+  }
+
+  void updateMod(unsigned int index, std::set<NodeID> &mod) {
+    assert(index < snapshots.size());
+    snapshots[index]->mod.insert(mod.begin(), mod.end());
+  }
+
+  std::set<NodeID> &getMod(unsigned int index) {
+    assert(index < snapshots.size());
+    return snapshots[index]->mod;
+  }
+
+  void updateFIMod(unsigned int index, std::set<NodeID> &fiMod) {
+    assert(index < snapshots.size());
+    snapshots[index]->fiMod.insert(fiMod.begin(), fiMod.end());
+  }
+
+  std::set<NodeID> &getFIMod(unsigned int index) {
+    assert(index < snapshots.size());
+    return snapshots[index]->fiMod;
+  }
+
+  void updateBaseMod(unsigned int index, std::set<NodeID> &baseMod) {
+    assert(index < snapshots.size());
+    snapshots[index]->baseMod.insert(baseMod.begin(), baseMod.end());
+  }
+
+  std::set<NodeID> &getBaseMod(unsigned int index) {
+    assert(index < snapshots.size());
+    return snapshots[index]->baseMod;
   }
 
 };
