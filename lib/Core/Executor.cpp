@@ -2820,15 +2820,18 @@ void Executor::updateStates(ExecutionState *current) {
     if (it2 == states.end()) {
       /* TODO: trying to handle removal of suspended states. Find a better solution... */
       assert(es->isNormalState() && es->isSuspended());
-      continue;
+      if (!es->ptreeNode->left && !es->ptreeNode->right) {
+        /* remove only leaf suspended states */
+        processTree->remove(es->ptreeNode);
+      }
     } else {
       states.erase(it2);
+      processTree->remove(es->ptreeNode);
     }
     std::map<ExecutionState*, std::vector<SeedInfo> >::iterator it3 = 
       seedMap.find(es);
     if (it3 != seedMap.end())
       seedMap.erase(it3);
-    processTree->remove(es->ptreeNode);
     delete es;
   }
   removedStates.clear();
