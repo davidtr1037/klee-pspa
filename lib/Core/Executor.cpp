@@ -4904,20 +4904,17 @@ bool Executor::getRequiredRecoveryInfoDynamic(ExecutionState &state,
       }
     }
 
-    if (!mayDepend(state, pta, index, nodeId)) {
-      continue;
+    if (mayDepend(state, pta, index, nodeId)) {
+      ref<RecoveryInfo> recoveryInfo(new RecoveryInfo());
+      recoveryInfo->loadInst = loadInst;
+      recoveryInfo->loadAddr = loadInfo.addr;
+      recoveryInfo->loadSize = loadInfo.size;
+      recoveryInfo->sliceId = 0;
+      recoveryInfo->snapshot = snapshots[index];
+      recoveryInfo->snapshotIndex = index;
+
+      required.push_back(recoveryInfo);
     }
-
-    /* initialize... */
-    ref<RecoveryInfo> recoveryInfo(new RecoveryInfo());
-    recoveryInfo->loadInst = loadInst;
-    recoveryInfo->loadAddr = loadInfo.addr;
-    recoveryInfo->loadSize = loadInfo.size;
-    recoveryInfo->sliceId = 0;
-    recoveryInfo->snapshot = snapshots[index];
-    recoveryInfo->snapshotIndex = index;
-
-    required.push_back(recoveryInfo);
   }
 
   return true;
