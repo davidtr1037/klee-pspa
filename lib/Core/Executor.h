@@ -625,15 +625,15 @@ public:
                           KInstruction *kinst,
                           std::list<ref<RecoveryInfo> > &result);
 
+  bool getRequiredRecoveryInfo(ExecutionState &state,
+                               KInstruction *ki,
+                               std::list<ref<RecoveryInfo> > &result);
+
   bool getLoadInfo(ExecutionState &state,
                    KInstruction *kinst,
                    uint64_t &loadAddr,
                    uint64_t &loadSize,
                    ModRefAnalysis::AllocSite &allocSite);
-
-  bool getRequiredRecoveryInfo(ExecutionState &state,
-                               KInstruction *ki,
-                               std::list<ref<RecoveryInfo> > &result);
 
   void suspendState(ExecutionState &state);
 
