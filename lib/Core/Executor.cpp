@@ -4872,6 +4872,7 @@ bool Executor::getRequiredRecoveryInfoDynamic(ExecutionState &state,
   }
 
   if (!loadInfo.mo->allocSite) {
+    /* TODO: what should we do here? */
     return true;
   }
 
