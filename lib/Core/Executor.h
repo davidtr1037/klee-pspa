@@ -101,7 +101,7 @@ private:
 struct LoadInfo {
   uint64_t addr;
   uint64_t size;
-  const llvm::Value *value;
+  const MemoryObject *mo;
   ref<Expr> offset;
 };
 
@@ -635,6 +635,15 @@ public:
   bool getRequiredRecoveryInfo(ExecutionState &state,
                                KInstruction *ki,
                                std::list<ref<RecoveryInfo> > &result);
+
+  bool getRequiredRecoveryInfoDynamic(ExecutionState &state,
+                                      KInstruction *ki,
+                                      std::list<ref<RecoveryInfo> > &result);
+
+  bool mayDepend(ExecutionState &state,
+                 PointerAnalysis *pta,
+                 unsigned int index,
+                 NodeID load);
 
   bool getLoadInfo(ExecutionState &state,
                    KInstruction *kinst,

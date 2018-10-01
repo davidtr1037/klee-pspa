@@ -487,52 +487,50 @@ const Module *Executor::setModule(llvm::Module *module,
   }
 
   if (!interpreterOpts.skippedFunctions.empty()) {
-    if (!RunStaticPTA) {
-      klee_error("static pointer analysis must be enabled...");
-    }
-
-    /* build target functions */
-    std::vector<std::string> targets;
-    for (auto i : interpreterOpts.skippedFunctions) {
-      targets.push_back(i.name);
-    }
-
-    saLog = interpreterHandler->openOutputFile("sa.log");
-
-    ra = new ReachabilityAnalysis(kmodule->module,
-                                  opts.EntryPoint,
-                                  targets,
-                                  *saLog);
-
-    mra = new ModRefAnalysis(kmodule->module,
-                             ra,
-                             staticPTA,
-                             opts.EntryPoint,
-                             targets,
-                             *saLog);
-
-    /* prepare reachability analysis */
-    ra->prepare();
-
-    klee_message("Running reachability analysis...");
-    ra->run(staticPTA);
-
-    /* run mod-ref analysis */
-    klee_message("Running mod-ref analysis...");
-    mra->run();
-
-    for (KFunction *kf : kmodule->functions) {
-      if (kf->function->isDeclaration()) {
-        continue;
+    if (RunStaticPTA) {
+      /* build target functions */
+      std::vector<std::string> targets;
+      for (auto i : interpreterOpts.skippedFunctions) {
+        targets.push_back(i.name);
       }
 
-      for (unsigned i = 0; i < kf->numInstructions; ++i) {
-        KInstruction *ki = kf->instructions[i];
-        if (ki->inst->getOpcode() == Instruction::Load) {
-          ki->mayBlock = mra->mayBlock(ki->inst);
+      saLog = interpreterHandler->openOutputFile("sa.log");
+
+      ra = new ReachabilityAnalysis(kmodule->module,
+                                    opts.EntryPoint,
+                                    targets,
+                                    *saLog);
+
+      mra = new ModRefAnalysis(kmodule->module,
+                               ra,
+                               staticPTA,
+                               opts.EntryPoint,
+                               targets,
+                               *saLog);
+
+      /* prepare reachability analysis */
+      ra->prepare();
+
+      klee_message("Running reachability analysis...");
+      ra->run(staticPTA);
+
+      /* run mod-ref analysis */
+      klee_message("Running mod-ref analysis...");
+      mra->run();
+
+      for (KFunction *kf : kmodule->functions) {
+        if (kf->function->isDeclaration()) {
+          continue;
         }
-        if (ki->inst->getOpcode() == Instruction::Store) {
-          ki->mayOverride = mra->mayOverride(ki->inst);
+
+        for (unsigned i = 0; i < kf->numInstructions; ++i) {
+          KInstruction *ki = kf->instructions[i];
+          if (ki->inst->getOpcode() == Instruction::Load) {
+            ki->mayBlock = mra->mayBlock(ki->inst);
+          }
+          if (ki->inst->getOpcode() == Instruction::Store) {
+            ki->mayOverride = mra->mayOverride(ki->inst);
+          }
         }
       }
     }
@@ -1517,7 +1515,7 @@ void Executor::executeCall(ExecutionState &state,
 
     if (state.isNormalState() && !state.isRecoveryState() && isFunctionToSkip(state, f)) {
       /* first, check if the skipped function has side effects */
-      if (mra->hasSideEffects(f)) {
+      if (isDynamicMode() || mra->hasSideEffects(f)) {
         /* create snapshot, recovery state will be created on demand... */
         unsigned int index = state.getSnapshots().size();
         DEBUG_WITH_TYPE(
@@ -1536,6 +1534,22 @@ void Executor::executeCall(ExecutionState &state,
           DEBUG_BASIC,
           klee_message("%p: skipping function call to %s", &state, f->getName().data())
         );
+
+        if (isDynamicMode()) {
+          /* update statistics */
+          TimerStatIncrementer timer(stats::staticAnalysisTime);
+          ++stats::staticAnalysisUsage;
+
+          /* run dynamic pointer analysis */
+          updatePointsToOnCall(state, f, arguments);
+          state.getPTA()->analyzeFunction(*kmodule->module, f);
+
+          /* compute the mod set of the skipped function */
+          saveModSet(state, f, index);
+
+          /* free memory... */
+          state.getPTA()->postAnalysisCleanup();
+        }
       }
       return;
     }
@@ -4392,7 +4406,7 @@ bool Executor::getDynamicMemoryLocations(ExecutionState &state,
 }
 
 bool Executor::isDynamicMode() {
-  return !RunStaticPTA && !interpreterOpts.targetFunctions.empty();
+  return !RunStaticPTA;
 }
 
 void Executor::handleBitCast(ExecutionState &state,
@@ -4681,8 +4695,14 @@ bool Executor::getAllRecoveryInfo(ExecutionState &state,
                                   std::list<ref<RecoveryInfo> > &result) {
   /* all the recovery information which may be required  */
   std::list< ref<RecoveryInfo> > required;
-  if (!getRequiredRecoveryInfo(state, ki, required)) {
-    return false;
+  if (!isDynamicMode()) {
+    if (!getRequiredRecoveryInfo(state, ki, required)) {
+      return false;
+    }
+  } else {
+    if (!getRequiredRecoveryInfoDynamic(state, ki, required)) {
+      return false;
+    }
   }
 
   /* do some filtering... */
@@ -4778,7 +4798,7 @@ bool Executor::getRequiredRecoveryInfo(ExecutionState &state,
 
   /* the offset of the allocation site does not matter here */
   ModRefAnalysis::AllocSite preciseAllocSite;
-  preciseAllocSite.first = loadInfo.value;
+  preciseAllocSite.first = loadInfo.mo->allocSite;
   preciseAllocSite.second = 0;
 
   /* get the allocation site computed by static analysis */
@@ -4834,6 +4854,95 @@ bool Executor::getRequiredRecoveryInfo(ExecutionState &state,
   return true;
 }
 
+bool Executor::getRequiredRecoveryInfoDynamic(ExecutionState &state,
+                                              KInstruction *ki,
+                                              std::list<ref<RecoveryInfo> > &required) {
+  Instruction *loadInst;
+  LoadInfo loadInfo;
+
+  /* TODO: decide which value to pass (original, cloned) */
+  loadInst = ki->inst;
+  DEBUG_WITH_TYPE(DEBUG_BASIC, klee_message("%p: may-blocking load:", &state));
+  DEBUG_WITH_TYPE(DEBUG_BASIC, errs() << "- instruction:" << *loadInst << "\n");
+  DEBUG_WITH_TYPE(DEBUG_BASIC, errs() << "- stack trace:\n");
+  DEBUG_WITH_TYPE(DEBUG_BASIC, state.dumpStack(errs()));
+
+  if (!getLoadInfo(state, ki, loadInfo)) {
+    return false;
+  }
+
+  if (!loadInfo.mo->allocSite) {
+    return true;
+  }
+
+  DynamicMemoryLocation location;
+  ConstantExpr *ce = dyn_cast<ConstantExpr>(loadInfo.offset);
+  if (!ce) {
+    location.isSymbolicOffset = true;
+  } else {
+    location.isSymbolicOffset = false;
+    location.offset = ce->getZExtValue();
+  }
+
+  location.value = getAllocSite(state, loadInfo.mo);
+  location.hint = getTypeHint(loadInfo.mo);
+
+  PointerAnalysis *pta = RunStaticPTA ? staticPTA : state.getPTA();
+  NodeID nodeId = computeAbstractMO(pta, location, false, NULL);
+
+  /* the snapshots of the state */
+  std::vector< ref<Snapshot> > &snapshots = state.getSnapshots();
+  /* we start from the last snapshot which is not affected by an overwrite */
+  unsigned int startIndex = state.getStartingIndex(loadInfo.addr, loadInfo.size);
+
+  /* collect recovery information */
+  for (unsigned int index = startIndex; index < snapshots.size(); index++) {
+    if (state.isRecoveryState()) {
+      if (state.getRecoveryInfo()->snapshotIndex == index) {
+        break;
+      }
+    }
+
+    if (!mayDepend(state, pta, index, nodeId)) {
+      continue;
+    }
+
+    /* initialize... */
+    ref<RecoveryInfo> recoveryInfo(new RecoveryInfo());
+    recoveryInfo->loadInst = loadInst;
+    recoveryInfo->loadAddr = loadInfo.addr;
+    recoveryInfo->loadSize = loadInfo.size;
+    recoveryInfo->sliceId = 0;
+    recoveryInfo->snapshot = snapshots[index];
+    recoveryInfo->snapshotIndex = index;
+
+    required.push_back(recoveryInfo);
+  }
+
+  return true;
+}
+
+bool Executor::mayDepend(ExecutionState &state,
+                         PointerAnalysis *pta,
+                         unsigned int index,
+                         NodeID load) {
+  NodeID fiLoad = pta->getFIObjNode(load);
+  if (fiLoad == load) {
+    /* if the load is field insensitive then match against the base nodes */
+    std::set<NodeID> &baseMod = state.getBaseMod(index);
+    return baseMod.find(load) != baseMod.end();
+  }
+
+  std::set<NodeID> &mod = state.getMod(index);
+  if (mod.find(load) != mod.end()) {
+    return true;
+  }
+
+  /* try to match a field sensitive load with a field insensitive object */
+  std::set<NodeID> &fiMod = state.getFIMod(index);
+  return fiMod.find(fiLoad) != fiMod.end();
+}
+
 bool Executor::getLoadInfo(ExecutionState &state,
                            KInstruction *ki,
                            LoadInfo &info) {
@@ -4879,7 +4988,7 @@ bool Executor::getLoadInfo(ExecutionState &state,
     offset = toConstant(state, offset, "...");
 
     /* get the precise allocation site */
-    info.value = mo->allocSite;
+    info.mo = mo;
     info.offset = offset;
 
     return true;
@@ -5366,7 +5475,7 @@ void Executor::saveModSet(ExecutionState &state,
                           Function *f,
                           unsigned int index) {
   set<Function *> called;
-  for (unsigned int i = 0; i < state.stack.size() - 1; i++) {
+  for (unsigned int i = 0; i < state.stack.size(); i++) {
     StackFrame &sf = state.stack[i];
     called.insert(sf.kf->function);
   }
@@ -5390,6 +5499,17 @@ void Executor::saveModSet(ExecutionState &state,
   state.updateMod(index, mod);
   state.updateFIMod(index, fiMod);
   state.updateBaseMod(index, baseMod);
+
+  DEBUG_WITH_TYPE(
+    DEBUG_BASIC,
+    klee_message(
+      "%p: mod size for %s is %lu (index = %u)",
+      &state,
+      f->getName().data(),
+      mod.size(),
+      index
+    );
+  );
 }
 
 void Executor::bindAll(ExecutionState *state,
