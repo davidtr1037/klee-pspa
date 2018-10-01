@@ -4763,9 +4763,7 @@ bool Executor::getRequiredRecoveryInfo(ExecutionState &state,
                                        KInstruction *ki,
                                        std::list<ref<RecoveryInfo> > &required) {
   Instruction *loadInst;
-  uint64_t loadAddr;
-  uint64_t loadSize;
-  ModRefAnalysis::AllocSite preciseAllocSite;
+  LoadInfo loadInfo;
 
   /* TODO: decide which value to pass (original, cloned) */
   loadInst = ki->inst;
@@ -4774,17 +4772,18 @@ bool Executor::getRequiredRecoveryInfo(ExecutionState &state,
   DEBUG_WITH_TYPE(DEBUG_BASIC, errs() << "- stack trace:\n");
   DEBUG_WITH_TYPE(DEBUG_BASIC, state.dumpStack(errs()));
 
-  if (!getLoadInfo(state, ki, loadAddr, loadSize, preciseAllocSite))
+  if (!getLoadInfo(state, ki, loadInfo)) {
     return false;
+  }
 
   /* get the allocation site computed by static analysis */
   std::set<ModRefAnalysis::ModInfo> approximateModInfos;
-  mra->getApproximateModInfos(ki->inst, preciseAllocSite, approximateModInfos);
+  mra->getApproximateModInfos(ki->inst, loadInfo.allocSite, approximateModInfos);
 
   /* the snapshots of the state */
   std::vector< ref<Snapshot> > &snapshots = state.getSnapshots();
   /* we start from the last snapshot which is not affected by an overwrite */
-  unsigned int startIndex = state.getStartingIndex(loadAddr, loadSize);
+  unsigned int startIndex = state.getStartingIndex(loadInfo.addr, loadInfo.size);
 
   /* collect recovery information */
   for (unsigned int index = startIndex; index < snapshots.size(); index++) {
@@ -4815,8 +4814,8 @@ bool Executor::getRequiredRecoveryInfo(ExecutionState &state,
       /* initialize... */
       ref<RecoveryInfo> recoveryInfo(new RecoveryInfo());
       recoveryInfo->loadInst = loadInst;
-      recoveryInfo->loadAddr = loadAddr;
-      recoveryInfo->loadSize = loadSize;
+      recoveryInfo->loadAddr = loadInfo.addr;
+      recoveryInfo->loadSize = loadInfo.size;
       recoveryInfo->sliceId = sliceId;
       recoveryInfo->snapshot = snapshot;
       recoveryInfo->snapshotIndex = index;
@@ -4830,9 +4829,9 @@ bool Executor::getRequiredRecoveryInfo(ExecutionState &state,
   return true;
 }
 
-bool Executor::getLoadInfo(ExecutionState &state, KInstruction *ki,
-                           uint64_t &loadAddr, uint64_t &loadSize,
-                           ModRefAnalysis::AllocSite &allocSite) {
+bool Executor::getLoadInfo(ExecutionState &state,
+                           KInstruction *ki,
+                           LoadInfo &info) {
   ObjectPair op;
   bool success;
   ConstantExpr *ce;
@@ -4862,11 +4861,11 @@ bool Executor::getLoadInfo(ExecutionState &state, KInstruction *ki,
       llvm_unreachable("getLoadInfo() does not support symbolic addresses");
     }
 
-    loadAddr = ce->getZExtValue();
+    info.addr = ce->getZExtValue();
 
     /* get load size */
     Expr::Width width = getWidthForLLVMType(ki->inst->getType());
-    loadSize = Expr::getMinBytesForWidth(width);
+    info.size = Expr::getMinBytesForWidth(width);
 
     /* get allocation site value and offset */
     const MemoryObject *mo = op.first;
@@ -4881,7 +4880,9 @@ bool Executor::getLoadInfo(ExecutionState &state, KInstruction *ki,
     uint64_t offset = ce->getZExtValue();
 
     /* get the precise allocation site */
-    allocSite = std::make_pair(translatedValue, offset);
+    info.allocSite = std::make_pair(translatedValue, offset);
+
+    return true;
   } else {
     DEBUG_WITH_TYPE(
       DEBUG_BASIC,
@@ -4909,9 +4910,9 @@ bool Executor::getLoadInfo(ExecutionState &state, KInstruction *ki,
       terminateStateEarly(
           state, "Resolving blocking load address: multiple resolutions");
     }
+
     return false;
   }
-  return true;
 }
 
 void Executor::suspendState(ExecutionState &state) {

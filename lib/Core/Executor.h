@@ -98,6 +98,12 @@ private:
     const llvm::Value *allocSite;
 };
 
+struct LoadInfo {
+  uint64_t addr;
+  uint64_t size;
+  ModRefAnalysis::AllocSite allocSite;
+};
+
 class Executor : public Interpreter {
   friend class RandomPathSearcher;
   friend class OwningSearcher;
@@ -631,9 +637,7 @@ public:
 
   bool getLoadInfo(ExecutionState &state,
                    KInstruction *kinst,
-                   uint64_t &loadAddr,
-                   uint64_t &loadSize,
-                   ModRefAnalysis::AllocSite &allocSite);
+                   LoadInfo &info);
 
   void suspendState(ExecutionState &state);
 
