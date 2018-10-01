@@ -4676,80 +4676,20 @@ bool Executor::handleMayBlockingLoad(ExecutionState &state, KInstruction *ki,
   return true;
 }
 
-bool Executor::getAllRecoveryInfo(ExecutionState &state, KInstruction *ki,
+bool Executor::getAllRecoveryInfo(ExecutionState &state,
+                                  KInstruction *ki,
                                   std::list<ref<RecoveryInfo> > &result) {
-  Instruction *loadInst;
-  uint64_t loadAddr;
-  uint64_t loadSize;
-  ModRefAnalysis::AllocSite preciseAllocSite;
-
-  /* TODO: decide which value to pass (original, cloned) */
-  loadInst = ki->inst;
-  DEBUG_WITH_TYPE(DEBUG_BASIC, klee_message("%p: may-blocking load:", &state));
-  DEBUG_WITH_TYPE(DEBUG_BASIC, errs() << "- instruction:" << *loadInst << "\n");
-  DEBUG_WITH_TYPE(DEBUG_BASIC, errs() << "- stack trace:\n");
-  DEBUG_WITH_TYPE(DEBUG_BASIC, state.dumpStack(errs()));
-
-  if (!getLoadInfo(state, ki, loadAddr, loadSize, preciseAllocSite))
-    return false;
-
-  /* get the allocation site computed by static analysis */
-  std::set<ModRefAnalysis::ModInfo> approximateModInfos;
-  mra->getApproximateModInfos(ki->inst, preciseAllocSite, approximateModInfos);
-
   /* all the recovery information which may be required  */
   std::list< ref<RecoveryInfo> > required;
-  /* the snapshots of the state */
-  std::vector< ref<Snapshot> > &snapshots = state.getSnapshots();
-  /* we start from the last snapshot which is not affected by an overwrite */
-  unsigned int startIndex = state.getStartingIndex(loadAddr, loadSize);
-
-  /* collect recovery information */
-  for (unsigned int index = startIndex; index < snapshots.size(); index++) {
-    if (state.isRecoveryState()) {
-      if (state.getRecoveryInfo()->snapshotIndex == index) {
-        break;
-      }
-    }
-
-    ref<Snapshot> snapshot = snapshots[index];
-    Function *snapshotFunction = snapshot->f;
-
-    for (ModRefAnalysis::ModInfo modInfo : approximateModInfos) {
-      if (modInfo.first != snapshotFunction) {
-        /* the function of the snapshot must match the modifier */
-        continue;
-      }
-
-      /* get the corresponding slice id */
-      ModRefAnalysis::ModInfoToIdMap &modInfoToIdMap = mra->getModInfoToIdMap();
-      ModRefAnalysis::ModInfoToIdMap::iterator entry = modInfoToIdMap.find(modInfo);
-      if (entry == modInfoToIdMap.end()) {
-        llvm_unreachable("ModInfoToIdMap is empty");
-      }
-
-      uint32_t sliceId = entry->second;
-
-      /* initialize... */
-      ref<RecoveryInfo> recoveryInfo(new RecoveryInfo());
-      recoveryInfo->loadInst = loadInst;
-      recoveryInfo->loadAddr = loadAddr;
-      recoveryInfo->loadSize = loadSize;
-      recoveryInfo->sliceId = sliceId;
-      recoveryInfo->snapshot = snapshot;
-      recoveryInfo->snapshotIndex = index;
-
-      required.push_back(recoveryInfo);
-
-      /* TODO: validate that each snapshot corresponds to at most one modifier */
-      break;
-    }
+  if (!getRequiredRecoveryInfo(state, ki, required)) {
+    return false;
   }
 
   /* do some filtering... */
   for (ref<RecoveryInfo> recoveryInfo : required) {
     unsigned int index = recoveryInfo->snapshotIndex;
     unsigned int sliceId = recoveryInfo->sliceId;
+    uint64_t loadAddr = recoveryInfo->loadAddr;
 
     DEBUG_WITH_TYPE(
       DEBUG_BASIC,
@@ -4899,6 +4839,77 @@ bool Executor::getLoadInfo(ExecutionState &state, KInstruction *ki,
           state, "Resolving blocking load address: multiple resolutions");
     }
     return false;
+  }
+  return true;
+}
+
+bool Executor::getRequiredRecoveryInfo(ExecutionState &state,
+                                       KInstruction *ki,
+                                       std::list<ref<RecoveryInfo> > &required) {
+  Instruction *loadInst;
+  uint64_t loadAddr;
+  uint64_t loadSize;
+  ModRefAnalysis::AllocSite preciseAllocSite;
+
+  /* TODO: decide which value to pass (original, cloned) */
+  loadInst = ki->inst;
+  DEBUG_WITH_TYPE(DEBUG_BASIC, klee_message("%p: may-blocking load:", &state));
+  DEBUG_WITH_TYPE(DEBUG_BASIC, errs() << "- instruction:" << *loadInst << "\n");
+  DEBUG_WITH_TYPE(DEBUG_BASIC, errs() << "- stack trace:\n");
+  DEBUG_WITH_TYPE(DEBUG_BASIC, state.dumpStack(errs()));
+
+  if (!getLoadInfo(state, ki, loadAddr, loadSize, preciseAllocSite))
+    return false;
+
+  /* get the allocation site computed by static analysis */
+  std::set<ModRefAnalysis::ModInfo> approximateModInfos;
+  mra->getApproximateModInfos(ki->inst, preciseAllocSite, approximateModInfos);
+
+  /* the snapshots of the state */
+  std::vector< ref<Snapshot> > &snapshots = state.getSnapshots();
+  /* we start from the last snapshot which is not affected by an overwrite */
+  unsigned int startIndex = state.getStartingIndex(loadAddr, loadSize);
+
+  /* collect recovery information */
+  for (unsigned int index = startIndex; index < snapshots.size(); index++) {
+    if (state.isRecoveryState()) {
+      if (state.getRecoveryInfo()->snapshotIndex == index) {
+        break;
+      }
+    }
+
+    ref<Snapshot> snapshot = snapshots[index];
+    Function *snapshotFunction = snapshot->f;
+
+    for (ModRefAnalysis::ModInfo modInfo : approximateModInfos) {
+      if (modInfo.first != snapshotFunction) {
+        /* the function of the snapshot must match the modifier */
+        continue;
+      }
+
+      /* get the corresponding slice id */
+      ModRefAnalysis::ModInfoToIdMap &modInfoToIdMap = mra->getModInfoToIdMap();
+      ModRefAnalysis::ModInfoToIdMap::iterator entry = modInfoToIdMap.find(modInfo);
+      if (entry == modInfoToIdMap.end()) {
+        llvm_unreachable("ModInfoToIdMap is empty");
+      }
+
+      uint32_t sliceId = entry->second;
+
+      /* initialize... */
+      ref<RecoveryInfo> recoveryInfo(new RecoveryInfo());
+      recoveryInfo->loadInst = loadInst;
+      recoveryInfo->loadAddr = loadAddr;
+      recoveryInfo->loadSize = loadSize;
+      recoveryInfo->sliceId = sliceId;
+      recoveryInfo->snapshot = snapshot;
+      recoveryInfo->snapshotIndex = index;
+
+      required.push_back(recoveryInfo);
+
+      /* TODO: validate that each snapshot corresponds to at most one modifier */
+      break;
+    }
   }
   return true;
 }
