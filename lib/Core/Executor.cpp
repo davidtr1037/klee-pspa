@@ -5473,8 +5473,7 @@ void Executor::saveModSet(ExecutionState &state,
                           Function *f,
                           unsigned int index) {
   set<Function *> called;
-  for (unsigned int i = 0; i < state.stack.size(); i++) {
-    StackFrame &sf = state.stack[i];
+  for (StackFrame &sf : state.stack) {
     called.insert(sf.kf->function);
   }
 
