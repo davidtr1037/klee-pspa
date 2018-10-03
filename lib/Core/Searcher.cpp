@@ -557,19 +557,16 @@ ExecutionState &OptimizedSplittedSearcher::selectState() {
   }
 }
 
-void OptimizedSplittedSearcher::update(
-  ExecutionState *current,
-  const std::vector<ExecutionState *> &addedStates,
-  const std::vector<ExecutionState *> &removedStates
-) {
+void OptimizedSplittedSearcher::update(ExecutionState *current,
+                                       const std::vector<ExecutionState *> &addedStates,
+                                       const std::vector<ExecutionState *> &removedStates) {
   std::vector<ExecutionState *> addedOriginatingStates;
   std::vector<ExecutionState *> addedRecoveryStates;
   std::vector<ExecutionState *> removedOriginatingStates;
   std::vector<ExecutionState *> removedRecoveryStates;
 
   /* split added states */
-  for (auto i = addedStates.begin(); i != addedStates.end(); i++) {
-    ExecutionState *es = *i;
+  for (ExecutionState *es : addedStates) {
     if (es->isRecoveryState()) {
       if (es->getPriority() == PRIORITY_HIGH) {
         highPrioritySearcher->addState(es);
@@ -582,12 +579,12 @@ void OptimizedSplittedSearcher::update(
   }
 
   /* split removed states */
-  for (auto i = removedStates.begin(); i != removedStates.end(); i++) {
-    ExecutionState *es = *i;
+  for (ExecutionState *es : removedStates) {
     if (es->isRecoveryState()) {
       if (es->getPriority() == PRIORITY_HIGH) {
         highPrioritySearcher->removeState(es);
-        /* flush the high priority recovery states, only when a root recovery state terminates */
+        /* flush the high priority recovery states,
+           only when a root recovery state terminates */
         if ((es->isResumed() && es->getLevel() == 0)) {
           int count = 0;
           while (!highPrioritySearcher->empty()) {
