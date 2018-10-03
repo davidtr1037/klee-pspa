@@ -134,6 +134,11 @@ struct RecoveryResult {
     bool modified;
 };
 
+enum {
+    PRIORITY_LOW,
+    PRIORITY_HIGH,
+};
+
 /// @brief ExecutionState representing a path under exploration
 class ExecutionState {
 public:
@@ -197,6 +202,8 @@ private:
   AllocationRecord guidingAllocationRecord;
   /* recursion level */
   unsigned int level;
+  /* search priority */
+  int priority;
 
 public:
   // Execution - Control Flow specific
@@ -593,6 +600,16 @@ public:
 
   void setLevel(unsigned int level) {
     this->level = level;
+  }
+
+  int getPriority() {
+    assert(isRecoveryState());
+    return priority;
+  }
+
+  void setPriority(int priority) {
+    assert(isRecoveryState());
+    this->priority = priority;
   }
 
   void updateMod(unsigned int index, std::set<NodeID> &mod) {

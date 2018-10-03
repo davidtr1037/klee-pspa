@@ -510,3 +510,115 @@ void SplittedSearcher::update(
 bool SplittedSearcher::empty() {
   return baseSearcher->empty() && recoverySearcher->empty();
 }
+
+/* optimized splitted searcher */
+OptimizedSplittedSearcher::OptimizedSplittedSearcher(
+  Searcher *baseSearcher,
+  Searcher *recoverySearcher,
+  Searcher *highPrioritySearcher,
+  unsigned int ratio
+) :
+  baseSearcher(baseSearcher),
+  recoverySearcher(recoverySearcher),
+  highPrioritySearcher(highPrioritySearcher),
+  ratio(ratio)
+{
+
+}
+
+OptimizedSplittedSearcher::~OptimizedSplittedSearcher() {
+  delete highPrioritySearcher;
+  delete recoverySearcher;
+  delete baseSearcher;
+}
+
+ExecutionState &OptimizedSplittedSearcher::selectState() {
+  /* high priority recovery states must be considered first */
+  if (!highPrioritySearcher->empty()) {
+    return highPrioritySearcher->selectState();
+  }
+
+  if (baseSearcher->empty()) {
+    /* the recovery states are supposed to be not empty */
+    return recoverySearcher->selectState();
+  }
+
+  if (recoverySearcher->empty()) {
+    /* the base searcher is supposed to be not empty */
+    return baseSearcher->selectState();
+  }
+
+  /* in this case, both searchers are supposed to be not empty */
+  if (theRNG.getInt32() % 100 < ratio) {
+    /* we handle recovery states in a DFS manner */
+    return recoverySearcher->selectState();
+  } else {
+    return baseSearcher->selectState();
+  }
+}
+
+void OptimizedSplittedSearcher::update(
+  ExecutionState *current,
+  const std::vector<ExecutionState *> &addedStates,
+  const std::vector<ExecutionState *> &removedStates
+) {
+  std::vector<ExecutionState *> addedOriginatingStates;
+  std::vector<ExecutionState *> addedRecoveryStates;
+  std::vector<ExecutionState *> removedOriginatingStates;
+  std::vector<ExecutionState *> removedRecoveryStates;
+
+  /* split added states */
+  for (auto i = addedStates.begin(); i != addedStates.end(); i++) {
+    ExecutionState *es = *i;
+    if (es->isRecoveryState()) {
+      if (es->getPriority() == PRIORITY_HIGH) {
+        highPrioritySearcher->addState(es);
+      } else {
+        addedRecoveryStates.push_back(es);
+      }
+    } else {
+      addedOriginatingStates.push_back(es);
+    }
+  }
+
+  /* split removed states */
+  for (auto i = removedStates.begin(); i != removedStates.end(); i++) {
+    ExecutionState *es = *i;
+    if (es->isRecoveryState()) {
+      if (es->getPriority() == PRIORITY_HIGH) {
+        highPrioritySearcher->removeState(es);
+        /* flush the high priority recovery states, only when a root recovery state terminates */
+        if ((es->isResumed() && es->getLevel() == 0)) {
+          int count = 0;
+          while (!highPrioritySearcher->empty()) {
+            ExecutionState &rs = highPrioritySearcher->selectState();
+            highPrioritySearcher->removeState(&rs);
+            rs.setPriority(PRIORITY_LOW);
+            recoverySearcher->addState(&rs);
+            count++;
+          }
+        }
+      } else {
+        removedRecoveryStates.push_back(es);
+      }
+    } else {
+      removedOriginatingStates.push_back(es);
+    }
+  }
+
+  if (current && current->isRecoveryState()) {
+    baseSearcher->update(NULL, addedOriginatingStates, removedOriginatingStates);
+  } else {
+    baseSearcher->update(current, addedOriginatingStates, removedOriginatingStates);
+  }
+
+  if (current && !current->isRecoveryState()) {
+    recoverySearcher->update(NULL, addedRecoveryStates, removedRecoveryStates);
+  } else {
+    recoverySearcher->update(current, addedRecoveryStates, removedRecoveryStates);
+  }
+}
+
+bool OptimizedSplittedSearcher::empty() {
+  return baseSearcher->empty() && recoverySearcher->empty() && highPrioritySearcher->empty();
+}

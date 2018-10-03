@@ -285,6 +285,35 @@ namespace klee {
     unsigned int ratio;
   };
 
+  class OptimizedSplittedSearcher : public Searcher {
+    Searcher *baseSearcher;
+    Searcher *recoverySearcher;
+    Searcher *highPrioritySearcher;
+    unsigned int ratio;
+
+  public:
+    OptimizedSplittedSearcher(
+      Searcher *baseSearcher,
+      Searcher *recoverySearcher,
+      Searcher *highPrioritySearcher,
+      unsigned int ratio
+    );
+    ~OptimizedSplittedSearcher();
+
+    ExecutionState &selectState();
+    void update(ExecutionState *current,
+                const std::vector<ExecutionState *> &addedStates,
+                const std::vector<ExecutionState *> &removedStates);
+    bool empty();
+    void printName(llvm::raw_ostream &os) {
+      os << "OptimizedSplittedSearcher\n";
+      os << "- base searcher: "; baseSearcher->printName(os);
+      os << "- low priority searcher: "; recoverySearcher->printName(os);
+      os << "- high priority searcher: "; highPrioritySearcher->printName(os);
+      os << "- ratio = " << ratio << "\n";
+    }
+  };
+
 }
 
 #endif

@@ -5166,8 +5166,8 @@ void Executor::startRecoveryState(ExecutionState &state,
 
   /* add the guiding constraints to the recovery state */
   std::set< ref<Expr> > &constraints = originatingState->getGuidingConstraints();
-  for (std::set< ref<Expr> >::iterator i = constraints.begin(); i != constraints.end(); i++) {
-    addConstraint(*recoveryState, *i);
+  for (ref<Expr> e : constraints) {
+    addConstraint(*recoveryState, e);
   }
   DEBUG_WITH_TYPE(
     DEBUG_BASIC,
@@ -5197,6 +5197,9 @@ void Executor::startRecoveryState(ExecutionState &state,
                                                                  &state);
   recoveryState->ptreeNode = res.first;
   state.ptreeNode = res.second;
+
+  /* set high priority for this state */
+  recoveryState->setPriority(PRIORITY_HIGH);
 
   /* add the recovery state to the searcher */
   addedStates.push_back(recoveryState);

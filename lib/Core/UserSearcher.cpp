@@ -54,7 +54,13 @@ namespace {
             cl::desc("Amount of time to batch when using --use-batching-search"),
             cl::init(5.0));
 
-  cl::opt<bool> UseSplittedSearcher("split-search", cl::desc("..."));
+  cl::opt<bool> UseSplittedSearcher("split-search",
+                                    cl::desc("..."),
+                                    cl::init(false));
+
+  cl::opt<bool> UseRecoverySearcher("recovery-search",
+                                    cl::desc("..."),
+                                    cl::init(false));
 
   cl::opt<unsigned int>
   SplitRatio("split-ratio",
@@ -134,6 +140,13 @@ Searcher *klee::constructUserSearcher(Executor &executor) {
   if (UseSplittedSearcher) {
     /* TODO: Should both of the searchers be of the same type? */
     searcher = new SplittedSearcher(searcher, new DFSSearcher(), SplitRatio);
+  }
+
+  if (UseRecoverySearcher) {
+    searcher = new OptimizedSplittedSearcher(searcher,
+                                             new DFSSearcher(),
+                                             new DFSSearcher(),
+                                             SplitRatio);
   }
 
   llvm::raw_ostream &os = executor.getHandler().getInfoStream();
