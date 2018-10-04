@@ -1532,6 +1532,7 @@ void Executor::executeCall(ExecutionState &state,
         ref<Snapshot> snapshot(new Snapshot(snapshotState, f));
         state.addSnapshot(snapshot);
         interpreterHandler->incSnapshotsCount();
+        snapshotsStats[f]++;
 
         /* TODO: will be replaced later... */
         state.clearRecoveredAddresses();
@@ -3054,6 +3055,7 @@ void Executor::run(ExecutionState &initialState) {
   searcher = 0;
 
   doDumpStates();
+  dumpClinetStats();
 }
 
 std::string Executor::getAddressInfo(ExecutionState &state, 
@@ -5668,6 +5670,15 @@ ExecutionState *Executor::createSnapshotState(ExecutionState &state) {
   snapshotState->clearGuidingConstraints();
 
   return snapshotState;
+}
+
+void Executor::dumpClinetStats() {
+  klee_message("Client statistics:");
+  for (auto i : snapshotsStats) {
+    Function *f = i.first;
+    uint64_t count = i.second;
+    klee_message("- %s: %lu", f->getName().data(), count);
+  }
 }
 
 void Executor::prepareForEarlyExit() {

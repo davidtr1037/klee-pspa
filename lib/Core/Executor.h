@@ -269,6 +269,9 @@ private:
   /* TODO: add docs */
   ModRefAnalysis *mra;
 
+  /* TODO: add docs */
+  std::map<llvm::Function *, uint64_t> snapshotsStats;
+
   llvm::Function* getTargetFunction(llvm::Value *calledVal,
                                     ExecutionState &state);
   
@@ -715,6 +718,8 @@ public:
                               ref<Expr> condition);
 
   ExecutionState *createSnapshotState(ExecutionState &state);
+
+  void dumpClinetStats();
 
 };
   
