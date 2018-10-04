@@ -698,9 +698,7 @@ public:
   bool isFunctionToSkip(ExecutionState &state,
                         llvm::Function *f);
 
-  void saveModSet(ExecutionState &state,
-                  llvm::Function *f,
-                  unsigned int index);
+  void saveModSet(ExecutionState &state);
 
   void bindAll(ExecutionState *state,
                MemoryObject *mo,

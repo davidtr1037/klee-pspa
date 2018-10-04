@@ -75,6 +75,8 @@ struct Snapshot {
   ref<ExecutionState> state;
   llvm::Function *f;
   /* TODO: add docs */
+  bool modComputed;
+  /* TODO: add docs */
   std::set<NodeID> mod;
   /* TODO: add docs */
   std::set<NodeID> fiMod;
@@ -84,7 +86,8 @@ struct Snapshot {
   /* TODO: is it required? */
   Snapshot() :
     state(0),
-    f(0)
+    f(0),
+    modComputed(false)
   {
 
   };
@@ -92,10 +95,35 @@ struct Snapshot {
   Snapshot(ref<ExecutionState> state, llvm::Function *f) :
     refCount(0),
     state(state),
-    f(f)
+    f(f),
+    modComputed(false)
   {
 
   };
+
+  void updateMod(std::set<NodeID> &mod) {
+    this->mod.insert(mod.begin(), mod.end());
+  }
+
+  std::set<NodeID> &getMod() {
+    return mod;
+  }
+
+  void updateFIMod(std::set<NodeID> &fiMod) {
+    this->fiMod.insert(fiMod.begin(), fiMod.end());
+  }
+
+  std::set<NodeID> &getFIMod() {
+    return fiMod;
+  }
+
+  void updateBaseMod(std::set<NodeID> &baseMod) {
+    this->baseMod.insert(baseMod.begin(), baseMod.end());
+  }
+
+  std::set<NodeID> &getBaseMod() {
+    return baseMod;
+  }
 
 };
 
@@ -610,36 +638,6 @@ public:
   void setPriority(int priority) {
     assert(isRecoveryState());
     this->priority = priority;
-  }
-
-  void updateMod(unsigned int index, std::set<NodeID> &mod) {
-    assert(index < snapshots.size());
-    snapshots[index]->mod.insert(mod.begin(), mod.end());
-  }
-
-  std::set<NodeID> &getMod(unsigned int index) {
-    assert(index < snapshots.size());
-    return snapshots[index]->mod;
-  }
-
-  void updateFIMod(unsigned int index, std::set<NodeID> &fiMod) {
-    assert(index < snapshots.size());
-    snapshots[index]->fiMod.insert(fiMod.begin(), fiMod.end());
-  }
-
-  std::set<NodeID> &getFIMod(unsigned int index) {
-    assert(index < snapshots.size());
-    return snapshots[index]->fiMod;
-  }
-
-  void updateBaseMod(unsigned int index, std::set<NodeID> &baseMod) {
-    assert(index < snapshots.size());
-    snapshots[index]->baseMod.insert(baseMod.begin(), baseMod.end());
-  }
-
-  std::set<NodeID> &getBaseMod(unsigned int index) {
-    assert(index < snapshots.size());
-    return snapshots[index]->baseMod;
   }
 
 };

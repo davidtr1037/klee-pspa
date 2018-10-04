@@ -1516,6 +1516,12 @@ void Executor::executeCall(ExecutionState &state,
     if (state.isNormalState() && !state.isRecoveryState() && isFunctionToSkip(state, f)) {
       /* first, check if the skipped function has side effects */
       if (isDynamicMode() || mra->hasSideEffects(f)) {
+        if (isDynamicMode()) {
+          /* set the points-to information of the parameters before creating the snapshot */
+          TimerStatIncrementer timer(stats::staticAnalysisTime);
+          updatePointsToOnCall(state, f, arguments);
+        }
+
         /* create snapshot, recovery state will be created on demand... */
         unsigned int index = state.getSnapshots().size();
         DEBUG_WITH_TYPE(
@@ -1534,22 +1540,6 @@ void Executor::executeCall(ExecutionState &state,
           DEBUG_BASIC,
           klee_message("%p: skipping function call to %s", &state, f->getName().data())
         );
-
-        if (isDynamicMode()) {
-          /* update statistics */
-          TimerStatIncrementer timer(stats::staticAnalysisTime);
-          ++stats::staticAnalysisUsage;
-
-          /* run dynamic pointer analysis */
-          updatePointsToOnCall(state, f, arguments);
-          state.getPTA()->analyzeFunction(*kmodule->module, f);
-
-          /* compute the mod set of the skipped function */
-          saveModSet(state, f, index);
-
-          /* free memory... */
-          state.getPTA()->postAnalysisCleanup();
-        }
       }
       return;
     }
@@ -2307,6 +2297,11 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
   case Instruction::Load: {
     if (state.isNormalState() && state.isInDependentMode()) {
+      if (isDynamicMode()) {
+        /* compute the mod set of the skipped function */
+        saveModSet(state);
+      }
+
       if (state.isBlockingLoadRecovered() && isMayBlockingLoad(state, ki)) {
         /* TODO: rename variable */
         bool success;
@@ -4924,20 +4919,23 @@ bool Executor::mayDepend(ExecutionState &state,
                          PointerAnalysis *pta,
                          unsigned int index,
                          NodeID load) {
+  assert(index < state.getSnapshots().size());
+  ref<Snapshot> snapshot = state.getSnapshots()[index];
+
   NodeID fiLoad = pta->getFIObjNode(load);
   if (fiLoad == load) {
     /* if the load is field insensitive then match against the base nodes */
-    std::set<NodeID> &baseMod = state.getBaseMod(index);
+    std::set<NodeID> &baseMod = snapshot->getBaseMod();
     return baseMod.find(load) != baseMod.end();
   }
 
-  std::set<NodeID> &mod = state.getMod(index);
+  std::set<NodeID> &mod = snapshot->getMod();
   if (mod.find(load) != mod.end()) {
     return true;
   }
 
   /* try to match a field sensitive load with a field insensitive object */
-  std::set<NodeID> &fiMod = state.getFIMod(index);
+  std::set<NodeID> &fiMod = snapshot->getFIMod();
   return fiMod.find(fiLoad) != fiMod.end();
 }
 
@@ -5472,44 +5470,72 @@ bool Executor::isFunctionToSkip(ExecutionState &state, Function *f) {
   return false;
 }
 
-void Executor::saveModSet(ExecutionState &state,
-                          Function *f,
-                          unsigned int index) {
-  set<Function *> called;
-  for (StackFrame &sf : state.stack) {
-    called.insert(sf.kf->function);
-  }
-
-  PointerAnalysis *pta = RunStaticPTA ? staticPTA : state.getPTA();
-  ModRefCollector collector(called);
-  collector.visitReachable(pta, f);
-
-  std::set<NodeID> mod = collector.getModSet();
-  std::set<NodeID> fiMod;
-  std::set<NodeID> baseMod;
-  for (NodeID nodeId : mod) {
-    NodeID base = pta->getFIObjNode(nodeId);
-    baseMod.insert(base);
-    if (nodeId == base) {
-      /* this side effect is field insensitive */
-      fiMod.insert(base);
+void Executor::saveModSet(ExecutionState &state) {
+  for (unsigned int index = 0; index < state.getSnapshots().size(); index++) {
+    ref<Snapshot> snapshot = state.getSnapshots()[index];
+    if (snapshot->modComputed) {
+      continue;
     }
-  }
 
-  state.updateMod(index, mod);
-  state.updateFIMod(index, fiMod);
-  state.updateBaseMod(index, baseMod);
+    /* update statistics */
+    TimerStatIncrementer timer(stats::staticAnalysisTime);
+    ++stats::staticAnalysisUsage;
 
-  DEBUG_WITH_TYPE(
-    DEBUG_BASIC,
-    klee_message(
-      "%p: mod size for %s is %lu (index = %u)",
-      &state,
-      f->getName().data(),
-      mod.size(),
-      index
+    Function *f = snapshot->f;
+
+    /* run dynamic pointer analysis */
+    DEBUG_WITH_TYPE(
+      DEBUG_BASIC,
+      klee_message(
+        "%p: analyzing %s (index = %u)",
+        &state,
+        f->getName().data(),
+        index
+      );
     );
-  );
+    AndersenDynamic *pta = snapshot->state->getPTA();
+    pta->analyzeFunction(*kmodule->module, f);
+
+    set<Function *> called;
+    for (StackFrame &sf : snapshot->state->stack) {
+      called.insert(sf.kf->function);
+    }
+
+    ModRefCollector collector(called);
+    collector.visitReachable(pta, f);
+
+    std::set<NodeID> mod = collector.getModSet();
+    std::set<NodeID> fiMod;
+    std::set<NodeID> baseMod;
+    for (NodeID nodeId : mod) {
+      NodeID base = pta->getFIObjNode(nodeId);
+      baseMod.insert(base);
+      if (nodeId == base) {
+        /* this side effect is field insensitive */
+        fiMod.insert(base);
+      }
+    }
+
+    snapshot->updateMod(mod);
+    snapshot->updateFIMod(fiMod);
+    snapshot->updateBaseMod(baseMod);
+
+    DEBUG_WITH_TYPE(
+      DEBUG_BASIC,
+      klee_message(
+        "%p: mod size for %s is %lu (index = %u)",
+        &state,
+        f->getName().data(),
+        mod.size(),
+        index
+      );
+    );
+
+    /* free memory... */
+    pta->postAnalysisCleanup();
+
+    snapshot->modComputed = true;
+  }
 }
 
 void Executor::bindAll(ExecutionState *state,
