@@ -703,6 +703,10 @@ public:
 
   void saveModSet(ExecutionState &state);
 
+  void updateModInfo(ref<Snapshot> snapshot,
+                     PointerAnalysis *pta,
+                     std::set<NodeID> &mod);
+
   void bindAll(ExecutionState *state,
                MemoryObject *mo,
                bool isLocal,

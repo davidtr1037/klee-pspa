@@ -5484,6 +5484,7 @@ void Executor::saveModSet(ExecutionState &state) {
     ++stats::staticAnalysisUsage;
 
     Function *f = snapshot->f;
+    AndersenDynamic *pta = snapshot->state->getPTA();
 
     /* run dynamic pointer analysis */
     DEBUG_WITH_TYPE(
@@ -5495,7 +5496,6 @@ void Executor::saveModSet(ExecutionState &state) {
         index
       );
     );
-    AndersenDynamic *pta = snapshot->state->getPTA();
     pta->analyzeFunction(*kmodule->module, f);
 
     set<Function *> called;
@@ -5507,37 +5507,37 @@ void Executor::saveModSet(ExecutionState &state) {
     collector.visitReachable(pta, f);
 
     std::set<NodeID> mod = collector.getModSet();
-    std::set<NodeID> fiMod;
-    std::set<NodeID> baseMod;
-    for (NodeID nodeId : mod) {
-      NodeID base = pta->getFIObjNode(nodeId);
-      baseMod.insert(base);
-      if (nodeId == base) {
-        /* this side effect is field insensitive */
-        fiMod.insert(base);
-      }
-    }
-
-    snapshot->updateMod(mod);
-    snapshot->updateFIMod(fiMod);
-    snapshot->updateBaseMod(baseMod);
-
-    DEBUG_WITH_TYPE(
-      DEBUG_BASIC,
-      klee_message(
-        "%p: mod size for %s is %lu (index = %u)",
-        &state,
-        f->getName().data(),
-        mod.size(),
-        index
-      );
-    );
+    updateModInfo(snapshot, pta, mod);
 
     /* free memory... */
     pta->postAnalysisCleanup();
 
     snapshot->modComputed = true;
   }
+}
+
+void Executor::updateModInfo(ref<Snapshot> snapshot,
+                             PointerAnalysis *pta,
+                             std::set<NodeID> &mod) {
+  std::set<NodeID> fiMod;
+  std::set<NodeID> baseMod;
+  for (NodeID nodeId : mod) {
+    NodeID base = pta->getFIObjNode(nodeId);
+    baseMod.insert(base);
+    if (nodeId == base) {
+      /* this side effect is field insensitive */
+      fiMod.insert(base);
+    }
+  }
+
+  snapshot->updateMod(mod);
+  snapshot->updateFIMod(fiMod);
+  snapshot->updateBaseMod(baseMod);
+
+  DEBUG_WITH_TYPE(
+    DEBUG_BASIC,
+    klee_message("mod size for %s is %lu", snapshot->f->getName().data(), mod.size());
+  );
 }
 
 void Executor::bindAll(ExecutionState *state,
