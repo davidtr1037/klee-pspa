@@ -5518,6 +5518,11 @@ void Executor::saveModSet(ExecutionState &state) {
       pta->postAnalysisCleanup();
     } else {
       EntryState entryState;
+
+      /* set entry function */
+      entryState.f = f;
+
+      /* set parameters abstraction */
       for (Function::arg_iterator i = f->arg_begin(); i != f->arg_end(); i++) {
         Argument &arg = *i;
         PointerType *paramType = dyn_cast<PointerType>(arg.getType());
