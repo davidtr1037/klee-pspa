@@ -54,6 +54,7 @@
 #include "klee/Internal/Analysis/PTAUtils.h"
 #include "klee/Internal/Analysis/ReachabilityAnalysis.h"
 #include "klee/Internal/Analysis/ModRefAnalysis.h"
+#include "klee/Internal/Analysis/ModularAnalysis.h"
 #include "klee/Internal/Support/Debug.h"
 
 #include "WPA/AndersenDynamic.h"
@@ -339,6 +340,9 @@ namespace {
 
   cl::opt<std::string>
   DumpPTASummary("dump-pta-summary", cl::init(""), cl::desc(""));
+
+  cl::opt<bool>
+  UseModularPTA("use-modular-pta", cl::init(false), cl::desc(""));
 }
 
 
@@ -5486,31 +5490,53 @@ void Executor::saveModSet(ExecutionState &state) {
     Function *f = snapshot->f;
     AndersenDynamic *pta = snapshot->state->getPTA();
 
-    /* run dynamic pointer analysis */
-    DEBUG_WITH_TYPE(
-      DEBUG_BASIC,
-      klee_message(
-        "%p: analyzing %s (index = %u)",
-        &state,
-        f->getName().data(),
-        index
+    if (!UseModularPTA) {
+      /* run dynamic pointer analysis */
+      DEBUG_WITH_TYPE(
+        DEBUG_BASIC,
+        klee_message(
+          "%p: analyzing %s (index = %u)",
+          &state,
+          f->getName().data(),
+          index
+        );
       );
-    );
-    pta->analyzeFunction(*kmodule->module, f);
+      pta->analyzeFunction(*kmodule->module, f);
 
-    set<Function *> called;
-    for (StackFrame &sf : snapshot->state->stack) {
-      called.insert(sf.kf->function);
+      set<Function *> called;
+      for (StackFrame &sf : snapshot->state->stack) {
+        called.insert(sf.kf->function);
+      }
+
+      ModRefCollector collector(called);
+      collector.visitReachable(pta, f);
+
+      std::set<NodeID> mod = collector.getModSet();
+      updateModInfo(snapshot, pta, mod);
+
+      /* free memory... */
+      pta->postAnalysisCleanup();
+    } else {
+      EntryState entryState;
+      for (Function::arg_iterator i = f->arg_begin(); i != f->arg_end(); i++) {
+        Argument &arg = *i;
+        PointerType *paramType = dyn_cast<PointerType>(arg.getType());
+        if (!paramType) {
+          continue;
+        }
+
+        NodeID formalParamId = pta->getPAG()->getValueNode(&arg);
+        PointsTo &pts = pta->getPts(formalParamId);
+        if (pts.empty()) {
+          continue;
+        }
+        entryState.parameters.push_back(*pts.begin());
+      }
+
+      std::set<NodeID> mod;
+      computeModSet(entryState, mod);
+      updateModInfo(snapshot, pta, mod);
     }
-
-    ModRefCollector collector(called);
-    collector.visitReachable(pta, f);
-
-    std::set<NodeID> mod = collector.getModSet();
-    updateModInfo(snapshot, pta, mod);
-
-    /* free memory... */
-    pta->postAnalysisCleanup();
 
     snapshot->modComputed = true;
   }
