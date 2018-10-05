@@ -14,6 +14,7 @@ klee_add_component(kleeAnalysis
     Reachability.cpp
     ReachabilityAnalysis.cpp
     ModRefAnalysis.cpp
+    ModularAnalysis.cpp
 )
 
 # TODO: Work out what the correct LLVM components are for kleeCore.
