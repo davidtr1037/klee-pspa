@@ -342,6 +342,9 @@ namespace {
   DumpPTASummary("dump-pta-summary", cl::init(""), cl::desc(""));
 
   cl::opt<bool>
+  UseStaticModRef("use-static-modref", cl::init(true), cl::desc(""));
+
+  cl::opt<bool>
   UseModularPTA("use-modular-pta", cl::init(false), cl::desc(""));
 }
 
@@ -486,12 +489,18 @@ const Module *Executor::setModule(llvm::Module *module,
 
   kmodule->prepare(opts, interpreterHandler);
 
+  if ((!interpreterOpts.skippedFunctions.empty() && UseStaticModRef) || RunStaticPTA) {
+    klee_message("Running whole program pointer analysis...");
+    staticPTA = new Andersen();
+    staticPTA->analyze(*kmodule->module);
+  }
+
   if (RunStaticPTA) {
     evaluateWholeProgramPTA();
   }
 
   if (!interpreterOpts.skippedFunctions.empty()) {
-    if (RunStaticPTA) {
+    if (UseStaticModRef || RunStaticPTA) {
       /* build target functions */
       std::vector<std::string> targets;
       for (auto i : interpreterOpts.skippedFunctions) {
@@ -2302,12 +2311,12 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
   case Instruction::Load: {
     if (state.isNormalState() && state.isInDependentMode()) {
-      if (isDynamicMode()) {
-        /* compute the mod set of the skipped function */
-        saveModSet(state);
-      }
-
       if (state.isBlockingLoadRecovered() && isMayBlockingLoad(state, ki)) {
+        if (isDynamicMode()) {
+          /* compute the mod set of the skipped function */
+          saveModSet(state);
+        }
+
         /* TODO: rename variable */
         bool success;
         bool isBlocking = handleMayBlockingLoad(state, ki, success);
@@ -4232,10 +4241,6 @@ void Executor::evaluateWholeProgramPTA() {
       }
     }
   }
-
-  klee_message("Running whole program pointer analysis...");
-  staticPTA = new Andersen();
-  staticPTA->analyze(*kmodule->module);
 
   if (CollectPTAStats) {
     for (Function *f : functions) {
