@@ -2313,7 +2313,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     if (state.isNormalState() && state.isInDependentMode()) {
       if (state.isBlockingLoadRecovered() && isMayBlockingLoad(state, ki)) {
         if (isDynamicMode()) {
-          /* compute the mod set of the skipped function */
+          /* compute the mod set of the skipped function on the fly */
           saveModSet(state);
         }
 
@@ -4412,7 +4412,7 @@ bool Executor::getDynamicMemoryLocations(ExecutionState &state,
 }
 
 bool Executor::isDynamicMode() {
-  return !RunStaticPTA;
+  return !RunStaticPTA && !interpreterOpts.skippedFunctions.empty();
 }
 
 void Executor::handleBitCast(ExecutionState &state,
