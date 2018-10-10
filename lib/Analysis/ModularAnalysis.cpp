@@ -26,8 +26,8 @@ bool ModularPTA::computeModSet(Function *f,
   SubstitutionInfo info;
   FunctionCache &fcache = cache[f];
   for (ModResult &modResult : fcache) {
-    if (checkIsomorphism(entryState, modResult.entryState, info)) {
-      result = modResult.mod;
+    if (checkIsomorphism(modResult.entryState, entryState, info)) {
+      substitute(modResult.entryState, entryState, modResult.mod, info, result);
       return true;
     }
   }
@@ -90,4 +90,35 @@ bool ModularPTA::checkIsomorphism(EntryState &es1,
   }
 
   return equal;
+}
+
+void ModularPTA::substitute(EntryState &es1,
+                            EntryState &es2,
+                            std::set<NodeID> &cachedMod,
+                            SubstitutionInfo &info,
+                            std::set<NodeID> &result) {
+  for (NodeID nodeId : cachedMod) {
+    NodeID base1 = es1.pta->getBaseObjNode(nodeId);
+    if (info.mapping.find(base1) == info.mapping.end()) {
+      assert(false);
+    }
+
+    /* get corresponding node */
+    NodeID base2 = info.mapping[base1];
+
+    PAGNode *pagNode = es1.pta->getPAG()->getPAGNode(nodeId);
+    ObjPN *obj = dyn_cast<ObjPN>(pagNode);
+    if (!obj) {
+      assert(false);
+    }
+
+    if (isa<FIObjPN>(obj)) {
+      result.insert(es2.pta->getFIObjNode(base2));
+    }
+
+    if (isa<GepObjPN>(obj)) {
+      GepObjPN *gepObj = dyn_cast<GepObjPN>(obj);
+      result.insert(es2.pta->getGepObjNode(base2, gepObj->getLocationSet()));
+    }
+  }
 }

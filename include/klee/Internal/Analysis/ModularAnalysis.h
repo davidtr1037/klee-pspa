@@ -92,6 +92,12 @@ public:
                         NodeID n2,
                         SubstitutionInfo &info);
 
+  void substitute(EntryState &es1,
+                  EntryState &es2,
+                  std::set<NodeID> &cachedMod,
+                  SubstitutionInfo &info,
+                  std::set<NodeID> &result);
+
 private:
 
   typedef std::vector<ModResult> FunctionCache;
