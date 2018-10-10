@@ -24,6 +24,10 @@ struct Parameter {
   }
 };
 
+struct SubstitutionInfo {
+  std::map<NodeID, NodeID> mapping;
+};
+
 class EntryState {
 
 public:
@@ -72,12 +76,14 @@ public:
                      std::set<NodeID> &result);
 
   bool checkIsomorphism(EntryState &es1,
-                        EntryState &es2);
+                        EntryState &es2,
+                        SubstitutionInfo &info);
 
   bool checkIsomorphism(EntryState &es1,
                         NodeID n1,
                         EntryState &es2,
-                        NodeID n2);
+                        NodeID n2,
+                        SubstitutionInfo &info);
 
 private:
 
