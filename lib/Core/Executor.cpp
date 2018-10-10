@@ -5526,8 +5526,12 @@ void Executor::saveModSet(ExecutionState &state) {
     bool canReuse = false;
     EntryState entryState;
     if (UseModularPTA) {
+      /* save PTA */
+      entryState.setPTA(state.getPTA());
+
       /* set parameters abstraction */
-      for (Function::arg_iterator i = f->arg_begin(); i != f->arg_end(); i++) {
+      unsigned int argIndex = 0;
+      for (Function::arg_iterator i = f->arg_begin(); i != f->arg_end(); i++, argIndex++) {
         Argument &arg = *i;
         PointerType *paramType = dyn_cast<PointerType>(arg.getType());
         if (!paramType) {
@@ -5539,7 +5543,7 @@ void Executor::saveModSet(ExecutionState &state) {
         if (pts.empty()) {
           continue;
         }
-        entryState.parameters.push_back(*pts.begin());
+        entryState.addParameter(*pts.begin(), argIndex);
       }
 
       std::set<NodeID> mod;

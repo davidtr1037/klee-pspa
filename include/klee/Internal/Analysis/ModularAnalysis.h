@@ -1,7 +1,10 @@
 #ifndef KLEE_MODULARANALYSIS_H
 #define KLEE_MODULARANALYSIS_H
 
+#include <klee/util/Ref.h>
+
 #include <MemoryModel/PointerAnalysis.h>
+#include <WPA/AndersenDynamic.h>
 
 #include <llvm/IR/Function.h>
 
@@ -11,8 +14,36 @@
 
 namespace klee {
 
-struct EntryState {
-  std::vector<NodeID> parameters;
+struct Parameter {
+  NodeID nodeId;
+  unsigned int index;
+
+  Parameter(NodeID nodeId, unsigned int index) :
+    nodeId(nodeId), index(index) {
+
+  }
+};
+
+class EntryState {
+
+public:
+
+  EntryState() : pta(0) {
+
+  }
+
+  void setPTA(ref<AndersenDynamic> pta) {
+    this->pta = pta;
+  }
+
+  void addParameter(NodeID nodeId, unsigned int index) {
+    parameters.push_back(Parameter(nodeId, index));
+  }
+
+  ref<AndersenDynamic> pta;
+  /* assumed to be orderd by the index */
+  std::vector<Parameter> parameters;
+
 };
 
 struct ModResult {
@@ -43,6 +74,11 @@ public:
   bool checkIsomorphism(EntryState &es1,
                         EntryState &es2);
 
+  bool checkIsomorphism(EntryState &es1,
+                        NodeID n1,
+                        EntryState &es2,
+                        NodeID n2);
+
 private:
 
   typedef std::vector<ModResult> FunctionCache;
@@ -54,4 +90,3 @@ private:
 }
 
 #endif
-
