@@ -9,8 +9,9 @@ using namespace klee;
 using namespace std;
 
 
-void klee::computeModSet(EntryState &entryState,
-                         set<NodeID> &result) {
+void ModularPTA::computeModSet(Function *f,
+                               EntryState &entryState,
+                               set<NodeID> &result) {
   assert(!entryState.parameters.empty());
 
   /* modifies only the first parameter */

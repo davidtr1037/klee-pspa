@@ -12,12 +12,29 @@
 namespace klee {
 
 struct EntryState {
-  llvm::Function *f;
   std::vector<NodeID> parameters;
 };
 
-void computeModSet(EntryState &entryState,
-                   std::set<NodeID> &result);
+
+class ModularPTA {
+
+public:
+
+  ModularPTA() {
+
+  }
+
+  ~ModularPTA() {
+
+  }
+
+  void computeModSet(llvm::Function *f,
+                     EntryState &entryState,
+                     std::set<NodeID> &result);
+
+private:
+
+};
 
 }
 

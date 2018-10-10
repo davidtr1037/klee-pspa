@@ -398,7 +398,7 @@ Executor::Executor(LLVMContext &ctx, const InterpreterOptions &opts,
                             : std::max(MaxCoreSolverTime, MaxInstructionTime)),
       debugInstFile(0), debugLogBuffer(debugBufferString),
       staticPTA(0), ptaStatsLogger(0),
-      saLog(0), ra(0), mra(0) {
+      saLog(0), ra(0), mra(0), modularPTA(0) {
 
   if (coreSolverTimeout) UseForkedCoreSolver = true;
   Solver *coreSolver = klee::createCoreSolver(CoreSolverToUse);
@@ -499,6 +499,10 @@ const Module *Executor::setModule(llvm::Module *module,
     evaluateWholeProgramPTA();
   }
 
+  if (isDynamicMode()) {
+    modularPTA = new ModularPTA();
+  }
+
   if (!interpreterOpts.skippedFunctions.empty()) {
     if (UseStaticModRef || RunStaticPTA) {
       /* build target functions */
@@ -594,6 +598,9 @@ Executor::~Executor() {
   }
   if (mra) {
     delete mra;
+  }
+  if (modularPTA) {
+    delete modularPTA;
   }
 }
 
@@ -5524,9 +5531,6 @@ void Executor::saveModSet(ExecutionState &state) {
     } else {
       EntryState entryState;
 
-      /* set entry function */
-      entryState.f = f;
-
       /* set parameters abstraction */
       for (Function::arg_iterator i = f->arg_begin(); i != f->arg_end(); i++) {
         Argument &arg = *i;
@@ -5544,7 +5548,7 @@ void Executor::saveModSet(ExecutionState &state) {
       }
 
       std::set<NodeID> mod;
-      computeModSet(entryState, mod);
+      modularPTA->computeModSet(f, entryState, mod);
       updateModInfo(snapshot, pta, mod);
     }
 
