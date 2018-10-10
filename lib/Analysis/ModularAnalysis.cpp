@@ -62,6 +62,7 @@ bool ModularPTA::checkIsomorphism(EntryState &es1,
                                   EntryState &es2,
                                   NodeID n2,
                                   SubstitutionInfo &info) {
+  /* TODO: check all sub-nodes */
   PointsTo &pts1 = es1.pta->getPts(n1);
   PointsTo &pts2 = es1.pta->getPts(n2);
 

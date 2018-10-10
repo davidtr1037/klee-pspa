@@ -26,6 +26,13 @@ struct Parameter {
 
 struct SubstitutionInfo {
   std::map<NodeID, NodeID> mapping;
+
+  void dump() {
+    llvm::errs() << "Substitution:\n";
+    for (auto i : mapping) {
+      llvm::errs() << i.first << " / " << i.second << "\n";
+    }
+  }
 };
 
 class EntryState {
