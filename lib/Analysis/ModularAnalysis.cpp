@@ -100,7 +100,9 @@ void ModularPTA::substitute(EntryState &es1,
   for (NodeID nodeId : cachedMod) {
     NodeID base1 = es1.pta->getBaseObjNode(nodeId);
     if (info.mapping.find(base1) == info.mapping.end()) {
-      assert(false);
+      /* TODO: is it always correct? */
+      result.insert(nodeId);
+      continue;
     }
 
     /* get corresponding node */
