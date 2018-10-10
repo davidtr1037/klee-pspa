@@ -174,7 +174,7 @@ ExecutionState::ExecutionState(const ExecutionState& state):
     symbolics[i].first->refCount++;
 
   /* copy only for non-recovery states */
-  if (!state.pta.isNull() && ((state.type & RECOVERY_STATE) == 0)) {
+  if (!state.pta.isNull() && !isRecoveryState()) {
     TimerStatIncrementer timer(stats::staticAnalysisTime);
     pta = new AndersenDynamic(*state.pta);
     pta->initialize(*state.pta->getModule());
