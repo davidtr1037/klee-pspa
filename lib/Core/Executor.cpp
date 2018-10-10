@@ -5559,6 +5559,7 @@ void Executor::saveModSet(ExecutionState &state) {
           );
         );
         updateModInfo(snapshot, pta, mod);
+        ++stats::staticAnalysisReuse;
       }
     }
 
@@ -5761,6 +5762,9 @@ void Executor::dumpClinetStats() {
     uint64_t count = i.second;
     klee_message("- %s: %lu", f->getName().data(), count);
   }
+  klee_message("Reuse ratio: %lu / %lu",
+               (uint64_t)(stats::staticAnalysisReuse),
+               (uint64_t)(stats::staticAnalysisUsage));
 }
 
 void Executor::prepareForEarlyExit() {

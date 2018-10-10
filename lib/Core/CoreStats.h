@@ -28,6 +28,7 @@ namespace stats {
   extern Statistic solverTime;
   extern Statistic staticAnalysisTime;
   extern Statistic staticAnalysisUsage;
+  extern Statistic staticAnalysisReuse;
 
   /// The number of process forks.
   extern Statistic forks;
