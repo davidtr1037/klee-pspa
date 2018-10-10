@@ -5132,6 +5132,7 @@ void Executor::startRecoveryState(ExecutionState &state,
 
   /* initialize recovery state */
   ExecutionState *recoveryState = new ExecutionState(*snapshotState);
+  /* TODO: recovery states don't need PTA */
   if (recoveryInfo->snapshotIndex == 0) {
     /* a recovery state which is created from the first snapshot has no dependencies */
     recoveryState->setType(RECOVERY_STATE);
