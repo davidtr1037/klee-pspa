@@ -15,6 +15,10 @@ struct EntryState {
   std::vector<NodeID> parameters;
 };
 
+struct ModResult {
+  EntryState entryState;
+  std::set<NodeID> mod;
+};
 
 class ModularPTA {
 
@@ -28,12 +32,20 @@ public:
 
   }
 
+  void update(llvm::Function *f,
+              EntryState &entryState,
+              std::set<NodeID> &mod);
+
   void computeModSet(llvm::Function *f,
                      EntryState &entryState,
                      std::set<NodeID> &result);
 
 private:
 
+  typedef std::vector<ModResult> FunctionCache;
+  typedef std::map<llvm::Function *, FunctionCache> Cache;
+
+  Cache cache;
 };
 
 }

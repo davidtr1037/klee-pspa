@@ -9,6 +9,17 @@ using namespace klee;
 using namespace std;
 
 
+void ModularPTA::update(Function *f,
+                        EntryState &entryState,
+                        set<NodeID> &mod) {
+  FunctionCache &fcache = cache[f];
+  ModResult modResult;
+  modResult.entryState = entryState;
+  modResult.mod = mod;
+
+  fcache.push_back(modResult);
+}
+
 void ModularPTA::computeModSet(Function *f,
                                EntryState &entryState,
                                set<NodeID> &result) {
