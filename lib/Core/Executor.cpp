@@ -499,7 +499,10 @@ const Module *Executor::setModule(llvm::Module *module,
     evaluateWholeProgramPTA();
   }
 
-  if (isDynamicMode()) {
+  if (UseModularPTA) {
+    if (!isDynamicMode()) {
+      klee_error("modular analysis must be used in dynamic mode");
+    }
     modularPTA = new ModularPTA();
   }
 
@@ -5502,7 +5505,42 @@ void Executor::saveModSet(ExecutionState &state) {
     Function *f = snapshot->f;
     AndersenDynamic *pta = snapshot->state->getPTA();
 
-    if (!UseModularPTA) {
+    bool canReuse = false;
+    EntryState entryState;
+    if (UseModularPTA) {
+      /* set parameters abstraction */
+      for (Function::arg_iterator i = f->arg_begin(); i != f->arg_end(); i++) {
+        Argument &arg = *i;
+        PointerType *paramType = dyn_cast<PointerType>(arg.getType());
+        if (!paramType) {
+          continue;
+        }
+
+        NodeID formalParamId = pta->getPAG()->getValueNode(&arg);
+        PointsTo &pts = pta->getPts(formalParamId);
+        if (pts.empty()) {
+          continue;
+        }
+        entryState.parameters.push_back(*pts.begin());
+      }
+
+      std::set<NodeID> mod;
+      canReuse = modularPTA->computeModSet(f, entryState, mod);
+      if (canReuse) {
+        DEBUG_WITH_TYPE(
+          DEBUG_BASIC,
+          klee_message(
+            "%p: reusing analysis %s (index = %u)",
+            &state,
+            f->getName().data(),
+            index
+          );
+        );
+        updateModInfo(snapshot, pta, mod);
+      }
+    }
+
+    if (!canReuse) {
       /* run dynamic pointer analysis */
       DEBUG_WITH_TYPE(
         DEBUG_BASIC,
@@ -5526,30 +5564,12 @@ void Executor::saveModSet(ExecutionState &state) {
       std::set<NodeID> mod = collector.getModSet();
       updateModInfo(snapshot, pta, mod);
 
-      /* free memory... */
-      pta->postAnalysisCleanup();
-    } else {
-      EntryState entryState;
-
-      /* set parameters abstraction */
-      for (Function::arg_iterator i = f->arg_begin(); i != f->arg_end(); i++) {
-        Argument &arg = *i;
-        PointerType *paramType = dyn_cast<PointerType>(arg.getType());
-        if (!paramType) {
-          continue;
-        }
-
-        NodeID formalParamId = pta->getPAG()->getValueNode(&arg);
-        PointsTo &pts = pta->getPts(formalParamId);
-        if (pts.empty()) {
-          continue;
-        }
-        entryState.parameters.push_back(*pts.begin());
+      if (UseModularPTA) {
+        modularPTA->update(f, entryState, mod);
       }
 
-      std::set<NodeID> mod;
-      modularPTA->computeModSet(f, entryState, mod);
-      updateModInfo(snapshot, pta, mod);
+      /* free memory... */
+      pta->postAnalysisCleanup();
     }
 
     snapshot->modComputed = true;

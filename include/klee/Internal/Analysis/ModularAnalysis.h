@@ -36,9 +36,12 @@ public:
               EntryState &entryState,
               std::set<NodeID> &mod);
 
-  void computeModSet(llvm::Function *f,
+  bool computeModSet(llvm::Function *f,
                      EntryState &entryState,
                      std::set<NodeID> &result);
+
+  bool checkIsomorphism(EntryState &es1,
+                        EntryState &es2);
 
 private:
 

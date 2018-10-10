@@ -20,11 +20,21 @@ void ModularPTA::update(Function *f,
   fcache.push_back(modResult);
 }
 
-void ModularPTA::computeModSet(Function *f,
+bool ModularPTA::computeModSet(Function *f,
                                EntryState &entryState,
                                set<NodeID> &result) {
-  assert(!entryState.parameters.empty());
+  FunctionCache &fcache = cache[f];
+  for (ModResult &modResult : fcache) {
+    if (checkIsomorphism(entryState, modResult.entryState)) {
+      result = modResult.mod;
+      return true;
+    }
+  }
 
-  /* modifies only the first parameter */
-  result.insert(entryState.parameters[0]);
+  return false;
+}
+
+bool ModularPTA::checkIsomorphism(EntryState &es1,
+                                  EntryState &es2) {
+  return true;
 }
