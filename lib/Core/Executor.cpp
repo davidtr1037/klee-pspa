@@ -2412,7 +2412,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   case Instruction::BitCast: {
     ref<Expr> result = eval(ki, 0, state).value;
     bindLocal(ki, state, result);
-    handleBitCast(state, ki, result);
+    if (isDynamicMode()) {
+      handleBitCast(state, ki, result);
+    }
     break;
   }
 
@@ -4428,6 +4430,10 @@ bool Executor::isDynamicMode() {
 void Executor::handleBitCast(ExecutionState &state,
                              KInstruction *ki,
                              ref<Expr> value) {
+  if (state.isRecoveryState()) {
+    return;
+  }
+
   TimerStatIncrementer timer(stats::staticAnalysisTime);
 
   BitCastInst *castInst = dyn_cast<BitCastInst>(ki->inst);
@@ -4488,6 +4494,10 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
                                      const MemoryObject *mo,
                                      ref<Expr> offset,
                                      ref<Expr> value) {
+  if (state.isRecoveryState()) {
+    return;
+  }
+
   TimerStatIncrementer timer(stats::staticAnalysisTime);
 
   if (!state.prevPC->isRelevant) {
@@ -4556,6 +4566,11 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
 void Executor::updatePointsToOnCall(ExecutionState &state,
                                     Function *f,
                                     std::vector<ref<Expr>> &arguments) {
+  if (state.isRecoveryState()) {
+    return;
+  }
+
+
   unsigned int argIndex = 0;
   for (Function::arg_iterator ai = f->arg_begin(); ai != f->arg_end(); ai++) {
     Argument &arg = *ai;
@@ -5132,7 +5147,6 @@ void Executor::startRecoveryState(ExecutionState &state,
 
   /* initialize recovery state */
   ExecutionState *recoveryState = new ExecutionState(*snapshotState);
-  /* TODO: recovery states don't need PTA */
   if (recoveryInfo->snapshotIndex == 0) {
     /* a recovery state which is created from the first snapshot has no dependencies */
     recoveryState->setType(RECOVERY_STATE);
@@ -5220,6 +5234,9 @@ void Executor::startRecoveryState(ExecutionState &state,
 
   /* set high priority for this state */
   recoveryState->setPriority(PRIORITY_HIGH);
+
+  /* no need for pointer analysis */
+  recoveryState->setPTA(0);
 
   /* add the recovery state to the searcher */
   addedStates.push_back(recoveryState);
