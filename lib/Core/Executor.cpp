@@ -3076,6 +3076,9 @@ void Executor::run(ExecutionState &initialState) {
     updateStates(&state);
   }
 
+  /* remove references to cached snapshots */
+  cachedSnapshots.clear();
+
   delete searcher;
   searcher = 0;
 
@@ -5543,7 +5546,8 @@ void Executor::saveModSet(ExecutionState &state) {
         if (pts.empty()) {
           continue;
         }
-        entryState.addParameter(*pts.begin(), argIndex);
+        NodeID dst = *pts.begin();
+        entryState.addParameter(dst, argIndex);
       }
 
       std::set<NodeID> mod;
@@ -5586,6 +5590,10 @@ void Executor::saveModSet(ExecutionState &state) {
 
       std::set<NodeID> mod = collector.getModSet();
       updateModInfo(snapshot, pta, mod);
+
+      /* we need to hold a reference for it,
+         otherwise, it will be deallocated at some point... */
+      cachedSnapshots.push_back(snapshot);
 
       if (UseModularPTA) {
         modularPTA->update(f, entryState, mod);

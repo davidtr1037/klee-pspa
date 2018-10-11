@@ -270,7 +270,11 @@ private:
   /* TODO: add docs */
   ModRefAnalysis *mra;
 
+  /* TODO: add docs */
   ModularPTA *modularPTA;
+
+  /* TODO: add docs */
+  std::vector<ref<Snapshot>> cachedSnapshots;
 
   /* TODO: add docs */
   std::map<llvm::Function *, uint64_t> snapshotsStats;
