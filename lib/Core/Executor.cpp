@@ -5527,7 +5527,7 @@ void Executor::saveModSet(ExecutionState &state) {
     EntryState entryState;
     if (UseModularPTA) {
       /* save PTA */
-      entryState.setPTA(state.getPTA());
+      entryState.setPTA(pta);
 
       /* set parameters abstraction */
       unsigned int argIndex = 0;

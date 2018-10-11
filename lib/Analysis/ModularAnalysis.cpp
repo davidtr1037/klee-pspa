@@ -1,4 +1,5 @@
 #include "klee/Internal/Analysis/ModularAnalysis.h"
+#include "klee/Internal/Analysis/PTAUtils.h"
 
 #include <MemoryModel/PointerAnalysis.h>
 
@@ -64,7 +65,7 @@ bool ModularPTA::checkIsomorphism(EntryState &es1,
                                   SubstitutionInfo &info) {
   /* TODO: check all sub-nodes */
   PointsTo &pts1 = es1.pta->getPts(n1);
-  PointsTo &pts2 = es1.pta->getPts(n2);
+  PointsTo &pts2 = es2.pta->getPts(n2);
 
   if (pts1.count() != pts2.count()) {
     return false;
@@ -79,7 +80,7 @@ bool ModularPTA::checkIsomorphism(EntryState &es1,
       equal = true;
   } else {
       NodeID p1 = *pts1.begin();
-      NodeID p2 = *pts1.begin();
+      NodeID p2 = *pts2.begin();
       equal = checkIsomorphism(es1, p1, es2, p2, info);
   }
 
