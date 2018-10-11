@@ -92,6 +92,13 @@ public:
                         NodeID n2,
                         SubstitutionInfo &info);
 
+  bool getMatchedNodes(EntryState &es1,
+                       const NodeBS &subNodes1,
+                       EntryState &es2,
+                       const NodeBS &subNodes2,
+                       std::vector<NodeID> &ordered1,
+                       std::vector<NodeID> &ordered2);
+
   void substitute(EntryState &es1,
                   EntryState &es2,
                   std::set<NodeID> &cachedMod,

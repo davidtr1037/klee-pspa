@@ -4573,7 +4573,6 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
     return;
   }
 
-
   unsigned int argIndex = 0;
   for (Argument &arg : f->getArgumentList()) {
     /* try to concretize the argument expression */
