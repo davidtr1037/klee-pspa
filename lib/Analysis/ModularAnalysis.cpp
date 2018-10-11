@@ -163,7 +163,6 @@ bool ModularPTA::getMatchedNodes(EntryState &es1,
       }
 
       if (!found) {
-        dumpNodeInfo(es1.pta.get(), s1);
         return false;
       }
     }
@@ -189,7 +188,6 @@ bool ModularPTA::getMatchedNodes(EntryState &es1,
       }
 
       if (!found) {
-        dumpNodeInfo(es1.pta.get(), s1);
         return false;
       }
     }
