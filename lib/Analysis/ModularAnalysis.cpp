@@ -64,6 +64,31 @@ bool ModularPTA::checkIsomorphism(EntryState &es1,
                                   NodeID n2,
                                   SubstitutionInfo &info) {
   /* TODO: check all sub-nodes */
+
+  PAGNode *pagNode;
+  pagNode = es1.pta->getPAG()->getPAGNode(n1);
+  ObjPN *obj1 = dyn_cast<ObjPN>(pagNode);
+  pagNode = es2.pta->getPAG()->getPAGNode(n2);
+  ObjPN *obj2 = dyn_cast<ObjPN>(pagNode);
+
+  if (isa<FIObjPN>(obj1)) {
+    if (!isa<FIObjPN>(obj2)) {
+      return false;
+    }
+  }
+
+  if (isa<GepObjPN>(obj1)) {
+    GepObjPN *gep1 = dyn_cast<GepObjPN>(obj1);
+    GepObjPN *gep2 = dyn_cast<GepObjPN>(obj2);
+    if (!gep2) {
+      return false;
+    }
+
+    if (gep1->getLocationSet().getOffset() != gep2->getLocationSet().getOffset()) {
+      return false;
+    }
+  }
+
   PointsTo &pts1 = es1.pta->getPts(n1);
   PointsTo &pts2 = es2.pta->getPts(n2);
 
