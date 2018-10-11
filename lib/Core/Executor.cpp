@@ -4575,9 +4575,7 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
 
 
   unsigned int argIndex = 0;
-  for (Function::arg_iterator ai = f->arg_begin(); ai != f->arg_end(); ai++) {
-    Argument &arg = *ai;
-
+  for (Argument &arg : f->getArgumentList()) {
     /* try to concretize the argument expression */
     ref<Expr> e = arguments[argIndex++];
     if (!isa<ConstantExpr>(e)) {
@@ -5534,8 +5532,7 @@ void Executor::saveModSet(ExecutionState &state) {
 
       /* set parameters abstraction */
       unsigned int argIndex = 0;
-      for (Function::arg_iterator i = f->arg_begin(); i != f->arg_end(); i++, argIndex++) {
-        Argument &arg = *i;
+      for (Argument &arg : f->getArgumentList()) {
         PointerType *paramType = dyn_cast<PointerType>(arg.getType());
         if (!paramType) {
           continue;
