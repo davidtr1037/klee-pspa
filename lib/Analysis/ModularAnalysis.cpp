@@ -70,18 +70,22 @@ bool ModularPTA::checkIsomorphism(EntryState &es1,
   ObjPN *obj2 = dyn_cast<ObjPN>(pagNode);
 
   if (isa<FIObjPN>(obj1)) {
+    /* in this case, we restrict both of the objects to be field-insensitive */
     if (!isa<FIObjPN>(obj2)) {
       return false;
     }
   }
 
   if (isa<GepObjPN>(obj1)) {
+    /* in this case, we restrict both of the objects to be field-sensitive */
     GepObjPN *gep1 = dyn_cast<GepObjPN>(obj1);
     GepObjPN *gep2 = dyn_cast<GepObjPN>(obj2);
     if (!gep2) {
       return false;
     }
 
+    /* currently we require that the offsets must be the same, but actually
+       the objects can be isomorphic event if they don't have the same offsets */
     if (gep1->getLocationSet().getOffset() != gep2->getLocationSet().getOffset()) {
       return false;
     }
@@ -124,6 +128,7 @@ bool ModularPTA::checkIsomorphism(EntryState &es1,
     }
   }
 
+  /* update the substitution mapping */
   NodeID base1 = es1.pta->getBaseObjNode(n1);
   NodeID base2 = es2.pta->getBaseObjNode(n2);
   info.mapping[base1] = base2;
