@@ -553,6 +553,9 @@ const Module *Executor::setModule(llvm::Module *module,
           }
         }
       }
+
+      /* TODO: should we do it also when there are no skipped functions? */
+      staticPTA->postAnalysisCleanup();
     }
   }
 
