@@ -5524,13 +5524,12 @@ void Executor::saveModSet(ExecutionState &state) {
     ++stats::staticAnalysisUsage;
 
     Function *f = snapshot->f;
-    AndersenDynamic *snapshotPTA = snapshot->state->getPTA().get();
+    ref<AndersenDynamic> snapshotPTA = snapshot->state->getPTA();
 
     bool canReuse = false;
     EntryState entryState;
     if (UseModularPTA) {
       /* save PTA */
-      /* TODO: should pass a reference? */
       entryState.setPTA(snapshotPTA);
 
       /* set parameters abstraction */
@@ -5562,7 +5561,7 @@ void Executor::saveModSet(ExecutionState &state) {
             index
           );
         );
-        updateModInfo(snapshot, snapshotPTA, mod);
+        updateModInfo(snapshot, snapshotPTA.get(), mod);
         ++stats::staticAnalysisReuse;
       }
     }
@@ -5578,7 +5577,10 @@ void Executor::saveModSet(ExecutionState &state) {
           index
         );
       );
-      snapshotPTA->analyzeFunction(*kmodule->module, f);
+      /* create a new instance for computing the mod-set */
+      ref<AndersenDynamic> pta = new AndersenDynamic(*snapshotPTA);
+      pta->initialize(*kmodule->module);
+      pta->analyzeFunction(*kmodule->module, f);
 
       set<Function *> called;
       for (StackFrame &sf : snapshot->state->stack) {
@@ -5586,10 +5588,10 @@ void Executor::saveModSet(ExecutionState &state) {
       }
 
       ModRefCollector collector(called);
-      collector.visitReachable(snapshotPTA, f);
+      collector.visitReachable(pta.get(), f);
 
       std::set<NodeID> mod = collector.getModSet();
-      updateModInfo(snapshot, snapshotPTA, mod);
+      updateModInfo(snapshot, pta.get(), mod);
 
       /* we need to hold a reference for it,
          otherwise, it will be deallocated at some point... */
@@ -5600,7 +5602,7 @@ void Executor::saveModSet(ExecutionState &state) {
       }
 
       /* free memory... */
-      snapshotPTA->postAnalysisCleanup();
+      pta->postAnalysisCleanup();
     }
 
     snapshot->modComputed = true;
