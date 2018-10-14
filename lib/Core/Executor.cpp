@@ -5524,13 +5524,14 @@ void Executor::saveModSet(ExecutionState &state) {
     ++stats::staticAnalysisUsage;
 
     Function *f = snapshot->f;
-    AndersenDynamic *pta = snapshot->state->getPTA().get();
+    AndersenDynamic *snapshotPTA = snapshot->state->getPTA().get();
 
     bool canReuse = false;
     EntryState entryState;
     if (UseModularPTA) {
       /* save PTA */
-      entryState.setPTA(pta);
+      /* TODO: should pass a reference? */
+      entryState.setPTA(snapshotPTA);
 
       /* set parameters abstraction */
       unsigned int argIndex = 0;
@@ -5540,8 +5541,8 @@ void Executor::saveModSet(ExecutionState &state) {
           continue;
         }
 
-        NodeID formalParamId = pta->getPAG()->getValueNode(&arg);
-        PointsTo &pts = pta->getPts(formalParamId);
+        NodeID formalParamId = snapshotPTA->getPAG()->getValueNode(&arg);
+        PointsTo &pts = snapshotPTA->getPts(formalParamId);
         if (pts.empty()) {
           continue;
         }
@@ -5561,7 +5562,7 @@ void Executor::saveModSet(ExecutionState &state) {
             index
           );
         );
-        updateModInfo(snapshot, pta, mod);
+        updateModInfo(snapshot, snapshotPTA, mod);
         ++stats::staticAnalysisReuse;
       }
     }
@@ -5577,7 +5578,7 @@ void Executor::saveModSet(ExecutionState &state) {
           index
         );
       );
-      pta->analyzeFunction(*kmodule->module, f);
+      snapshotPTA->analyzeFunction(*kmodule->module, f);
 
       set<Function *> called;
       for (StackFrame &sf : snapshot->state->stack) {
@@ -5585,10 +5586,10 @@ void Executor::saveModSet(ExecutionState &state) {
       }
 
       ModRefCollector collector(called);
-      collector.visitReachable(pta, f);
+      collector.visitReachable(snapshotPTA, f);
 
       std::set<NodeID> mod = collector.getModSet();
-      updateModInfo(snapshot, pta, mod);
+      updateModInfo(snapshot, snapshotPTA, mod);
 
       /* we need to hold a reference for it,
          otherwise, it will be deallocated at some point... */
@@ -5599,7 +5600,7 @@ void Executor::saveModSet(ExecutionState &state) {
       }
 
       /* free memory... */
-      pta->postAnalysisCleanup();
+      snapshotPTA->postAnalysisCleanup();
     }
 
     snapshot->modComputed = true;
