@@ -4436,10 +4436,6 @@ bool Executor::isDynamicMode() {
 void Executor::handleBitCast(ExecutionState &state,
                              KInstruction *ki,
                              ref<Expr> value) {
-  if (state.isRecoveryState()) {
-    return;
-  }
-
   TimerStatIncrementer timer(stats::staticAnalysisTime);
 
   BitCastInst *castInst = dyn_cast<BitCastInst>(ki->inst);
