@@ -4919,10 +4919,19 @@ bool Executor::getRequiredRecoveryInfoDynamic(ExecutionState &state,
   location.hint = getTypeHint(loadInfo.mo);
 
   PointerAnalysis *pta = RunStaticPTA ? staticPTA : state.getPTA().get();
-  std::set<NodeID> loads;
+  std::vector<NodeID> loads;
 
   NodeID nodeId = computeAbstractMO(pta, location, false, NULL);
-  loads.insert(nodeId);
+  loads.push_back(nodeId);
+
+  if (loadInfo.mo->attachedInfo) {
+    /* if the memory object has a unique allocation site then
+       we want also the corresponding non-unique allocation site,
+       otherwise the side-effects inference will be unsound */
+    location.value = loadInfo.mo->allocSite;
+    NodeID nonUniqueNodeId = computeAbstractMO(pta, location, false, NULL);
+    loads.push_back(nonUniqueNodeId);
+  }
 
   /* the snapshots of the state */
   std::vector< ref<Snapshot> > &snapshots = state.getSnapshots();
@@ -4980,7 +4989,7 @@ bool Executor::mayDepend(ExecutionState &state,
 bool Executor::mayDepend(ExecutionState &state,
                          PointerAnalysis *pta,
                          unsigned int index,
-                         std::set<NodeID> loads) {
+                         std::vector<NodeID> loads) {
   for (NodeID load : loads) {
     if (mayDepend(state, pta, index, load)) {
       return true;

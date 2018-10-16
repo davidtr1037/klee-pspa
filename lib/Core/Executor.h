@@ -658,7 +658,7 @@ public:
   bool mayDepend(ExecutionState &state,
                  PointerAnalysis *pta,
                  unsigned int index,
-                 std::set<NodeID> loads);
+                 std::vector<NodeID> loads);
 
   bool getLoadInfo(ExecutionState &state,
                    KInstruction *kinst,
