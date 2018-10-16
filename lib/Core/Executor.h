@@ -655,6 +655,11 @@ public:
                  unsigned int index,
                  NodeID load);
 
+  bool mayDepend(ExecutionState &state,
+                 PointerAnalysis *pta,
+                 unsigned int index,
+                 std::set<NodeID> loads);
+
   bool getLoadInfo(ExecutionState &state,
                    KInstruction *kinst,
                    LoadInfo &info);

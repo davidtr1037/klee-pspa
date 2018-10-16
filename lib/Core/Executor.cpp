@@ -4919,7 +4919,10 @@ bool Executor::getRequiredRecoveryInfoDynamic(ExecutionState &state,
   location.hint = getTypeHint(loadInfo.mo);
 
   PointerAnalysis *pta = RunStaticPTA ? staticPTA : state.getPTA().get();
+  std::set<NodeID> loads;
+
   NodeID nodeId = computeAbstractMO(pta, location, false, NULL);
+  loads.insert(nodeId);
 
   /* the snapshots of the state */
   std::vector< ref<Snapshot> > &snapshots = state.getSnapshots();
@@ -4934,7 +4937,7 @@ bool Executor::getRequiredRecoveryInfoDynamic(ExecutionState &state,
       }
     }
 
-    if (mayDepend(state, pta, index, nodeId)) {
+    if (mayDepend(state, pta, index, loads)) {
       ref<RecoveryInfo> recoveryInfo(new RecoveryInfo());
       recoveryInfo->loadInst = loadInst;
       recoveryInfo->loadAddr = loadInfo.addr;
@@ -4972,6 +4975,18 @@ bool Executor::mayDepend(ExecutionState &state,
   /* try to match a field sensitive load with a field insensitive object */
   std::set<NodeID> &fiMod = snapshot->getFIMod();
   return fiMod.find(fiLoad) != fiMod.end();
+}
+
+bool Executor::mayDepend(ExecutionState &state,
+                         PointerAnalysis *pta,
+                         unsigned int index,
+                         std::set<NodeID> loads) {
+  for (NodeID load : loads) {
+    if (mayDepend(state, pta, index, load)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 bool Executor::getLoadInfo(ExecutionState &state,
