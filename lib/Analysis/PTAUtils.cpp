@@ -15,8 +15,11 @@ using namespace klee;
 
 
 void klee::dumpNodeInfo(PointerAnalysis *pta,
-                        NodeID nodeId) {
-  errs() << "-- node: " << nodeId << "\n";
+                        NodeID nodeId,
+                        unsigned int level) {
+  std::string prefix = std::string(level, ' ');
+
+  errs() << prefix << "-- node: " << nodeId << "\n";
   if (!pta->getPAG()->findPAGNode(nodeId)) {
     /* probably was deallocated (unique AS) */
     return;
@@ -30,16 +33,18 @@ void klee::dumpNodeInfo(PointerAnalysis *pta,
       return;
     }
 
+    errs() << prefix << "-- value: " << value << "\n";
     if (isa<Function>(value)) {
       const Function *f = dyn_cast<Function>(value);
-      errs() << "-- AS: " << f->getName() << "\n";
+      errs() << prefix << "-- AS: " << f->getName() << "\n";
     } else {
-      errs() << "-- AS: " << *value << "\n";
+      errs() << prefix << "-- AS: " << *value << "\n";
     }
-    errs() << "   -- kind: " << obj->getNodeKind() << "\n";
+    errs() << prefix << "   -- fi: " << pta->isFieldInsensitive(nodeId) << "\n";
+    errs() << prefix << "   -- kind: " << obj->getNodeKind() << "\n";
     GepObjPN *gepObj = dyn_cast<GepObjPN>(obj);
     if (gepObj) {
-       errs() << "   -- ls: " << gepObj->getLocationSet().getOffset() << "\n";
+       errs() << prefix << "   -- ls: " << gepObj->getLocationSet().getOffset() << "\n";
     }
   }
 }

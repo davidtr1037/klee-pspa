@@ -105,6 +105,10 @@ public:
                   SubstitutionInfo &info,
                   std::set<NodeID> &result);
 
+  void dump(EntryState &es);
+
+  void dump(EntryState &es, NodeID nodeId, unsigned level = 0);
+
 private:
 
   typedef std::vector<ModResult> FunctionCache;
