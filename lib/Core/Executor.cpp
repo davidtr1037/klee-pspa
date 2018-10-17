@@ -5569,6 +5569,7 @@ void Executor::saveModSet(ExecutionState &state) {
         entryState.addParameter(dst, argIndex);
       }
 
+      /* TODO: should we check reusability without the call stack? */
       std::set<NodeID> mod;
       canReuse = modularPTA->computeModSet(f, entryState, mod);
       if (canReuse) {
