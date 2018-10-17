@@ -126,10 +126,16 @@ bool ModularPTA::checkIsomorphism(EntryState &es1,
       /* TODO: is it correct? */
       /* TODO: should we check it at the beginning of checkIsomorphism? */
       if (!es1.pta->getPAG()->findPAGNode(p1)) {
-        return !es2.pta->getPAG()->findPAGNode(p2);
+        if (es2.pta->getPAG()->findPAGNode(p2)) {
+          return false;
+        }
+        continue;
       }
       if (!es2.pta->getPAG()->findPAGNode(p2)) {
-        return !es1.pta->getPAG()->findPAGNode(p1);
+        if (es1.pta->getPAG()->findPAGNode(p1)) {
+          return false;
+        }
+        continue;
       }
 
       if (!checkIsomorphism(es1, p1, es2, p2, info)) {
