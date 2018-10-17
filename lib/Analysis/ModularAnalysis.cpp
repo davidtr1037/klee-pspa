@@ -122,6 +122,16 @@ bool ModularPTA::checkIsomorphism(EntryState &es1,
     if (pts1.count() > 0) {
       NodeID p1 = *pts1.begin();
       NodeID p2 = *pts2.begin();
+
+      /* TODO: is it correct? */
+      /* TODO: should we check it at the beginning of checkIsomorphism? */
+      if (!es1.pta->getPAG()->findPAGNode(p1)) {
+        return !es2.pta->getPAG()->findPAGNode(p2);
+      }
+      if (!es2.pta->getPAG()->findPAGNode(p2)) {
+        return !es1.pta->getPAG()->findPAGNode(p1);
+      }
+
       if (!checkIsomorphism(es1, p1, es2, p2, info)) {
         return false;
       }
