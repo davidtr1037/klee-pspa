@@ -223,6 +223,9 @@ void ModularPTA::substitute(EntryState &es1,
                             SubstitutionInfo &info,
                             std::set<NodeID> &result) {
   for (NodeID nodeId : cachedMod) {
+    if (!es1.pta->getPAG()->findPAGNode(nodeId)) {
+      continue;
+    }
     NodeID base1 = es1.pta->getBaseObjNode(nodeId);
     if (info.mapping.find(base1) == info.mapping.end()) {
       /* TODO: is it always correct? */
