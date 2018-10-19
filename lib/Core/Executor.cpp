@@ -5582,6 +5582,8 @@ void Executor::saveModSet(ExecutionState &state) {
             index
           );
         );
+        /* TODO: do we need to enforce field-insensitiveness
+           with respect to the cached analysis? */
         updateModInfo(snapshot, snapshotPTA.get(), mod);
         ++stats::staticAnalysisReuse;
       }
