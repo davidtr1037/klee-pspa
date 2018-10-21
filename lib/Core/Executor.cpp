@@ -1183,7 +1183,7 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
     }
 
     addConstraint(*trueState, condition);
-    addConstraint(*falseState, Expr::createIsZero(condition));
+    addConstraint(*falseState, negatedCondition);
 
     // Kinda gross, do we even really still want this option?
     if (MaxDepth && MaxDepth<=trueState->depth) {
