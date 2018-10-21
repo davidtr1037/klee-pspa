@@ -5325,7 +5325,7 @@ void Executor::onRecoveryStateWrite(ExecutionState &state,
     value
   );
 
-  if (dependentState == state.getOriginatingState()) {
+  if (isDynamicMode() && dependentState == state.getOriginatingState()) {
     updatePointsToOnStore(*dependentState, state.prevPC, mo, offset, value);
   }
 }
