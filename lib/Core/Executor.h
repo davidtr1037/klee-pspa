@@ -582,7 +582,10 @@ public:
                      KInstruction *ki,
                      ref<Expr> value);
 
+  bool shouldUpdatePoinstTo(ExecutionState &state);
+
   void updatePointsToOnStore(ExecutionState &state,
+                             KInstruction *ki,
                              const MemoryObject *mo,
                              ref<Expr> offset,
                              ref<Expr> value);

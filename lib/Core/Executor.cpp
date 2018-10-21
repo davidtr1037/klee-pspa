@@ -3468,8 +3468,8 @@ void Executor::executeMemoryOperation(ExecutionState &state,
           ObjectState *wos = state.addressSpace.getWriteable(mo, os);
           wos->write(offset, value);
 
-          if (isDynamicMode()) {
-            updatePointsToOnStore(state, mo, offset, value);
+          if (isDynamicMode() && shouldUpdatePoinstTo(state)) {
+            updatePointsToOnStore(state, state.prevPC, mo, offset, value);
           }
         }
       } else {
@@ -3516,8 +3516,8 @@ void Executor::executeMemoryOperation(ExecutionState &state,
           ObjectState *wos = bound->addressSpace.getWriteable(mo, os);
           wos->write(offset, value);
 
-          if (isDynamicMode()) {
-            updatePointsToOnStore(state, mo, offset, value);
+          if (isDynamicMode() && shouldUpdatePoinstTo(state)) {
+            updatePointsToOnStore(state, state.prevPC, mo, offset, value);
           }
         }
       } else {
@@ -4231,17 +4231,18 @@ void Executor::handleBitCast(ExecutionState &state,
   }
 }
 
+bool Executor::shouldUpdatePoinstTo(ExecutionState &state) {
+  return state.prevPC->isRelevant;
+}
+
 void Executor::updatePointsToOnStore(ExecutionState &state,
+                                     KInstruction *ki,
                                      const MemoryObject *mo,
                                      ref<Expr> offset,
                                      ref<Expr> value) {
   TimerStatIncrementer timer(stats::staticAnalysisTime);
 
-  if (!state.prevPC->isRelevant) {
-    return;
-  }
-
-  StoreInst *storeInst = dyn_cast<StoreInst>(state.prevPC->inst);
+  StoreInst *storeInst = dyn_cast<StoreInst>(ki->inst);
   if (!storeInst) {
     /* TODO: check other cases... */
     return;
