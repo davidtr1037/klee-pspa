@@ -4280,7 +4280,8 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
                                  true,
                                  &canStronglyUpdate);
 
-  /* ... */
+  /* if the updated memory object is on the stack and inside a recursion,
+     then we must perform weak update */
   const AllocaInst *alloca = dyn_cast<AllocaInst>(mo->allocSite);
   bool isLocalObjectInRecursion = false;
   if (alloca) {
