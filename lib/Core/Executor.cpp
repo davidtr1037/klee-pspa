@@ -5324,6 +5324,10 @@ void Executor::onRecoveryStateWrite(ExecutionState &state,
     storeAddr,
     value
   );
+
+  if (dependentState == state.getOriginatingState()) {
+    updatePointsToOnStore(*dependentState, state.prevPC, mo, offset, value);
+  }
 }
 
 void Executor::onNormalStateWrite(ExecutionState &state,
