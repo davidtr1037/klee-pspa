@@ -2962,7 +2962,12 @@ void Executor::checkMemoryUsage() {
             idx = rand() % N;
 
           std::swap(arr[idx], arr[N - 1]);
-          terminateStateEarly(*arr[N - 1], "Memory limit exceeded.");
+          ExecutionState *toRemove = arr[N - 1];
+          if (toRemove->isNormalState() && toRemove->isSuspended()) {
+            terminateSuspendedState(*toRemove);
+          } else {
+            terminateStateEarly(*toRemove, "Memory limit exceeded.");
+          }
         }
       }
       atMemoryLimit = true;
@@ -5504,6 +5509,21 @@ void Executor::terminateStateRecursively(ExecutionState &state) {
     terminateState(*current);
     current = next;
   }
+}
+
+void Executor::terminateSuspendedState(ExecutionState &state) {
+  assert(state.isNormalState() && state.isSuspended());
+  ExecutionState *current = &state;
+
+  DEBUG_WITH_TYPE(DEBUG_BASIC, klee_message("recursively terminating suspended state..."));
+
+  /* get the top recovery state */
+  while (current->isNormalState()) {
+    current = current->getRecoveryState();
+    assert(current);
+  }
+
+  terminateStateRecursively(*current);
 }
 
 void Executor::mergeConstraints(ExecutionState &dependentState, ref<Expr> condition) {

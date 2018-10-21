@@ -710,6 +710,8 @@ public:
 
   void terminateStateRecursively(ExecutionState &state);
 
+  void terminateSuspendedState(ExecutionState &state);
+
   void mergeConstraints(ExecutionState &dependedState,
                         ref<Expr> condition);
 
