@@ -988,6 +988,7 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
       bool success = solver->getValue(current, condition, value);
       assert(success && "FIXME: Unhandled solver failure");
       (void) success;
+      /* TODO: update the guiding constraints? */
       addConstraint(current, EqExpr::create(value, condition));
       condition = value;
       negatedCondition = Expr::createIsZero(value);
