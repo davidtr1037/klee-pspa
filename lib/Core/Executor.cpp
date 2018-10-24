@@ -964,6 +964,7 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
   std::map< ExecutionState*, std::vector<SeedInfo> >::iterator it = 
     seedMap.find(&current);
   bool isSeeding = it != seedMap.end();
+  ref<Expr> negatedCondition = Expr::createIsZero(condition);
 
   if (!isSeeding && !isa<ConstantExpr>(condition) && 
       (MaxStaticForkPct!=1. || MaxStaticSolvePct != 1. ||
@@ -989,6 +990,7 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
       (void) success;
       addConstraint(current, EqExpr::create(value, condition));
       condition = value;
+      negatedCondition = Expr::createIsZero(value);
     }
   }
 
@@ -1021,7 +1023,7 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
           addConstraint(current, condition);
         } else  {
           res = Solver::False;
-          addConstraint(current, Expr::createIsZero(condition));
+          addConstraint(current, negatedCondition);
         }
       }
     } else if (res==Solver::Unknown) {
@@ -1045,9 +1047,15 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
         if (theRNG.getBool()) {
           addConstraint(current, condition);
           res = Solver::True;        
+          if (current.isRecoveryState()) {
+            mergeConstraintsForAll(current, condition);
+          }
         } else {
-          addConstraint(current, Expr::createIsZero(condition));
+          addConstraint(current, negatedCondition);
           res = Solver::False;
+          if (current.isRecoveryState()) {
+            mergeConstraintsForAll(current, negatedCondition);
+          }
         }
       }
     }
@@ -1079,7 +1087,7 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
       assert(trueSeed || falseSeed);
       
       res = trueSeed ? Solver::True : Solver::False;
-      addConstraint(current, trueSeed ? condition : Expr::createIsZero(condition));
+      addConstraint(current, trueSeed ? condition : negatedCondition);
     }
   }
 
@@ -1110,7 +1118,6 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
   } else {
     TimerStatIncrementer timer(stats::forkTime);
     ExecutionState *falseState, *trueState = &current;
-    ref<Expr> negatedCondition = Expr::createIsZero(condition);
 
     ++stats::forks;
 
