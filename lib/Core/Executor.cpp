@@ -1566,7 +1566,7 @@ void Executor::executeCall(ExecutionState &state,
         ref<Snapshot> snapshot(new Snapshot(snapshotState, f));
         state.addSnapshot(snapshot);
         interpreterHandler->incSnapshotsCount();
-        snapshotsStats[f]++;
+        clientStats.snapshots[f]++;
 
         /* TODO: will be replaced later... */
         state.clearRecoveredAddresses();
@@ -5286,6 +5286,9 @@ void Executor::startRecoveryState(ExecutionState &state,
 
   /* update statistics */
   interpreterHandler->incRecoveryStatesCount();
+
+  /* update statistics */
+  clientStats.recoveries[recoveryInfo->snapshot->f]++;
 }
 
 /* TODO: handle vastart calls */
@@ -5828,12 +5831,20 @@ ExecutionState *Executor::createSnapshotState(ExecutionState &state) {
 }
 
 void Executor::dumpClinetStats() {
-  klee_message("Client statistics:");
-  for (auto i : snapshotsStats) {
+  klee_message("Snapshots:");
+  for (auto i : clientStats.snapshots) {
     Function *f = i.first;
     uint64_t count = i.second;
     klee_message("- %s: %lu", f->getName().data(), count);
   }
+
+  klee_message("Recoveries:");
+  for (auto i : clientStats.recoveries) {
+    Function *f = i.first;
+    uint64_t count = i.second;
+    klee_message("- %s: %lu", f->getName().data(), count);
+  }
+
   klee_message("Reuse ratio: %lu / %lu",
                (uint64_t)(stats::staticAnalysisReuse),
                (uint64_t)(stats::staticAnalysisUsage));

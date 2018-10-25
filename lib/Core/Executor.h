@@ -106,6 +106,11 @@ struct LoadInfo {
   ref<Expr> offset;
 };
 
+struct ClientStats {
+  std::map<llvm::Function *, uint64_t> snapshots;
+  std::map<llvm::Function *, uint64_t> recoveries;
+};
+
 class Executor : public Interpreter {
   friend class RandomPathSearcher;
   friend class OwningSearcher;
@@ -277,7 +282,7 @@ private:
   std::vector<ref<Snapshot>> cachedSnapshots;
 
   /* TODO: add docs */
-  std::map<llvm::Function *, uint64_t> snapshotsStats;
+  ClientStats clientStats;
 
   llvm::Function* getTargetFunction(llvm::Value *calledVal,
                                     ExecutionState &state);
