@@ -227,10 +227,7 @@ void ExecutionState::popFrame() {
     addressSpace.unbindObject(*it);
 
   /* clear non-relevant points-to information */
-  for (const NodeID &n : sf.localPointers) {
-    PointsTo &pts = getPTA()->getPts(n);
-    pts.clear();
-  }
+  clearLocalPointsTo();
 
   /* ... */
   uint32_t &count = callingFunctions[sf.kf->function];

@@ -4573,7 +4573,7 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
     isLocalObjectInRecursion = state.isCalledRecursively(allocatingFunction);
     if (!isLocalObjectInRecursion) {
       if (alloca->getParent()->getParent() == state.stack.back().kf->function) {
-        state.stack.back().localPointers.insert(src);
+	 state.addLocalPointer(src);
       }
     }
   }

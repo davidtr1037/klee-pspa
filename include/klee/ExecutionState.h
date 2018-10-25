@@ -342,6 +342,18 @@ public:
     return pta;
   }
 
+  void addLocalPointer(NodeID nodeId) {
+    stack.back().localPointers.insert(nodeId);
+  }
+
+  void clearLocalPointsTo() {
+    StackFrame &sf = stack.back();
+    for (const NodeID &n : sf.localPointers) {
+      PointsTo &pts = getPTA()->getPts(n);
+      pts.clear();
+    }
+  }
+
   bool isCalledRecursively(llvm::Function *f);
 
   void setType(int type) {
