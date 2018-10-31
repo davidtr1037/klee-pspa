@@ -4254,15 +4254,14 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
     return;
   }
 
-  DynamicMemoryLocation location;
-  bool result = getDynamicMemoryLocation(state, value, valueType, location);
-  if (!result) {
-    assert(false);
+  /* TODO: check return value */
+  std::vector<DynamicMemoryLocation> locations;
+  getDynamicMemoryLocations(state, value, valueType, locations);
+  if (locations.empty()) {
+    /* TODO: can it be external (concrete) address? */
+    klee_warning("address is probably out of bound...");
+    return;
   }
-
-  NodeID dst = computeAbstractMO(state.getPTA(),
-                                 location,
-                                 true);
 
   ConstantExpr *ce = dyn_cast<ConstantExpr>(offset);
   if (!ce) {
@@ -4290,15 +4289,18 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
     isLocalObjectInRecursion = state.isCalledRecursively(allocatingFunction);
     if (!isLocalObjectInRecursion) {
       if (alloca->getParent()->getParent() == state.stack.back().kf->function) {
-	 state.addLocalPointer(src);
+        state.addLocalPointer(src);
       }
     }
   }
 
-  if (UseStrongUpdates && canStronglyUpdate && !isLocalObjectInRecursion) {
-    state.getPTA()->strongUpdate(src, dst);
-  } else {
-    state.getPTA()->weakUpdate(src, dst);
+  for (DynamicMemoryLocation location : locations) {
+    NodeID dst = computeAbstractMO(state.getPTA(), location, true);
+    if (UseStrongUpdates && canStronglyUpdate && !isLocalObjectInRecursion && locations.size() == 1) {
+      state.getPTA()->strongUpdate(src, dst);
+    } else {
+      state.getPTA()->weakUpdate(src, dst);
+    }
   }
 }
 
