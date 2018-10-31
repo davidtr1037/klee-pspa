@@ -10,6 +10,7 @@
 #ifndef KLEE_PASSES_H
 #define KLEE_PASSES_H
 
+#include "klee/Interpreter.h"
 #include "klee/Config/Version.h"
 
 #include "llvm/ADT/Triple.h"
@@ -193,6 +194,38 @@ public:
 
   // TODO: Add `override` when we switch to C++11
   bool runOnModule(llvm::Module &M);
+};
+
+class ReturnToVoidFunctionPass : public llvm::ModulePass {
+
+  static char ID;
+  const std::vector<Interpreter::FunctionOption> skippedFunctions;
+
+public:
+
+  ReturnToVoidFunctionPass(const std::vector<Interpreter::FunctionOption> skippedFunctions) :
+    ModulePass(ID),
+    skippedFunctions(skippedFunctions)
+  {
+
+  }
+
+  virtual bool runOnModule(llvm::Module &module);
+
+  virtual bool runOnFunction(llvm::Function &f,
+                             llvm::Module &modue);
+
+  llvm::Function *createWrapperFunction(llvm::Function &f,
+                                        llvm::Module &module);
+
+  void replaceCalls(llvm::Function *f,
+                    llvm::Function *wrapper,
+                    const std::vector<unsigned int> &lines);
+
+  void replaceCall(llvm::CallInst *origCallInst,
+                   llvm::Function *f,
+                   llvm::Function *wrapper);
+
 };
 
 }
