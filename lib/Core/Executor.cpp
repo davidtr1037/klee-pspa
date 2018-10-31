@@ -487,7 +487,7 @@ const Module *Executor::setModule(llvm::Module *module,
   specialFunctionHandler = new SpecialFunctionHandler(*this);
   specialFunctionHandler->prepare();
 
-  kmodule->prepare(opts, interpreterHandler);
+  kmodule->prepare(opts, interpreterOpts, interpreterHandler);
 
   if ((!interpreterOpts.skippedFunctions.empty() && UseStaticModRef) || RunStaticPTA) {
     klee_message("Running whole program pointer analysis...");

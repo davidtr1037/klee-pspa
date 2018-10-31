@@ -1393,6 +1393,12 @@ int main(int argc, char **argv, char **envp) {
 
   std::vector<Interpreter::FunctionOption> skippedFunctions;
   parseFunctionListParameter(mainModule, SkippedFunctions, skippedFunctions);
+  for (Interpreter::FunctionOption &option : skippedFunctions) {
+    Function *f = mainModule->getFunction(option.name);
+    if (!f->getReturnType()->isVoidTy()) {
+      option.name = std::string("__wrap_") + option.name;
+    }
+  }
 
   Interpreter::InterpreterOptions IOpts;
   IOpts.MakeConcreteSymbolic = MakeConcreteSymbolic;

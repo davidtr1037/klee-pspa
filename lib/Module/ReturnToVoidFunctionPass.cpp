@@ -77,7 +77,7 @@ Function *klee::ReturnToVoidFunctionPass::createWrapperFunction(Function &f,
   }
 
   // create basic block 'entry' in the new function
-  BasicBlock *block = BasicBlock::Create(getGlobalContext(), "entry", wrapper);
+  BasicBlock *block = BasicBlock::Create(getGlobalContext(), "__entry", wrapper);
   IRBuilder<> builder(block);
 
   // insert call to the original function
@@ -96,8 +96,8 @@ void klee::ReturnToVoidFunctionPass::replaceCalls(Function *f,
                                                   Function *wrapper,
                                                   const vector<unsigned int> &lines) {
   vector<CallInst*> to_remove;
-  for (auto ui = f->use_begin(), ue = f->use_end(); ui != ue; ui++) {
-    if (Instruction *inst = dyn_cast<Instruction>(*ui)) {
+  for (User *user : f->users()) {
+    if (Instruction *inst = dyn_cast<Instruction>(user)) {
       if (inst->getParent()->getParent() == wrapper) {
         continue;
       }
@@ -132,13 +132,11 @@ void klee::ReturnToVoidFunctionPass::replaceCall(CallInst *origCallInst,
   StoreInst *prevStoreInst = NULL;
   bool hasPhiUse = false;
 
-  // We can perform this optimization only when the return value is stored, and
-  // that is the _only_ use
+  // We can perform this optimization only when the return value is stored, and that is the only use
   if (origCallInst->getNumUses() == 1) {
-    for (auto ui = origCallInst->use_begin(), ue = origCallInst->use_end(); ui != ue; ui++) {
-      if (StoreInst *storeInst = dyn_cast<StoreInst>(*ui)) {
-        if (storeInst->getOperand(0) == origCallInst &&
-            isa<AllocaInst>(storeInst->getOperand(1))) {
+    for (User *user : origCallInst->users()) {
+      if (StoreInst *storeInst = dyn_cast<StoreInst>(user)) {
+        if (storeInst->getOperand(0) == origCallInst && isa<AllocaInst>(storeInst->getOperand(1))) {
           allocaInst = storeInst->getOperand(1);
           prevStoreInst = storeInst;
         }
@@ -147,8 +145,8 @@ void klee::ReturnToVoidFunctionPass::replaceCall(CallInst *origCallInst,
   }
 
   /* check if we have a PHI use */
-  for (auto ui = origCallInst->use_begin(), ue = origCallInst->use_end(); ui != ue; ui++) {
-    if (isa<PHINode>(*ui)) {
+  for (User *user : origCallInst->users()) {
+    if (isa<PHINode>(user)) {
       hasPhiUse = true;
     }
   }
@@ -181,10 +179,13 @@ void klee::ReturnToVoidFunctionPass::replaceCall(CallInst *origCallInst,
       origCallInst->replaceAllUsesWith(load);
     } else {
       while (origCallInst->getNumUses() > 0) {
-        llvm::Instruction *II = cast<llvm::Instruction>(*origCallInst->use_begin());
-        IRBuilder<> builder_use(II);
+        llvm::Instruction *inst = cast<llvm::Instruction>(*origCallInst->user_begin());
+        if (!inst) {
+          assert(false);
+        }
+        IRBuilder<> builder_use(inst);
         Value *load = builder_use.CreateLoad(allocaInst);
-        II->replaceUsesOfWith(origCallInst, load);
+        inst->replaceUsesOfWith(origCallInst, load);
       }
     }
   }

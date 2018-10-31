@@ -204,12 +204,14 @@ void KModule::addInternalFunction(const char* functionName){
 }
 
 void KModule::prepare(const Interpreter::ModuleOptions &opts,
+                      const Interpreter::InterpreterOptions &interpreterOpts,
                       InterpreterHandler *ih) {
   // Inject checks prior to optimization... we also perform the
   // invariant transformations that we will end up doing later so that
   // optimize is seeing what is as close as possible to the final
   // module.
   LegacyLLVMPassManagerTy pm;
+  pm.add(new ReturnToVoidFunctionPass(interpreterOpts.skippedFunctions));
   pm.add(new RaiseAsmPass());
   // This pass will scalarize as much code as possible so that the Executor
   // does not need to handle operands of vector type for most instructions
