@@ -63,91 +63,110 @@ bool ModularPTA::checkIsomorphism(EntryState &es1,
                                   EntryState &es2,
                                   NodeID n2,
                                   SubstitutionInfo &info) {
-  PAGNode *pagNode;
-  pagNode = es1.pta->getPAG()->getPAGNode(n1);
-  ObjPN *obj1 = dyn_cast<ObjPN>(pagNode);
-  pagNode = es2.pta->getPAG()->getPAGNode(n2);
-  ObjPN *obj2 = dyn_cast<ObjPN>(pagNode);
+  list<pair<NodeID, NodeID>> worklist;
+  set<pair<NodeID, NodeID>> checked;
 
-  if (isa<FIObjPN>(obj1)) {
-    /* in this case, we restrict both of the objects to be field-insensitive */
-    if (!isa<FIObjPN>(obj2)) {
-      return false;
-    }
-  }
+  /* initialize list */
+  worklist.push_back(make_pair(n1, n2));
 
-  if (isa<GepObjPN>(obj1)) {
-    /* in this case, we restrict both of the objects to be field-sensitive */
-    GepObjPN *gep1 = dyn_cast<GepObjPN>(obj1);
-    GepObjPN *gep2 = dyn_cast<GepObjPN>(obj2);
-    if (!gep2) {
-      return false;
+  while (!worklist.empty()) {
+    auto p = worklist.front();
+    worklist.pop_front();
+
+    if (checked.find(p) != checked.end()) {
+      continue;
     }
 
-    /* currently we require that the offsets must be the same, but actually
-       the objects can be isomorphic event if they don't have the same offsets */
-    if (gep1->getLocationSet().getOffset() != gep2->getLocationSet().getOffset()) {
-      return false;
-    }
-  }
+    NodeID n1 = p.first;
+    NodeID n2 = p.second;
 
-  const NodeBS &subNodes1 = es1.pta->getAllFieldsObjNode(n1);
-  const NodeBS &subNodes2 = es2.pta->getAllFieldsObjNode(n2);
+    PAGNode *pagNode;
+    pagNode = es1.pta->getPAG()->getPAGNode(n1);
+    ObjPN *obj1 = dyn_cast<ObjPN>(pagNode);
+    pagNode = es2.pta->getPAG()->getPAGNode(n2);
+    ObjPN *obj2 = dyn_cast<ObjPN>(pagNode);
 
-  vector<NodeID> ordered1, ordered2;
-  if (!getMatchedNodes(es1, subNodes1, es2, subNodes2, ordered1, ordered2)) {
-    return false;
-  }
-
-  if (ordered1.size() != ordered2.size()) {
-    assert(false);
-  }
-
-  for (unsigned i = 0; i < ordered1.size(); i++) {
-    NodeID s1 = ordered1[i];
-    NodeID s2 = ordered2[i];
-
-    PointsTo &pts1 = es1.pta->getPts(s1);
-    PointsTo &pts2 = es2.pta->getPts(s2);
-
-    if (pts1.count() != pts2.count()) {
-      return false;
-    }
-
-    if (pts1.count() > 1) {
-      assert(false);
-    }
-
-    /* if the points-to is empty, we are fine */
-    if (pts1.count() > 0) {
-      NodeID p1 = *pts1.begin();
-      NodeID p2 = *pts2.begin();
-
-      /* TODO: is it correct? */
-      /* TODO: should we check it at the beginning of checkIsomorphism? */
-      if (!es1.pta->getPAG()->findPAGNode(p1)) {
-        if (es2.pta->getPAG()->findPAGNode(p2)) {
-          return false;
-        }
-        continue;
-      }
-      if (!es2.pta->getPAG()->findPAGNode(p2)) {
-        if (es1.pta->getPAG()->findPAGNode(p1)) {
-          return false;
-        }
-        continue;
-      }
-
-      if (!checkIsomorphism(es1, p1, es2, p2, info)) {
+    if (isa<FIObjPN>(obj1)) {
+      /* in this case, we restrict both of the objects to be field-insensitive */
+      if (!isa<FIObjPN>(obj2)) {
         return false;
       }
     }
-  }
 
-  /* update the substitution mapping */
-  NodeID base1 = es1.pta->getBaseObjNode(n1);
-  NodeID base2 = es2.pta->getBaseObjNode(n2);
-  info.mapping[base1] = base2;
+    if (isa<GepObjPN>(obj1)) {
+      /* in this case, we restrict both of the objects to be field-sensitive */
+      GepObjPN *gep1 = dyn_cast<GepObjPN>(obj1);
+      GepObjPN *gep2 = dyn_cast<GepObjPN>(obj2);
+      if (!gep2) {
+        return false;
+      }
+
+      /* currently we require that the offsets must be the same, but actually
+         the objects can be isomorphic event if they don't have the same offsets */
+      if (gep1->getLocationSet().getOffset() != gep2->getLocationSet().getOffset()) {
+        return false;
+      }
+    }
+
+    const NodeBS &subNodes1 = es1.pta->getAllFieldsObjNode(n1);
+    const NodeBS &subNodes2 = es2.pta->getAllFieldsObjNode(n2);
+
+    vector<NodeID> ordered1, ordered2;
+    if (!getMatchedNodes(es1, subNodes1, es2, subNodes2, ordered1, ordered2)) {
+      return false;
+    }
+
+    if (ordered1.size() != ordered2.size()) {
+      assert(false);
+    }
+
+    for (unsigned i = 0; i < ordered1.size(); i++) {
+      NodeID s1 = ordered1[i];
+      NodeID s2 = ordered2[i];
+
+      PointsTo &pts1 = es1.pta->getPts(s1);
+      PointsTo &pts2 = es2.pta->getPts(s2);
+
+      if (pts1.count() != pts2.count()) {
+        return false;
+      }
+
+      if (pts1.count() > 1) {
+        assert(false);
+      }
+
+      /* if the points-to is empty, we are fine */
+      if (pts1.count() > 0) {
+        NodeID p1 = *pts1.begin();
+        NodeID p2 = *pts2.begin();
+
+        /* TODO: is it correct? */
+        /* TODO: should we check it at the beginning of checkIsomorphism? */
+        if (!es1.pta->getPAG()->findPAGNode(p1)) {
+          if (es2.pta->getPAG()->findPAGNode(p2)) {
+            return false;
+          }
+          continue;
+        }
+        if (!es2.pta->getPAG()->findPAGNode(p2)) {
+          if (es1.pta->getPAG()->findPAGNode(p1)) {
+            return false;
+          }
+          continue;
+        }
+
+        worklist.push_back(make_pair(p1, p2));
+      }
+    }
+
+    /* update the substitution mapping */
+    NodeID base1 = es1.pta->getBaseObjNode(n1);
+    NodeID base2 = es2.pta->getBaseObjNode(n2);
+    info.mapping[base1] = base2;
+
+    /* update checked pairs */
+    checked.insert(p);
+  }
 
   return true;
 }
