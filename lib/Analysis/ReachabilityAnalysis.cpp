@@ -223,7 +223,7 @@ void ReachabilityAnalysis::resolveIndirectCallByPA(Value *calledValue,
     if (isa<ObjPN>(pagNode)) {
       ObjPN *obj = dyn_cast<ObjPN>(pagNode);
       const Value *value = obj->getMemObj()->getRefVal();
-      if (isa<Function>(value)) {
+      if (value && isa<Function>(value)) {
         const Function *f = dyn_cast<const Function>(value);
         targets.insert((Function *)(f));
       }
