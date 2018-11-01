@@ -5550,10 +5550,11 @@ void Executor::mergeConstraints(ExecutionState &dependentState, ref<Expr> condit
 }
 
 bool Executor::isFunctionToSkip(ExecutionState &state, Function *f) {
+  Instruction *callInst = state.prevPC->inst;
+  const InstructionInfo &info = kmodule->infos->getInfo(callInst);
+
   for (const FunctionOption &option : interpreterOpts.skippedFunctions) {
     if ((option.name == f->getName().str())) {
-      Instruction *callInst = state.prevPC->inst;
-      const InstructionInfo &info = kmodule->infos->getInfo(callInst);
       const std::vector<unsigned int> &lines = option.lines;
 
       /* skip any call site */
