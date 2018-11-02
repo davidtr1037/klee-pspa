@@ -588,7 +588,8 @@ public:
                              KInstruction *ki,
                              const MemoryObject *mo,
                              ref<Expr> offset,
-                             ref<Expr> value);
+                             ref<Expr> value,
+                             bool useStrongUpdates);
 
   void updatePointsToOnCall(ExecutionState &state,
                             llvm::Function *f,
