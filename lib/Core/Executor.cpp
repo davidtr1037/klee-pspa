@@ -3741,7 +3741,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
           wos->write(offset, value);
 
           if (isDynamicMode() && shouldUpdatePoinstTo(state)) {
-            updatePointsToOnStore(state, state.prevPC, mo, offset, value);
+            updatePointsToOnStore(state, state.prevPC, mo, offset, value, UseStrongUpdates);
           }
 
           if (state.isRecoveryState()) {
@@ -3799,7 +3799,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
           wos->write(offset, value);
 
           if (isDynamicMode() && shouldUpdatePoinstTo(state)) {
-            updatePointsToOnStore(state, state.prevPC, mo, offset, value);
+            updatePointsToOnStore(state, state.prevPC, mo, offset, value, UseStrongUpdates);
           }
         }
       } else {
@@ -4516,7 +4516,8 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
                                      KInstruction *ki,
                                      const MemoryObject *mo,
                                      ref<Expr> offset,
-                                     ref<Expr> value) {
+                                     ref<Expr> value,
+                                     bool useStrongUpdates) {
   if (state.isRecoveryState()) {
     return;
   }
@@ -4579,7 +4580,7 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
 
   for (DynamicMemoryLocation location : locations) {
     NodeID dst = computeAbstractMO(state.getPTA().get(), location, true);
-    if (UseStrongUpdates && canStronglyUpdate && !isLocalObjectInRecursion && locations.size() == 1) {
+    if (useStrongUpdates && canStronglyUpdate && !isLocalObjectInRecursion && locations.size() == 1) {
       state.getPTA()->strongUpdate(src, dst);
     } else {
       state.getPTA()->weakUpdate(src, dst);
@@ -5349,7 +5350,8 @@ void Executor::onRecoveryStateWrite(ExecutionState &state,
   );
 
   if (isDynamicMode() && dependentState == state.getOriginatingState()) {
-    updatePointsToOnStore(*dependentState, state.prevPC, mo, offset, value);
+    /* TODO: fix... */
+    updatePointsToOnStore(*dependentState, state.prevPC, mo, offset, value, false);
   }
 }
 
