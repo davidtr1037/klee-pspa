@@ -5311,6 +5311,12 @@ void Executor::onRecoveryStateWrite(ExecutionState &state,
     )
   );
 
+  if (isDynamicMode()) {
+    if (state.getOriginatingState()->addressSpace.findObject(mo)) {
+      updatePointsToOnStore(*state.getOriginatingState(), state.prevPC, mo, offset, value, false);
+    }
+  }
+
   uint64_t storeAddr = dyn_cast<ConstantExpr>(address)->getZExtValue();
   ref<RecoveryInfo> recoveryInfo = state.getRecoveryInfo();
   if (storeAddr != recoveryInfo->loadAddr) {
@@ -5344,11 +5350,6 @@ void Executor::onRecoveryStateWrite(ExecutionState &state,
     storeAddr,
     value
   );
-
-  if (isDynamicMode() && dependentState == state.getOriginatingState()) {
-    /* TODO: fix... */
-    updatePointsToOnStore(*dependentState, state.prevPC, mo, offset, value, false);
-  }
 }
 
 void Executor::onNormalStateWrite(ExecutionState &state,
