@@ -3740,7 +3740,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
           ObjectState *wos = state.addressSpace.getWriteable(mo, os);
           wos->write(offset, value);
 
-          if (isDynamicMode() && shouldUpdatePoinstTo(state)) {
+          if (isDynamicMode() && !state.isRecoveryState() && shouldUpdatePoinstTo(state)) {
             updatePointsToOnStore(state, state.prevPC, mo, offset, value, UseStrongUpdates);
           }
 
@@ -3798,7 +3798,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
           ObjectState *wos = bound->addressSpace.getWriteable(mo, os);
           wos->write(offset, value);
 
-          if (isDynamicMode() && shouldUpdatePoinstTo(state)) {
+          if (isDynamicMode() && !state.isRecoveryState() && shouldUpdatePoinstTo(state)) {
             updatePointsToOnStore(state, state.prevPC, mo, offset, value, UseStrongUpdates);
           }
         }
@@ -4518,10 +4518,6 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
                                      ref<Expr> offset,
                                      ref<Expr> value,
                                      bool useStrongUpdates) {
-  if (state.isRecoveryState()) {
-    return;
-  }
-
   TimerStatIncrementer timer(stats::staticAnalysisTime);
 
   StoreInst *storeInst = dyn_cast<StoreInst>(ki->inst);
