@@ -5312,6 +5312,7 @@ void Executor::onRecoveryStateWrite(ExecutionState &state,
   );
 
   if (isDynamicMode()) {
+    /* TODO: this query is probably expensive... */
     if (state.getOriginatingState()->addressSpace.findObject(mo)) {
       updatePointsToOnStore(*state.getOriginatingState(), state.prevPC, mo, offset, value, false);
     }
