@@ -346,6 +346,9 @@ namespace {
 
   cl::opt<bool>
   UseModularPTA("use-modular-pta", cl::init(false), cl::desc(""));
+
+  cl::opt<bool>
+  UseRecoveryCache("use-recovery-cache", cl::init(false), cl::desc(""));
 }
 
 
@@ -4773,7 +4776,7 @@ bool Executor::getAllRecoveryInfo(ExecutionState &state,
     );
 
     ref<Expr> expr;
-    if (state.getRecoveredValue(index, sliceId, loadAddr, expr)) {
+    if (UseRecoveryCache && state.getRecoveredValue(index, sliceId, loadAddr, expr)) {
       /* this slice was already executed from this snapshot,
          and we know which value was written (or not) */
       state.addRecoveredAddress(loadAddr);
