@@ -4795,6 +4795,9 @@ bool Executor::getAllRecoveryInfo(ExecutionState &state,
 
         /* execute write without recovering */
         ref<Expr> base = eval(ki, 0, state).value;
+        /* TODO: if the value is a pointer to an object which
+           was allocated during a previous recovery,
+           then we need to bind this object to the current state */
         executeMemoryOperation(state, true, base, expr, 0);
 
         /* TODO: add docs */
