@@ -5312,9 +5312,24 @@ void Executor::onRecoveryStateWrite(ExecutionState &state,
   );
 
   if (isDynamicMode()) {
-    /* TODO: this query is probably expensive... */
-    if (state.getOriginatingState()->addressSpace.findObject(mo)) {
-      updatePointsToOnStore(*state.getOriginatingState(), state.prevPC, mo, offset, value, false);
+    StoreInst *storeInst = dyn_cast<StoreInst>(state.prevPC->inst);
+    if (!storeInst) {
+      /* this should not happen... */
+      assert(false);
+    }
+
+    /* update only when the written value is a pointer */
+    PointerType *valueType = dyn_cast<PointerType>(storeInst->getValueOperand()->getType());
+    if (valueType) {
+      /* TODO: this query is probably expensive... */
+      if (state.getOriginatingState()->addressSpace.findObject(mo)) {
+        updatePointsToOnStore(*state.getOriginatingState(),
+                              state.prevPC,
+                              mo,
+                              offset,
+                              value,
+                              false);
+      }
     }
   }
 
