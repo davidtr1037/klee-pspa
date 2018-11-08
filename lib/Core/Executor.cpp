@@ -5673,7 +5673,7 @@ void Executor::saveModSet(ExecutionState &state) {
         called.insert(sf.kf->function);
       }
 
-      ModRefCollector collector(called);
+      ModRefCollector collector(called, true, false);
       collector.visitReachable(pta.get(), f);
 
       std::set<NodeID> mod = collector.getModSet();
