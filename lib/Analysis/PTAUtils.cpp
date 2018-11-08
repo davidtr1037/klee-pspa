@@ -189,6 +189,10 @@ bool ModRefCollector::canEscape(PointerAnalysis *pta,
 void ModRefCollector::visitStore(PointerAnalysis *pta,
                                  Function *f,
                                  StoreInst *inst) {
+  if (!collectMod) {
+    return;
+  }
+
   NodeID id = pta->getPAG()->getValueNode(inst->getPointerOperand());
   PointsTo &pts = pta->getPts(id);
 
@@ -203,6 +207,10 @@ void ModRefCollector::visitStore(PointerAnalysis *pta,
 void ModRefCollector::visitLoad(PointerAnalysis *pta,
                                 Function *f,
                                 LoadInst *inst) {
+  if (!collectRef) {
+    return;
+  }
+
   NodeID id = pta->getPAG()->getValueNode(inst->getPointerOperand());
   PointsTo &pts = pta->getPts(id);
 
