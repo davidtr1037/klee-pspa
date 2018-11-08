@@ -1,26 +1,64 @@
-KLEE Symbolic Virtual Machine
+Static Analysis Framework for Symbolic Execution
 =============================
+A static analysis framework for the KLEE symbolic virtual machine.
 
-[![Build Status](https://travis-ci.org/klee/klee.svg?branch=master)](https://travis-ci.org/klee/klee)
-[![Coverage](https://codecov.io/gh/klee/klee/branch/master/graph/badge.svg)](https://codecov.io/gh/klee/klee)
+## Build
+Build SVF fork:
+* https://github.com/davidtr1037/SVF-dynamic
 
-`KLEE` is a symbolic virtual machine built on top of the LLVM compiler
-infrastructure. Currently, there are two primary components:
+Build KLEE:
+```
+git checkout master
+mkdir klee_build
+cd klee_build
+CXXFLAGS="-fno-rtti" cmake \
+    -DENABLE_SOLVER_STP=ON \
+    -DENABLE_POSIX_RUNTIME=ON \
+    -DENABLE_KLEE_UCLIBC=ON \
+    -DKLEE_UCLIBC_PATH=<UCLIBC_PATH>
+    -DLLVM_CONFIG_BINARY=<LLVM_CONFIG> \
+    -DLLVMCC=<LLVMCC> \
+    -DLLVMCXX=<LLVMCXX> \
+    -DENABLE_UNIT_TESTS=OFF \
+    -DKLEE_RUNTIME_BUILD_TYPE=Release+Asserts \
+    -DENABLE_SYSTEM_TESTS=ON \
+    -DENABLE_TCMALLOC=ON \
+    -DSVF_PATH=<SVF_ROOT_DIR> \
+    <KLEE_ROOT_DIR>
+make
+```
 
-  1. The core symbolic virtual machine engine; this is responsible for
-     executing LLVM bitcode modules with support for symbolic
-     values. This is comprised of the code in lib/.
+## Options
+### Target Functions
+The target functions are set using the following option:
+```
+-pta-target=<function1>[:line1/line2/...],<function2>[:line1/line2/...],...
+```
+### Update Mode
+Use the following option to enforce strong points-tp updates (on by default):
+```
+-use-strong-updates
+```
 
-  2. A POSIX/Linux emulation layer oriented towards supporting uClibc,
-     with additional support for making parts of the operating system
-     environment symbolic.
+### Allocation Sites
+Use the following option to create a unique allocation site (name)
+for each dynamic allocation (on by default):
+```
+-create-unique-as
+```
 
-Additionally, there is a simple library for replaying computed inputs
-on native code (for closed programs). There is also a more complicated
-infrastructure for replaying the inputs generated for the POSIX/Linux
-emulation layer, which handles running native programs in an
-environment that matches a computed test input, including setting up
-files, pipes, environment variables, and passing command line
-arguments.
+### Standard Static Analysis
+Use the following option to perfrom standard static analysis (instead of dynamic):
+```
+-run-static-pta
+```
 
-For further information, see the [webpage](http://klee.github.io/).
+### Debugging
+Use the following option to dump basic pointer analysis statistics:
+```
+-collect-pta-stats
+```
+Use the following option to dump the mod set for the target function:
+```
+-collect-modref
+```

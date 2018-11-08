@@ -107,8 +107,12 @@ class ModRefCollector : public InstructionVisitor {
 
 public:
 
-  ModRefCollector(std::set<llvm::Function *> called) :
-    called(called) {
+  ModRefCollector(std::set<llvm::Function *> called,
+                  bool collectMod = true,
+                  bool collectRef = true) :
+    called(called),
+    collectMod(collectMod),
+    collectRef(collectRef) {
 
   }
 
@@ -134,6 +138,8 @@ private:
                  NodeID nodeId);
 
   std::set<llvm::Function *> called;
+  bool collectMod;
+  bool collectRef;
   std::set<NodeID> mod;
   std::set<NodeID> ref;
 };
