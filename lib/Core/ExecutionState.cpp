@@ -173,8 +173,7 @@ ExecutionState::ExecutionState(const ExecutionState& state):
   for (unsigned int i=0; i<symbolics.size(); i++)
     symbolics[i].first->refCount++;
 
-  /* copy only for non-recovery states */
-  if (!state.pta.isNull() && !isRecoveryState()) {
+  if (!state.pta.isNull()) {
     TimerStatIncrementer timer(stats::staticAnalysisTime);
     pta = new AndersenDynamic(*state.pta);
     pta->initialize(*state.pta->getModule());
@@ -226,10 +225,8 @@ void ExecutionState::popFrame() {
          ie = sf.allocas.end(); it != ie; ++it)
     addressSpace.unbindObject(*it);
 
-  if (!isRecoveryState()) {
-    /* clear non-relevant points-to information */
-    clearLocalPointsTo();
-  }
+  /* clear non-relevant points-to information */
+  clearLocalPointsTo();
 
   /* ... */
   uint32_t &count = callingFunctions[sf.kf->function];

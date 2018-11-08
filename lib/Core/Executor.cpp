@@ -3743,7 +3743,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
           ObjectState *wos = state.addressSpace.getWriteable(mo, os);
           wos->write(offset, value);
 
-          if (isDynamicMode() && !state.isRecoveryState() && shouldUpdatePoinstTo(state)) {
+          if (isDynamicMode() && shouldUpdatePoinstTo(state)) {
             updatePointsToOnStore(state, state.prevPC, mo, offset, value, UseStrongUpdates);
           }
 
@@ -3801,7 +3801,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
           ObjectState *wos = bound->addressSpace.getWriteable(mo, os);
           wos->write(offset, value);
 
-          if (isDynamicMode() && !state.isRecoveryState() && shouldUpdatePoinstTo(state)) {
+          if (isDynamicMode() && shouldUpdatePoinstTo(state)) {
             updatePointsToOnStore(state, state.prevPC, mo, offset, value, UseStrongUpdates);
           }
         }
@@ -5282,9 +5282,6 @@ void Executor::startRecoveryState(ExecutionState &state,
 
   /* set high priority for this state */
   recoveryState->setPriority(PRIORITY_HIGH);
-
-  /* no need for pointer analysis */
-  recoveryState->setPTA(0);
 
   /* add the recovery state to the searcher */
   addedStates.push_back(recoveryState);
