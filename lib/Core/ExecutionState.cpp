@@ -98,9 +98,6 @@ ExecutionState::~ExecutionState() {
   while (!stack.empty()) popFrame();
 
   TimerStatIncrementer timer(stats::staticAnalysisTime);
-  if (pta) {
-    delete pta;
-  }
 }
 
 ExecutionState::ExecutionState(const ExecutionState& state):
@@ -134,7 +131,7 @@ ExecutionState::ExecutionState(const ExecutionState& state):
     symbolics[i].first->refCount++;
 
   TimerStatIncrementer timer(stats::staticAnalysisTime);
-  if (state.pta) {
+  if (!state.pta.isNull()) {
     pta = new AndersenDynamic(*state.pta);
     pta->initialize(*state.pta->getModule());
   } else {

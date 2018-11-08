@@ -78,7 +78,7 @@ private:
   std::map<std::string, std::string> fnAliases;
 
   /* TODO: add docs */
-  AndersenDynamic *pta;
+  ref<AndersenDynamic> pta;
 
   /* TODO: add docs */
   std::map<llvm::Function *, uint32_t> callingFunctions;
@@ -184,11 +184,11 @@ public:
   bool merge(const ExecutionState &b);
   void dumpStack(llvm::raw_ostream &out) const;
 
-  void setPTA(AndersenDynamic *pta) {
+  void setPTA(ref<AndersenDynamic> pta) {
     this->pta = pta;
   }
 
-  AndersenDynamic *getPTA() {
+  ref<AndersenDynamic> getPTA() {
     return pta;
   }
 

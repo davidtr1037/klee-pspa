@@ -1470,7 +1470,7 @@ void Executor::executeCall(ExecutionState &state,
     }
 
     /* get the appropriate analyzer */
-    PointerAnalysis *pta = RunStaticPTA ? staticPTA : state.getPTA();
+    PointerAnalysis *pta = RunStaticPTA ? staticPTA : state.getPTA().get();
 
     if (CollectPTAStats) {
       StatsCollector collector(false);
@@ -1494,7 +1494,7 @@ void Executor::executeCall(ExecutionState &state,
         klee_error("Doesn't support static mode...");
       }
       PTAGraphDumper dumper(*ptaGraphLog);
-      dumper.dump(state.getPTA());
+      dumper.dump(state.getPTA().get());
     }
 
     if (CollectModRef) {
@@ -4276,7 +4276,7 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
   DynamicMemoryLocation storeLocation(storeAllocSite, false, ce->getZExtValue(), hint);
 
   bool canStronglyUpdate;
-  NodeID src = computeAbstractMO(state.getPTA(),
+  NodeID src = computeAbstractMO(state.getPTA().get(),
                                  storeLocation,
                                  true,
                                  &canStronglyUpdate);
@@ -4296,7 +4296,7 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
   }
 
   for (DynamicMemoryLocation location : locations) {
-    NodeID dst = computeAbstractMO(state.getPTA(), location, true);
+    NodeID dst = computeAbstractMO(state.getPTA().get(), location, true);
     if (useStrongUpdates && canStronglyUpdate && !isLocalObjectInRecursion && locations.size() == 1) {
       state.getPTA()->strongUpdate(src, dst);
     } else {
@@ -4337,7 +4337,7 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
     NodeID formalParamId = state.getPTA()->getPAG()->getValueNode(&arg);
     for (unsigned int i = 0; i < locations.size(); i++) {
       DynamicMemoryLocation &location = locations[i];
-      NodeID dst = computeAbstractMO(state.getPTA(), location, false);
+      NodeID dst = computeAbstractMO(state.getPTA().get(), location, false);
       if (i == 0) {
         state.getPTA()->strongUpdate(formalParamId, dst);
       } else {
