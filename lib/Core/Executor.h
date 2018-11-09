@@ -726,6 +726,12 @@ public:
 
   void saveModSet(ExecutionState &state);
 
+  void buildEntryState(ref<AndersenDynamic> pta,
+                       llvm::Function *f,
+                       EntryState &entryState);
+
+  std::set<NodeID> computeModSet(ref<Snapshot> snapshot);
+
   void updateModInfo(ref<Snapshot> snapshot,
                      PointerAnalysis *pta,
                      std::set<NodeID> &mod);
