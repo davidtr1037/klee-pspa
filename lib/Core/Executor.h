@@ -730,7 +730,8 @@ public:
                        llvm::Function *f,
                        EntryState &entryState);
 
-  std::set<NodeID> computeModSet(ref<Snapshot> snapshot);
+  std::set<NodeID> computeModSet(ExecutionState &state,
+                                 unsigned int index);
 
   void updateModInfo(ref<Snapshot> snapshot,
                      PointerAnalysis *pta,

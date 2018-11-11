@@ -5645,7 +5645,7 @@ void Executor::saveModSet(ExecutionState &state) {
           index
         );
       );
-      std::set<NodeID> mod = computeModSet(snapshot);
+      std::set<NodeID> mod = computeModSet(state, index);
       updateModInfo(snapshot, snapshotPTA.get(), mod);
 
       if (UseModularPTA) {
@@ -5683,12 +5683,23 @@ void Executor::buildEntryState(ref<AndersenDynamic> pta,
   }
 }
 
-std::set<NodeID> Executor::computeModSet(ref<Snapshot> snapshot) {
-  /* create a new instance for computing the mod-set */
+std::set<NodeID> Executor::computeModSet(ExecutionState &state,
+                                         unsigned int index) {
+  /* get the current snapshot */
+  ref<Snapshot> snapshot = state.getSnapshots()[index];
+
+  /* get it's abstract state */
   ref<AndersenDynamic> snapshotPTA = snapshot->state->getPTA();
+
+  /* create a new instance for computing the mod-set */
   ref<AndersenDynamic> pta = new AndersenDynamic(*snapshotPTA);
   pta->initialize(*kmodule->module);
+  if (index > 0) {
+    ref<Snapshot> previous = state.getSnapshots()[index - 1];
+    pta->join(previous->postPTA.get());
+  }
   pta->analyzeFunction(*kmodule->module, snapshot->f);
+  snapshot->postPTA = pta;
 
   set<Function *> called;
   for (StackFrame &sf : snapshot->state->stack) {
@@ -5699,7 +5710,7 @@ std::set<NodeID> Executor::computeModSet(ref<Snapshot> snapshot) {
   collector.visitReachable(pta.get(), snapshot->f);
 
   /* free memory... */
-  pta->postAnalysisCleanup();
+  pta->postAnalysisCleanup(false);
 
   return collector.getModSet();
 }

@@ -82,12 +82,15 @@ struct Snapshot {
   std::set<NodeID> fiMod;
   /* TODO: add docs */
   std::set<NodeID> baseMod;
+  /* TODO: add docs */
+  ref<AndersenDynamic> postPTA;
 
   /* TODO: is it required? */
   Snapshot() :
-    state(0),
-    f(0),
-    modComputed(false)
+    state(nullptr),
+    f(nullptr),
+    modComputed(false),
+    postPTA(nullptr)
   {
 
   };
@@ -96,7 +99,8 @@ struct Snapshot {
     refCount(0),
     state(state),
     f(f),
-    modComputed(false)
+    modComputed(false),
+    postPTA(nullptr)
   {
 
   };
