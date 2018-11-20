@@ -5694,12 +5694,7 @@ std::set<NodeID> Executor::computeModSet(ExecutionState &state,
   /* create a new instance for computing the mod-set */
   ref<AndersenDynamic> pta = new AndersenDynamic(*snapshotPTA);
   pta->initialize(*kmodule->module);
-  if (index > 0) {
-    ref<Snapshot> previous = state.getSnapshots()[index - 1];
-    pta->join(previous->postPTA.get());
-  }
   pta->analyzeFunction(*kmodule->module, snapshot->f);
-  snapshot->postPTA = pta;
 
   set<Function *> called;
   for (StackFrame &sf : snapshot->state->stack) {
@@ -5710,7 +5705,7 @@ std::set<NodeID> Executor::computeModSet(ExecutionState &state,
   collector.visitReachable(pta.get(), snapshot->f);
 
   /* free memory... */
-  pta->postAnalysisCleanup(false);
+  pta->postAnalysisCleanup();
 
   return collector.getModSet();
 }
