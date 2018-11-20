@@ -448,12 +448,6 @@ Executor::Executor(LLVMContext &ctx, const InterpreterOptions &opts,
     ptaStatsLogger = new PTAStatsCSVLogger(DumpPTASummary);
   }
 
-  if (CollectPTAResults) {
-    ptaLog = interpreterHandler->openOutputFile("pta.log");
-  } else {
-    ptaLog = NULL;
-  }
-
   if (DumpPTAGraph) {
     ptaGraphLog = interpreterHandler->openOutputFile("ptagraph.log");
   } else {
@@ -504,9 +498,6 @@ Executor::~Executor() {
   delete debugInstFile;
   if (ptaStatsLogger) {
     delete ptaStatsLogger;
-  }
-  if (ptaLog) {
-    delete ptaLog;
   }
   if (ptaGraphLog) {
     delete ptaGraphLog;
@@ -1484,7 +1475,7 @@ void Executor::executeCall(ExecutionState &state,
     }
 
     if (CollectPTAResults) {
-      ResultsCollector collector(*ptaLog);
+      ResultsCollector collector(errs());
       collector.visitReachable(pta, f);
     }
 

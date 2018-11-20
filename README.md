@@ -58,6 +58,10 @@ Use the following option to dump basic pointer analysis statistics:
 ```
 -collect-pta-stats
 ```
+Use the following option to dump detailed points-to information:
+```
+-collect-pta-results
+```
 Use the following option to dump the mod set for the target function:
 ```
 -collect-modref

@@ -240,9 +240,6 @@ private:
   PTAStatsLogger *ptaStatsLogger;
 
   /* TODO: add docs */
-  llvm::raw_ostream *ptaLog;
-
-  /* TODO: add docs */
   llvm::raw_ostream *ptaGraphLog;
 
   llvm::Function* getTargetFunction(llvm::Value *calledVal,
