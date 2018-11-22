@@ -5,6 +5,10 @@
 #include "klee/Expr.h"
 #include "klee/ExecutionState.h"
 
+#include "llvm/IR/Type.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/DataLayout.h"
+
 #include <vector>
 #include <unordered_map>
 
@@ -27,18 +31,49 @@ private:
 
 class SymbolicPTA {
 public:
+  SymbolicPTA(TimingSolver &solver, ExecutionState &state): solver(solver), state(state) {}
+
   //Gets the pointer representation of the location
   Pointer* getPointer(const MemoryObject* mo, ref<Expr> offset);
   std::vector<Pointer*> getPointerTarget(Pointer &p);
   std::vector<Pointer*> getColocatedPointers(Pointer &p);
-  SymbolicPTA(TimingSolver &solver, ExecutionState &state): solver(solver), state(state) {}
+  void giveMemoryObjectType(const MemoryObject* mo, llvm::Type*);
 
 private:
   TimingSolver &solver;
   ExecutionState &state;
   std::unordered_map<const MemoryObject*, std::vector<Pointer*>> allPointers;
+  std::unordered_map<const MemoryObject*, llvm::Type*> moTypes;
   bool mustBeTrue(ref<Expr> e);
   bool mayBeTrue(ref<Expr> e);
+  llvm::Type* getMemoryObjectType(const MemoryObject* mo);
 };
+
+template <class T>
+class TypeVisitor {
+public:
+  T visit(llvm::Type* t);
+
+protected:
+  T results;
+  virtual void visitStruct(llvm::StructType* st) = 0;
+  virtual void visitArray(llvm::ArrayType* at) = 0;
+  virtual void visitPointer(llvm::PointerType* st) = 0;
+  virtual void visitInteger(llvm::IntegerType* st) = 0;
+
+};
+
+class OffsetFinder : public TypeVisitor<std::vector<unsigned>> {
+  void visitStruct(llvm::StructType* st);
+  void visitArray(llvm::ArrayType* at);
+  void visitPointer(llvm::PointerType* st);
+  void visitInteger(llvm::IntegerType* st);
+
+  int globalOffset = 0;
+  llvm::DataLayout &layout;
+public:
+  OffsetFinder(llvm::DataLayout &l): TypeVisitor<std::vector<unsigned>>(), layout(l) {}
+};
+
 
 }
