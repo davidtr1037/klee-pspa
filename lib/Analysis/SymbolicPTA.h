@@ -31,7 +31,9 @@ private:
 
 class SymbolicPTA {
 public:
-  SymbolicPTA(TimingSolver &solver, ExecutionState &state): solver(solver), state(state) {}
+  SymbolicPTA(TimingSolver &solver, 
+              ExecutionState &state, 
+              llvm::DataLayout l): solver(solver), state(state), layout(l) {}
 
   //Gets the pointer representation of the location
   Pointer* getPointer(const MemoryObject* mo, ref<Expr> offset);
@@ -47,6 +49,8 @@ private:
   bool mustBeTrue(ref<Expr> e);
   bool mayBeTrue(ref<Expr> e);
   llvm::Type* getMemoryObjectType(const MemoryObject* mo);
+
+  llvm::DataLayout &layout;
 };
 
 template <class T>

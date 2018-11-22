@@ -38,6 +38,7 @@ namespace klee {
 
   struct KFunction {
     llvm::Function *function;
+    KModule *module;
 
     unsigned numArgs, numRegisters;
 

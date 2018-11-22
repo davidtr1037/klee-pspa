@@ -6,7 +6,7 @@ Pointer* SymbolicPTA::getPointer(const MemoryObject* mo, ref<Expr> offset) {
     Pointer *retPtr = nullptr;
     std::vector<Pointer*> &ptrs = allPointers[mo];
     for(auto p : ptrs) {
-        if(mayBeTrue(EqExpr::create(p->offset, offset))) {
+        if(mayBeTrue(EqExpr::create(ZExtExpr::create(p->offset, 64), ZExtExpr::create(offset,64)))) {
             if(retPtr == nullptr) {
                 retPtr = p;
             } else {
@@ -45,11 +45,14 @@ std::vector<Pointer*> SymbolicPTA::getColocatedPointers(Pointer &p) {
   llvm::PointerType *pty = dyn_cast<llvm::PointerType>(ty); 
   assert(pty != nullptr && "Memory object must point to something");
   ty = pty->getElementType();
-  //OffsetFinder of;
-  //std::vector<unsigned> offsets = of.visit(ty);
+  OffsetFinder of(layout);
+  std::vector<unsigned> offsets = of.visit(ty);
  
   //TODO: properly do colocated pointers    
-  std::vector<Pointer*> ret(1, &p); 
+  std::vector<Pointer*> ret; 
+  for(auto o : offsets) {
+      ret.push_back(getPointer(mo, ConstantExpr::create(o, Expr::Int32)));
+  }
   return ret;
 }
  
