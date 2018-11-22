@@ -160,9 +160,9 @@ public:
   std::vector<ref<MergeHandler> > openMergeStack;
 
 private:
-  ExecutionState() : ptreeNode(0) {}
 
 public:
+  ExecutionState() : ptreeNode(0) {}
   ExecutionState(KFunction *kf);
 
   // XXX total hack, just used to make a state so solver can
