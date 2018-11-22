@@ -21,6 +21,7 @@ private:
  Pointer (const MemoryObject* mo, ref<Expr> o): pointerContainer(mo), offset(o) {}
  const MemoryObject* pointerContainer; //chuck of memory where pointer can be read from
  ref<Expr> offset; //offset into the container where pointer is located
+ bool multiplePointers = false;
 
 };
 
