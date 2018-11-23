@@ -18,7 +18,7 @@ TEST(OffsetFinderTest, Struct) {
   llvm::Type* charTy = llvm::IntegerType::getInt8Ty(ctx)->getPointerTo();
   llvm::Type* primitiveType = llvm::IntegerType::getInt16Ty(ctx);
 
-  llvm::ArrayRef<llvm::Type*> types({shrtTy, intTy, primitiveType, charTy});
+  llvm::Type* types[4] = {shrtTy, intTy, primitiveType, charTy};
 
   llvm::Type* st = llvm::StructType::create(types);
   
@@ -33,7 +33,7 @@ TEST(OffsetFinderTest, Struct) {
   ASSERT_EQ(offsets[1], (uint64_t)8);
   ASSERT_EQ(offsets[2], (uint64_t)24);
 
-  llvm::ArrayRef<llvm::Type*> typesPacked({primitiveType, shrtTy, intTy, charTy});
+  llvm::Type* typesPacked[4] = {primitiveType, shrtTy, intTy, charTy};
   st = llvm::StructType::create(ctx, typesPacked, llvm::StringRef(), true);
   auto offsetsPacked = of.visit(st);
   ASSERT_EQ(offsetsPacked.size(), (uint64_t)3);
@@ -41,7 +41,7 @@ TEST(OffsetFinderTest, Struct) {
   ASSERT_EQ(offsetsPacked[1], (uint64_t)10);
   ASSERT_EQ(offsetsPacked[2], (uint64_t)18);
 
-  llvm::ArrayRef<llvm::Type*> typesNested({primitiveType, shrtTy, st, primitiveType, charTy});
+  llvm::Type* typesNested[5] = {primitiveType, shrtTy, st, primitiveType, charTy};
   st = llvm::StructType::create(typesNested);
   auto offsetsNested = of.visit(st);
   ASSERT_EQ(offsetsNested.size(), (uint64_t)5);
@@ -87,25 +87,20 @@ TEST(OffsetFinderTest, StructArray) {
   llvm::Type* primitiveType = llvm::IntegerType::getInt16Ty(ctx);
 
   auto shrtArray = llvm::ArrayType::get(shrtTy, 2);
-  llvm::ArrayRef<llvm::Type*> types({intTy, primitiveType, shrtArray, charTy});
+  llvm::Type* types[4] = {intTy, primitiveType, shrtArray, charTy};
   
   llvm::DataLayout dl("e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-a0:0:64-s0:64:64-f80:128:128-n8:16:32:64-S128");
 
-  //segfaults in LLVM
-    llvm::Type* st = llvm::StructType::create(ctx, types, llvm::StringRef(), false);
-//  OffsetFinder of(dl);
-//  llvm::errs() << "Test 2\n";
-//  std::vector<unsigned> offsets = of.visit(st);
-//  llvm::errs() << "Test 3\n";
-//  ASSERT_EQ(offsets.size(), (uint64_t)6);
-//  ASSERT_EQ(offsets[0], (uint64_t)0);
-//  ASSERT_EQ(offsets[1], (uint64_t)16);
-//  ASSERT_EQ(offsets[2], (uint64_t)24);
-//  ASSERT_EQ(offsets[3], (uint64_t)32);
-//  ASSERT_EQ(offsets[4], (uint64_t)40);
-//  ASSERT_EQ(offsets[5], (uint64_t)48);
+  llvm::Type* st = llvm::StructType::create(ctx, types, llvm::StringRef(), false);
+  OffsetFinder of(dl);
+  std::vector<unsigned> offsets = of.visit(st);
+  ASSERT_EQ(offsets.size(), (uint64_t)4);
+  ASSERT_EQ(offsets[0], (uint64_t)0);
+  ASSERT_EQ(offsets[1], (uint64_t)16);
+  ASSERT_EQ(offsets[2], (uint64_t)24);
+  ASSERT_EQ(offsets[3], (uint64_t)32);
 
-  llvm::ArrayRef<llvm::Type*> typesPacked({primitiveType, shrtTy, intTy, charTy});
+  llvm::Type* typesPacked[4] = {primitiveType, shrtTy, intTy, charTy};
   st = llvm::StructType::create(ctx, typesPacked, llvm::StringRef(), true);
   auto packedSturctsArray = llvm::ArrayType::get(st, 2);
   OffsetFinder ofPacked(dl);
