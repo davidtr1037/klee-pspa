@@ -55,8 +55,10 @@ private:
 
 template <class T>
 class TypeVisitor {
+  int visitCount = 0;
 public:
   T visit(llvm::Type* t);
+  virtual void reset() = 0;
 
 protected:
   T results;
@@ -77,6 +79,7 @@ class OffsetFinder : public TypeVisitor<std::vector<unsigned>> {
   llvm::DataLayout &layout;
 public:
   OffsetFinder(llvm::DataLayout &l): TypeVisitor<std::vector<unsigned>>(), layout(l) {}
+  virtual void reset();
 };
 
 

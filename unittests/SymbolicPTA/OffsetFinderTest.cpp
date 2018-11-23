@@ -34,18 +34,16 @@ TEST(OffsetFinderTest, Struct) {
   ASSERT_EQ(offsets[2], (uint64_t)24);
 
   llvm::ArrayRef<llvm::Type*> typesPacked({primitiveType, shrtTy, intTy, charTy});
-  OffsetFinder ofPacked(dl);
   st = llvm::StructType::create(ctx, typesPacked, llvm::StringRef(), true);
-  auto offsetsPacked = ofPacked.visit(st);
+  auto offsetsPacked = of.visit(st);
   ASSERT_EQ(offsetsPacked.size(), (uint64_t)3);
   ASSERT_EQ(offsetsPacked[0], (uint64_t)2);
   ASSERT_EQ(offsetsPacked[1], (uint64_t)10);
   ASSERT_EQ(offsetsPacked[2], (uint64_t)18);
 
   llvm::ArrayRef<llvm::Type*> typesNested({primitiveType, shrtTy, st, primitiveType, charTy});
-  OffsetFinder ofNested(dl);
   st = llvm::StructType::create(typesNested);
-  auto offsetsNested = ofNested.visit(st);
+  auto offsetsNested = of.visit(st);
   ASSERT_EQ(offsetsNested.size(), (uint64_t)5);
   ASSERT_EQ(offsetsNested[0], (uint64_t)8);
   ASSERT_EQ(offsetsNested[1], (uint64_t)18);
@@ -76,8 +74,7 @@ TEST(OffsetFinderTest, Array) {
   ASSERT_EQ(offsets[2], (uint64_t)16);
   ASSERT_EQ(offsets[3], (uint64_t)24);
 
-  OffsetFinder ofPacked(dl);
-  auto offsetsPacked = ofPacked.visit(primitiveArray);
+  auto offsetsPacked = of.visit(primitiveArray);
   ASSERT_EQ(offsetsPacked.size(), (uint64_t)0);
 
 }

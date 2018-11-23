@@ -107,6 +107,7 @@ bool SymbolicPTA::mayBeTrue(klee::ref<Expr> e) {
 
 template <class T>
 T TypeVisitor<T>::visit(llvm::Type* t) {
+    visitCount++;
     if(t->isStructTy()) 
         visitStruct(dyn_cast<llvm::StructType>(t));
     else if(t->isArrayTy())
@@ -121,7 +122,16 @@ T TypeVisitor<T>::visit(llvm::Type* t) {
         assert(0 && "Unhandled type");
     }
 
-    return results;
+    visitCount--;
+    T r =  results;
+    if(visitCount == 0)
+        reset();
+    return r;
+}
+
+void OffsetFinder::reset() {
+    results.clear();
+    globalOffset = 0;
 }
 
 void OffsetFinder::visitStruct(llvm::StructType* ST) {
