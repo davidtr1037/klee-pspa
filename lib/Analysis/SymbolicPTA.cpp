@@ -69,9 +69,7 @@ llvm::Type* SymbolicPTA::getMemoryObjectType(const MemoryObject* mo) {
     } else if(mo->allocSite->getNumUses() != 1) {
         llvm::errs() << mo->name << " has multiple uses\n";
         assert(0 && "Unhandled multiple uses");
-    }
-
-    if(const auto BI = dyn_cast<llvm::CastInst>(mo->allocSite->user_back())) {
+    } else if(const auto BI = dyn_cast<llvm::CastInst>(mo->allocSite->user_back())) {
         t = BI->getDestTy();
         assert(t->isPointerTy() && "BI has non pointer type");
     } else {
@@ -115,9 +113,11 @@ void SymbolicPTA::TransitiveTraverser::iterator::processNext(Pointer *p) {
     if(seenPointers.count(p) != 0) 
         return;
 
-    seenPointers.insert(p);
-    for(Pointer* t: symPTA.getPointerTarget(*p)) {
-        ptrsToReturn.emplace_back(p, t);
+    for(Pointer* s: symPTA.getColocatedPointers(*p)) {
+        seenPointers.insert(s);
+        for(Pointer* t: symPTA.getPointerTarget(*s)) {
+            ptrsToReturn.emplace_back(s, t);
+        }
     }
 }
 

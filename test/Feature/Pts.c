@@ -21,7 +21,7 @@ void useMatrix(short **matrix) {
 }
 
 void useMatrixViaStruct(struct mp* p) {
-    p->matrix[1][1] = 3;
+    p->matrix[0][1] = 3;
 }
 
 int main() {
