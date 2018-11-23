@@ -1,3 +1,5 @@
+#ifndef SYMBOLIC_PTA_H
+#define SYMBOLIC_PTA_H
 #include "../Core/Memory.h"
 #include "../Core/TimingSolver.h"
 #include "../Core/Context.h"
@@ -18,10 +20,12 @@
 namespace klee {
 
 class SymbolicPTA;
+class Executor;
 
 class Pointer {
 //No public members should go through SymbolicPTA
   friend SymbolicPTA;
+	friend Executor;
 public:
 private:
  Pointer (const MemoryObject* mo, ref<Expr> o): pointerContainer(mo), offset(o) {}
@@ -115,3 +119,4 @@ public:
 
 
 }
+#endif

@@ -25,6 +25,7 @@
 #include "AbstractMO.h"
 #include "AttachedInfo.h"
 #include "klee/Internal/Analysis/PTAStats.h"
+#include "../Analysis/SymbolicPTA.h"
 
 #include "llvm/ADT/Twine.h"
 
@@ -580,6 +581,7 @@ public:
                      ref<Expr> value);
 
   bool shouldUpdatePoinstTo(ExecutionState &state);
+  NodeID ptrToAbstract(ExecutionState &state, Pointer *p);
 
   void updatePointsToOnStore(ExecutionState &state,
                              KInstruction *ki,

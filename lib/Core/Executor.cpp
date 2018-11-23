@@ -4297,6 +4297,19 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
   }
 }
 
+
+NodeID Executor::ptrToAbstract(ExecutionState &state, Pointer *p) {
+	auto m = p->pointerContainer;
+	auto offset = dyn_cast<ConstantExpr>(p->offset);
+
+	if(offset) {
+		DynamicMemoryLocation dl(getAllocSite(state,m), false, offset->getZExtValue(), getTypeHint(m));
+		return computeAbstractMO(state.getPTA().get(), dl, false);
+	} else {
+		assert(0 && "TODO symbolic offset");
+	}
+}
+
 void Executor::updatePointsToOnCall(ExecutionState &state,
                                     Function *f,
                                     std::vector<ref<Expr>> &arguments) {
@@ -4315,6 +4328,27 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
       /* resolve only pointer values */
       continue;
     }
+    if(true) {
+
+    	 SymbolicPTA sPTA(*solver, state, *kmodule->targetData);
+       ExactResolutionList rl1;
+       resolveExact(state, e, rl1, "pts OnCall");
+       NodeID formalParamId = state.getPTA()->getPAG()->getValueNode(&arg);
+       for (auto &op1 : rl1) {
+					const MemoryObject* mo = op1.first.first;
+					auto ptr = sPTA.getPointer(mo, mo->getOffsetExpr(e));
+          for(auto parentChild : sPTA.traverse(ptr)) {
+              auto from = ptrToAbstract(state, parentChild.first);
+              auto to = ptrToAbstract(state, parentChild.second);
+              errs() << "Update " << from << " to: " << to << "\n";
+              state.getPTA()->strongUpdate(from, to);
+          }
+          auto dst = ptrToAbstract(state,ptr);
+          errs() << "Update " << formalParamId << " to " << dst << " mo: " << mo->name << "\n";
+          state.getPTA()->strongUpdate(formalParamId, dst);
+  		 }
+
+    } else {
 
     /* TODO: check return value */
     std::vector<DynamicMemoryLocation> locations;
@@ -4335,6 +4369,7 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
       } else {
         state.getPTA()->weakUpdate(formalParamId, dst);
       }
+    }
     }
   }
 }
