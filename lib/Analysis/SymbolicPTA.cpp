@@ -104,7 +104,52 @@ bool SymbolicPTA::mayBeTrue(klee::ref<Expr> e) {
         assert(0 && "Solver failure not handled in SymbolicPTA");
     }
 }
+/* =====================================Iterator ================================= 
+   =================================================================================== */
+SymbolicPTA::TransitiveTraverser::iterator::iterator(SymbolicPTA &s, Pointer *p): symPTA(s) {
+    processNext(p);
+}
 
+void SymbolicPTA::TransitiveTraverser::iterator::processNext(Pointer *p) {
+    //avoid loops
+    if(seenPointers.count(p) != 0) 
+        return;
+
+    seenPointers.insert(p);
+    for(Pointer* t: symPTA.getPointerTarget(*p)) {
+        ptrsToReturn.emplace_back(p, t);
+    }
+}
+
+SymbolicPTA::TransitiveTraverser::iterator::iterator(SymbolicPTA &s):symPTA(s){}
+
+bool SymbolicPTA::TransitiveTraverser::iterator::operator!=(const iterator& other) {
+//    return (seenPointers != other.seenPointers) || (ptrsToReturn != other.ptrsToReturn);
+    return (ptrsToReturn != other.ptrsToReturn);
+}
+bool SymbolicPTA::TransitiveTraverser::iterator::operator==(const iterator& other) {
+    if(this == &other) return true;
+//    return (seenPointers == other.seenPointers) && (ptrsToReturn == other.ptrsToReturn);
+    return (ptrsToReturn == other.ptrsToReturn);
+}
+void SymbolicPTA::TransitiveTraverser::iterator::operator++() {
+    processNext(ptrsToReturn[0].second);
+    ptrsToReturn.pop_front();
+}
+
+std::pair<Pointer*, Pointer*>& SymbolicPTA::TransitiveTraverser::iterator::operator*() {
+    return ptrsToReturn[0];
+}
+std::pair<Pointer*, Pointer*>* SymbolicPTA::TransitiveTraverser::iterator::operator->() {
+    return &ptrsToReturn[0];
+}
+
+
+
+
+
+/* =====================================Type Visitor ================================= 
+   =================================================================================== */
 template <class T>
 T TypeVisitor<T>::visit(llvm::Type* t) {
     visitCount++;

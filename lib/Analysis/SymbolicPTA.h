@@ -10,7 +10,9 @@
 #include "llvm/IR/DataLayout.h"
 
 #include <vector>
+#include <deque>
 #include <unordered_map>
+#include <unordered_set>
 
 
 namespace klee {
@@ -30,6 +32,34 @@ private:
 };
 
 class SymbolicPTA {
+
+  class TransitiveTraverser {
+      SymbolicPTA &s;
+      Pointer *p;
+  public:
+    class iterator {
+      friend SymbolicPTA;
+      std::deque<std::pair<Pointer*, Pointer*>> ptrsToReturn;
+      std::unordered_set<Pointer*> seenPointers;
+      SymbolicPTA& symPTA;
+
+      void processNext(Pointer* p);
+      iterator(SymbolicPTA &s, Pointer *p); 
+      //Has empty ptrsToReturn;
+      iterator(SymbolicPTA &s);
+    public:
+      bool operator!=(const iterator& other);
+      bool operator==(const iterator& other);
+      void operator++();
+      std::pair<Pointer*, Pointer*>& operator*();
+      std::pair<Pointer*, Pointer*>* operator->();
+    };
+    TransitiveTraverser(SymbolicPTA &_s, Pointer *_p): s(_s), p(_p) {}
+    iterator begin() const { return iterator(s,p); }
+    iterator end() const { return iterator(s); }
+
+  };
+
 public:
   SymbolicPTA(TimingSolver &solver, 
               ExecutionState &state, 
@@ -40,6 +70,7 @@ public:
   std::vector<Pointer*> getPointerTarget(Pointer &p);
   std::vector<Pointer*> getColocatedPointers(Pointer &p);
   void giveMemoryObjectType(const MemoryObject* mo, llvm::Type*);
+  TransitiveTraverser traverse(Pointer *p) { return TransitiveTraverser(*this,p); }
 
 private:
   TimingSolver &solver;

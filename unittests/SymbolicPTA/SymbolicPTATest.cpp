@@ -70,6 +70,16 @@ TEST(SymbolicPTATest, BasicTarget) {
     ASSERT_EQ(ptrss.size(), (uint64_t)2);
     ASSERT_TRUE(IN_CONTAINER(ptrss, pointeePtr));
     ASSERT_TRUE(IN_CONTAINER(ptrss, ptr));
+
+    //test iteration
+    std::vector<std::pair<Pointer*, Pointer*>> returnedPointers;
+    for(auto e : sPTA.traverse(ptr)) { 
+        returnedPointers.push_back(e);
+    }
+    ASSERT_EQ(returnedPointers.size(), (uint64_t)3);
+    ASSERT_TRUE(IN_CONTAINER(returnedPointers, std::make_pair(ptr,pointeePtr)));
+    ASSERT_TRUE(IN_CONTAINER(returnedPointers, std::make_pair(pointeePtr,pointeePtr)));
+    ASSERT_TRUE(IN_CONTAINER(returnedPointers, std::make_pair(pointeePtr,ptr)));
 }
 
 TEST(SymbolicPTATest, BasicColocated) {
