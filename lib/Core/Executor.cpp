@@ -23,6 +23,7 @@
 #include "UserSearcher.h"
 #include "ExecutorTimerInfo.h"
 #include "AbstractMO.h"
+#include "../Analysis/SymbolicPTA.h"
 
 
 #include "klee/ExecutionState.h"

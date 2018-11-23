@@ -1,6 +1,6 @@
 // RUN: %llvmgcc -I../../../include -emit-llvm -g -c %s -o %t.bc
 // RUN: rm -rf %t.klee-out
-// RUN: %klee  -collect-modref  -pta-target=useMatrix --output-dir=%t.klee-out --write-kqueries %t.bc > %t.log ; false
+// RUN: %klee -collect-pta-results -collect-modref  -pta-target=useMatrixViaStruct --output-dir=%t.klee-out --write-kqueries %t.bc > %t.log ; false
 
 #include <stdio.h>
 
@@ -17,7 +17,11 @@ struct mp {
 
 
 void useMatrix(short **matrix) {
-    matrix[1][2] = 2;
+    matrix[0][2] = 2;
+}
+
+void useMatrixViaStruct(struct mp* p) {
+    p->matrix[1][1] = 3;
 }
 
 int main() {
@@ -26,16 +30,30 @@ int main() {
   mainObj->values = malloc(10, "mainObj.values");
   mainObj->values_size = 10;
 
-  mainObj->matrix[0] = malloc(5, "mainObj.matrix[0]");
-  mainObj->matrix[1] = malloc(5, "mainObj.matrix[1]");
-  mainObj->matrix[2] = malloc(5, "mainObj.matrix[2]");
+  mainObj->matrix[0] = malloc(6, "mainObj.matrix[0]");
+  mainObj->matrix[1] = malloc(7, "mainObj.matrix[1]");
+  mainObj->matrix[2] = malloc(8, "mainObj.matrix[2]");
+  mainObj->matrix[2] = malloc(9, "mainObj.matrix[2.1]");
 
   
+  useMatrixViaStruct(mainObj);
+  return 0;
+  klee_print_pts(mainObj);
+ // klee_print_pts(mainObj->matrix[0]);
+//  klee_print_pts(matrix);
+//  useMatrix(mainObj->matrix);
+  useMatrixViaStruct(mainObj);
   int **matrix = malloc(sizeof(int*)*5, "matrix");
-  useMatrix(mainObj->matrix);
+  matrix[0] = malloc(sizeof(int)*5, "matrix[0]");
+  matrix[1] = malloc(sizeof(int)*5, "matrix[1]");
+  matrix[2] = malloc(sizeof(int)*5, "matrix[2]");
+  matrix[3] = malloc(sizeof(int)*5, "matrix[3]");
+  matrix[4] = malloc(sizeof(int)*5, "matrix[4]");
+  klee_print_pts(matrix);
 
 //  klee_print_pts(mainObj);
 //  klee_print_pts(matrix);
+
 
 
   return 0;
