@@ -58,10 +58,29 @@ std::vector<Pointer*> SymbolicPTA::getColocatedPointers(Pointer &p) {
  
 llvm::Type* SymbolicPTA::getMemoryObjectType(const MemoryObject* mo) {
     llvm::Type* t = moTypes[mo];
-    if(t == nullptr) {
-        assert(0 && "TODO: type memory objects (with alloc uses or something)");
-        giveMemoryObjectType(mo, t);
+    if(t != nullptr) 
+        return t;
+    if(mo->allocSite == nullptr) 
+       assert(0 && "Can't type memory object without allocSite, caller needs to giveMOType");
+    
+    if(auto GV = dyn_cast<llvm::GlobalVariable>(mo->allocSite)) {
+        assert(GV->getType()->isPointerTy() && "GV has non pointer type");
+        t = GV->getType();
+    } else if(mo->allocSite->getNumUses() != 1) {
+        llvm::errs() << mo->name << " has multiple uses\n";
+        assert(0 && "Unhandled multiple uses");
     }
+
+    if(const auto BI = dyn_cast<llvm::CastInst>(mo->allocSite->user_back())) {
+        t = BI->getDestTy();
+        assert(t->isPointerTy() && "BI has non pointer type");
+    } else {
+        llvm::errs() << mo->name << " has non bitcast 1 use\n";
+        mo->allocSite->dump();
+        assert(0 && "Unhandled BI type");
+    }
+
+    giveMemoryObjectType(mo, t);
     return t;
 }
 void SymbolicPTA::giveMemoryObjectType(const MemoryObject* mo, llvm::Type* type) {
@@ -117,8 +136,15 @@ void OffsetFinder::visitStruct(llvm::StructType* ST) {
   }
 }
 
-void OffsetFinder::visitArray(llvm::ArrayType* at) {
-    assert(0 && "TODO arrays not supported");
+void OffsetFinder::visitArray(llvm::ArrayType* AT) {
+    auto numElements = AT->getNumElements();
+    auto len = layout.getTypeAllocSize(AT->getElementType()); 
+    for(int i = 0; i < numElements; i++) {
+      globalOffset += i*len;
+      visit(AT->getElementType());
+      globalOffset -= i*len;
+    }
+
 }
 void OffsetFinder::visitPointer(llvm::PointerType* st) {
     results.emplace_back(globalOffset);
