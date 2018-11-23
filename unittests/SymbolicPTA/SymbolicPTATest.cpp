@@ -33,6 +33,7 @@ ObjectState* initializeObject(MemoryObject &mo, ExecutionState &state, int size 
 TEST(SymbolicPTATest, BasicTarget) {
     if(!Context::isInit())
       Context::initialize(true, 64);
+    llvm::LLVMContext ctx;
     ExecutionState state;
     klee::ref<Expr> zero = ConstantExpr::create(0, 64);
     const Array *array = ac.CreateArray("arrSym", 1);
@@ -55,6 +56,9 @@ TEST(SymbolicPTATest, BasicTarget) {
             ));
               
     SymbolicPTA sPTA(*solver, state, dl);
+    llvm::Type* shrtTy = llvm::IntegerType::getInt16Ty(ctx)->getPointerTo();
+    sPTA.giveMemoryObjectType(&pointerMo, shrtTy->getPointerTo());
+    sPTA.giveMemoryObjectType(&pointeeMo, shrtTy->getPointerTo());
 
     Pointer* ptr = sPTA.getPointer(&pointerMo, zero);
     Pointer* ptr1 = sPTA.getPointer(&pointerMo, zero);
