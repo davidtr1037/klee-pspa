@@ -3943,7 +3943,9 @@ size_t Executor::getAllocationAlignment(const llvm::Value *allocSite) const {
 
 bool Executor::isTargetFunction(ExecutionState &state, Function *f) {
   for (const TargetFunctionOption &option :  interpreterOpts.targetFunctions) {
-    if (f->getName() == option.name) {
+
+    auto n = f->getName();
+    if (n == option.name) {
       const std::vector<unsigned int> &lines = option.lines;
 
       /* skip any call site */
@@ -4331,6 +4333,7 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
       continue;
     }
     if(true) {
+        errs() << "HERE!!!\n";
 
     	 SymbolicPTA sPTA(*solver, state, *kmodule->targetData);
        ExactResolutionList rl1;
@@ -4343,7 +4346,7 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
               auto from = ptrToAbstract(state, parentChild.first);
               auto to = ptrToAbstract(state, parentChild.second);
               errs() << "Update " << from << " to: " << to << " isWeak " << parentChild.first->isWeak() << " " + parentChild.second->print() << "\n";
-              state.updatePTS(from, to, !parentChild.first->isWeak());
+              state.updatePTS(from, to, !parentChild.first->isWeak() && !parentChild.second->isWeak());
           }
           auto dst = ptrToAbstract(state,ptr);
           errs() << "Update " << formalParamId << " to " << dst << " mo: " << mo->name << " isWeak " << " " + ptr->isWeak() << "\n";

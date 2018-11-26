@@ -26,15 +26,18 @@ Pointer* SymbolicPTA::getPointer(const MemoryObject* mo, ref<Expr> offset) {
 std::vector<Pointer*> SymbolicPTA::getPointerTarget(Pointer &p) {
     assert(p.multiplePointers == false && "handling not implemented yet");
     const ObjectState* os = state.addressSpace.findObject(p.pointerContainer);
-    ref<Expr> ptr = os->read(p.offset, Context::get().getPointerWidth());
-
     std::vector<Pointer*> ret;
-
-    ResolutionList rl;
-    state.addressSpace.resolve(state, &solver, ptr, rl);
-    for(auto &op : rl) {
-        const MemoryObject* mo = op.first;
-        ret.push_back(getPointer(mo, mo->getOffsetExpr(ptr)));
+    auto ptrWidth = Context::get().getPointerWidth();
+    for(int elemOffset = 0; elemOffset < os->size; elemOffset += (ptrWidth / 8)) {
+      ref<Expr> ptr = os->read(AddExpr::create(ZExtExpr::create(p.offset, 64), ConstantExpr::create(elemOffset,64)), ptrWidth);
+      ResolutionList rl;
+      state.addressSpace.resolve(state, &solver, ptr, rl);
+      for(auto &op : rl) {
+          const MemoryObject* mo = op.first;
+          Pointer *p = getPointer(mo, mo->getOffsetExpr(ptr));
+          p->weakUpdate = elemOffset != 0;
+          ret.push_back(p);
+      }
     }
     return ret;
 }
@@ -48,7 +51,6 @@ std::vector<Pointer*> SymbolicPTA::getColocatedPointers(Pointer &p) {
   OffsetFinder of(layout);
   std::vector<std::pair<unsigned, bool>> offsets = of.visit(ty);
  
-  //TODO: properly do colocated pointers    
   std::vector<Pointer*> ret; 
   for(auto o : offsets) {
       Pointer *p = getPointer(mo, ConstantExpr::create(o.first, Expr::Int32));
