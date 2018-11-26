@@ -54,15 +54,23 @@ std::vector<Pointer*> SymbolicPTA::getColocatedPointers(Pointer &p) {
   llvm::PointerType *pty = dyn_cast<llvm::PointerType>(ty); 
   assert(pty != nullptr && "Memory object must point to something");
   ty = pty->getElementType();
+  auto stride = layout.getTypeAllocSize(ty);
+
+  //If it's a pointer type it can be an array
+  std::vector<Pointer*> ret; 
+
   OffsetFinder of(layout);
   std::vector<std::pair<unsigned, bool>> offsets = of.visit(ty);
- 
-  std::vector<Pointer*> ret; 
+  
   for(auto o : offsets) {
-      Pointer *p = getPointer(mo, ConstantExpr::create(o.first, Expr::Int32));
-      p->weakUpdate = o.second;
-      ret.push_back(p);
+      for(auto off = o.first; off < mo->size; off += stride) {
+          Pointer *p = getPointer(mo, ConstantExpr::create(off, Expr::Int32));
+          p->weakUpdate = o.second || off != o.first;
+          ret.push_back(p);
+      }
   }
+
+  
   return ret;
 }
  
