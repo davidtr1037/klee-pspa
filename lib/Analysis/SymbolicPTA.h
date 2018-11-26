@@ -30,9 +30,9 @@ public:
  bool isWeak() {return weakUpdate;}
  std::string print() { return "mo: " + pointerContainer->name ; }
 private:
- Pointer (const MemoryObject* mo, ref<Expr> o): pointerContainer(mo), offset(o) {}
+ Pointer (const MemoryObject* mo, ref<ConstantExpr> o): pointerContainer(mo), offset(o) {}
  const MemoryObject* pointerContainer; //chuck of memory where pointer can be read from
- ref<Expr> offset; //offset into the container where pointer is located
+ ref<ConstantExpr> offset; //offset into the container where pointer is located
  bool multiplePointers = false;
  bool weakUpdate = false;
 

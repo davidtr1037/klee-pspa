@@ -6,7 +6,7 @@ Pointer* SymbolicPTA::getPointer(const MemoryObject* mo, ref<Expr> offset) {
     Pointer *retPtr = nullptr;
     std::vector<Pointer*> &ptrs = allPointers[mo];
     for(auto p : ptrs) {
-        if(mayBeTrue(EqExpr::create(ZExtExpr::create(p->offset, 64), ZExtExpr::create(offset,64)))) {
+        if(mayBeTrue(EqExpr::create(p->offset->ZExt(offset->getWidth()), offset))) {
             if(retPtr == nullptr) {
                 retPtr = p;
             } else {
@@ -15,10 +15,19 @@ Pointer* SymbolicPTA::getPointer(const MemoryObject* mo, ref<Expr> offset) {
             }
         }
     }
+
     if(retPtr != nullptr) 
        return retPtr;
 
-    retPtr = new Pointer(mo, offset);
+    if(auto co = dyn_cast<ConstantExpr>(offset))
+      retPtr = new Pointer(mo, co);
+    else {
+      ref<ConstantExpr> constant_offset;
+      solver.getValue(state, offset, constant_offset);
+      retPtr = new Pointer(mo, constant_offset);
+      if(mayBeTrue(NeExpr::create(offset, constant_offset)))
+        retPtr->multiplePointers = true;
+    }
     ptrs.push_back(retPtr);
     return retPtr;
 }
@@ -28,17 +37,14 @@ std::vector<Pointer*> SymbolicPTA::getPointerTarget(Pointer &p) {
     const ObjectState* os = state.addressSpace.findObject(p.pointerContainer);
     std::vector<Pointer*> ret;
     auto ptrWidth = Context::get().getPointerWidth();
-    for(int elemOffset = 0; elemOffset < os->size; elemOffset += (ptrWidth / 8)) {
-      ref<Expr> ptr = os->read(AddExpr::create(ZExtExpr::create(p.offset, 64), ConstantExpr::create(elemOffset,64)), ptrWidth);
+    ref<Expr> ptr = os->read(p.offset, ptrWidth);
       ResolutionList rl;
       state.addressSpace.resolve(state, &solver, ptr, rl);
       for(auto &op : rl) {
           const MemoryObject* mo = op.first;
           Pointer *p = getPointer(mo, mo->getOffsetExpr(ptr));
-          p->weakUpdate = elemOffset != 0;
           ret.push_back(p);
       }
-    }
     return ret;
 }
 
