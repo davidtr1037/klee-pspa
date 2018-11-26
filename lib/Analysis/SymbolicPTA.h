@@ -78,6 +78,7 @@ public:
   std::vector<Pointer*> getColocatedPointers(Pointer &p);
   void giveMemoryObjectType(const MemoryObject* mo, llvm::Type*);
   TransitiveTraverser traverse(Pointer *p) { return TransitiveTraverser(*this,p); }
+  //TODO: dtor
 
 private:
   TimingSolver &solver;

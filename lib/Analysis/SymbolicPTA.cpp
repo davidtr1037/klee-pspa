@@ -33,18 +33,30 @@ Pointer* SymbolicPTA::getPointer(const MemoryObject* mo, ref<Expr> offset) {
 }
 
 std::vector<Pointer*> SymbolicPTA::getPointerTarget(Pointer &p) {
-    assert(p.multiplePointers == false && "handling not implemented yet");
     const ObjectState* os = state.addressSpace.findObject(p.pointerContainer);
     std::vector<Pointer*> ret;
     auto ptrWidth = Context::get().getPointerWidth();
-    ref<Expr> ptr = os->read(p.offset, ptrWidth);
+    //holds pointers that need to be considered
+    std::vector<Pointer*> ps;
+    if(p.multiplePointers) {
+        ps = getColocatedPointers(p);
+    } else
+      ps.push_back(&p);
+
+
+    int cnt = 0;
+    for(auto cp : ps) {
+      ref<Expr> ptr = os->read(cp->offset, ptrWidth);
       ResolutionList rl;
       state.addressSpace.resolve(state, &solver, ptr, rl);
       for(auto &op : rl) {
           const MemoryObject* mo = op.first;
           Pointer *p = getPointer(mo, mo->getOffsetExpr(ptr));
+          p->weakUpdate = cnt != 0;
           ret.push_back(p);
+          cnt++;
       }
+    }
     return ret;
 }
 
@@ -93,7 +105,9 @@ llvm::Type* SymbolicPTA::getMemoryObjectType(const MemoryObject* mo) {
     } else {
         llvm::errs() << mo->name << " has non bitcast 1 use\n";
         mo->allocSite->dump();
-        assert(0 && "Unhandled BI type");
+        mo->allocSite->user_back()->dump();
+        //assert(0 && "Unhandled BI type");
+        t = mo->allocSite->getType();
     }
 
     giveMemoryObjectType(mo, t);
@@ -210,7 +224,7 @@ void OffsetFinder::visitStruct(llvm::StructType* ST) {
 }
 
 void OffsetFinder::visitArray(llvm::ArrayType* AT) {
-    auto numElements = AT->getNumElements();
+    int numElements = AT->getNumElements();
     auto len = layout.getTypeAllocSize(AT->getElementType()); 
     for(int i = 0; i < numElements; i++) {
       if(!weakUpdate)
