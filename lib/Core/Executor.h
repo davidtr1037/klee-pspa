@@ -312,7 +312,8 @@ private:
                     bool isLocal,
                     KInstruction *target,
                     bool zeroMemory=false,
-                    const ObjectState *reallocFrom=0);
+                    const ObjectState *reallocFrom=0,
+                    std::string name = "unnamed");
 
   /// Free the given address with checking for errors. If target is
   /// given it will be bound to 0 in the resulting states (this is a

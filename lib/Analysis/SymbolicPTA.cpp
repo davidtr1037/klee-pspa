@@ -46,12 +46,14 @@ std::vector<Pointer*> SymbolicPTA::getColocatedPointers(Pointer &p) {
   assert(pty != nullptr && "Memory object must point to something");
   ty = pty->getElementType();
   OffsetFinder of(layout);
-  std::vector<unsigned> offsets = of.visit(ty);
+  std::vector<std::pair<unsigned, bool>> offsets = of.visit(ty);
  
   //TODO: properly do colocated pointers    
   std::vector<Pointer*> ret; 
   for(auto o : offsets) {
-      ret.push_back(getPointer(mo, ConstantExpr::create(o, Expr::Int32)));
+      Pointer *p = getPointer(mo, ConstantExpr::create(o.first, Expr::Int32));
+      p->weakUpdate = o.second;
+      ret.push_back(p);
   }
   return ret;
 }
@@ -195,17 +197,19 @@ void OffsetFinder::visitArray(llvm::ArrayType* AT) {
     auto numElements = AT->getNumElements();
     auto len = layout.getTypeAllocSize(AT->getElementType()); 
     for(int i = 0; i < numElements; i++) {
-      globalOffset += i*len;
+      if(!weakUpdate)
+        weakUpdate = i != 0;
+      globalOffset += i*len; 
       visit(AT->getElementType());
       globalOffset -= i*len;
     }
 
 }
 void OffsetFinder::visitPointer(llvm::PointerType* st) {
-    results.emplace_back(globalOffset);
+    results.emplace_back(globalOffset, weakUpdate);
 }
 void OffsetFinder::visitInteger(llvm::IntegerType* st) {
     //Do nothing
 }
 
-template class TypeVisitor<std::vector<unsigned int>>;
+template class TypeVisitor<std::vector<std::pair<unsigned, bool>>>;

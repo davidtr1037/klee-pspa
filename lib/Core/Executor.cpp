@@ -3238,7 +3238,8 @@ void Executor::executeAlloc(ExecutionState &state,
                             bool isLocal,
                             KInstruction *target,
                             bool zeroMemory,
-                            const ObjectState *reallocFrom) {
+                            const ObjectState *reallocFrom,
+                            std::string name) {
   size = toUnique(state, size);
   if (ConstantExpr *CE = dyn_cast<ConstantExpr>(size)) {
     const llvm::Value *allocSite = state.prevPC->inst;
@@ -3246,6 +3247,7 @@ void Executor::executeAlloc(ExecutionState &state,
     MemoryObject *mo =
         memory->allocate(CE->getZExtValue(), isLocal, /*isGlobal=*/false,
                          allocSite, allocationAlignment);
+        mo->name = name;
     if (!mo) {
       bindLocal(target, state, 
                 ConstantExpr::alloc(0, Context::get().getPointerWidth()));
@@ -4340,12 +4342,12 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
           for(auto parentChild : sPTA.traverse(ptr)) {
               auto from = ptrToAbstract(state, parentChild.first);
               auto to = ptrToAbstract(state, parentChild.second);
-              errs() << "Update " << from << " to: " << to << "\n";
-              state.getPTA()->strongUpdate(from, to);
+              errs() << "Update " << from << " to: " << to << " isWeak " << parentChild.first->isWeak() << " " + parentChild.second->print() << "\n";
+              state.updatePTS(from, to, !parentChild.first->isWeak());
           }
           auto dst = ptrToAbstract(state,ptr);
-          errs() << "Update " << formalParamId << " to " << dst << " mo: " << mo->name << "\n";
-          state.getPTA()->strongUpdate(formalParamId, dst);
+          errs() << "Update " << formalParamId << " to " << dst << " mo: " << mo->name << " isWeak " << " " + ptr->isWeak() << "\n";
+          state.updatePTS(formalParamId, dst, !ptr->isWeak());
   		 }
 
     } else {

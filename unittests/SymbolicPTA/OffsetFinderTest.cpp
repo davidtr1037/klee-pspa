@@ -27,29 +27,29 @@ TEST(OffsetFinderTest, Struct) {
 
 
   OffsetFinder of(dl);
-  std::vector<unsigned> offsets = of.visit(st);
+  auto offsets = of.visit(st);
   ASSERT_EQ(offsets.size(), (uint64_t)3);
-  ASSERT_EQ(offsets[0], (uint64_t)0);
-  ASSERT_EQ(offsets[1], (uint64_t)8);
-  ASSERT_EQ(offsets[2], (uint64_t)24);
+  ASSERT_EQ(offsets[0].first, (uint64_t)0);
+  ASSERT_EQ(offsets[1].first, (uint64_t)8);
+  ASSERT_EQ(offsets[2].first, (uint64_t)24);
 
   llvm::Type* typesPacked[4] = {primitiveType, shrtTy, intTy, charTy};
   st = llvm::StructType::create(ctx, typesPacked, llvm::StringRef(), true);
   auto offsetsPacked = of.visit(st);
   ASSERT_EQ(offsetsPacked.size(), (uint64_t)3);
-  ASSERT_EQ(offsetsPacked[0], (uint64_t)2);
-  ASSERT_EQ(offsetsPacked[1], (uint64_t)10);
-  ASSERT_EQ(offsetsPacked[2], (uint64_t)18);
+  ASSERT_EQ(offsetsPacked[0].first, (uint64_t)2);
+  ASSERT_EQ(offsetsPacked[1].first, (uint64_t)10);
+  ASSERT_EQ(offsetsPacked[2].first, (uint64_t)18);
 
   llvm::Type* typesNested[5] = {primitiveType, shrtTy, st, primitiveType, charTy};
   st = llvm::StructType::create(typesNested);
   auto offsetsNested = of.visit(st);
   ASSERT_EQ(offsetsNested.size(), (uint64_t)5);
-  ASSERT_EQ(offsetsNested[0], (uint64_t)8);
-  ASSERT_EQ(offsetsNested[1], (uint64_t)18);
-  ASSERT_EQ(offsetsNested[2], (uint64_t)26);
-  ASSERT_EQ(offsetsNested[3], (uint64_t)34);
-  ASSERT_EQ(offsetsNested[4], (uint64_t)48);
+  ASSERT_EQ(offsetsNested[0].first, (uint64_t)8);
+  ASSERT_EQ(offsetsNested[1].first, (uint64_t)18);
+  ASSERT_EQ(offsetsNested[2].first, (uint64_t)26);
+  ASSERT_EQ(offsetsNested[3].first, (uint64_t)34);
+  ASSERT_EQ(offsetsNested[4].first, (uint64_t)48);
 
 
 }
@@ -67,12 +67,16 @@ TEST(OffsetFinderTest, Array) {
 
 
   OffsetFinder of(dl);
-  std::vector<unsigned> offsets = of.visit(shrtArray);
+  auto offsets = of.visit(shrtArray);
   ASSERT_EQ(offsets.size(), (uint64_t)4);
-  ASSERT_EQ(offsets[0], (uint64_t)0);
-  ASSERT_EQ(offsets[1], (uint64_t)8);
-  ASSERT_EQ(offsets[2], (uint64_t)16);
-  ASSERT_EQ(offsets[3], (uint64_t)24);
+  ASSERT_EQ(offsets[0].first, (uint64_t)0);
+  ASSERT_EQ(offsets[0].second, false);
+  ASSERT_EQ(offsets[1].first, (uint64_t)8);
+  ASSERT_EQ(offsets[1].second, true);
+  ASSERT_EQ(offsets[2].first, (uint64_t)16);
+  ASSERT_EQ(offsets[2].second, true);
+  ASSERT_EQ(offsets[3].first, (uint64_t)24);
+  ASSERT_EQ(offsets[3].second, true);
 
   auto offsetsPacked = of.visit(primitiveArray);
   ASSERT_EQ(offsetsPacked.size(), (uint64_t)0);
@@ -93,12 +97,14 @@ TEST(OffsetFinderTest, StructArray) {
 
   llvm::Type* st = llvm::StructType::create(ctx, types, llvm::StringRef(), false);
   OffsetFinder of(dl);
-  std::vector<unsigned> offsets = of.visit(st);
+  auto offsets = of.visit(st);
   ASSERT_EQ(offsets.size(), (uint64_t)4);
-  ASSERT_EQ(offsets[0], (uint64_t)0);
-  ASSERT_EQ(offsets[1], (uint64_t)16);
-  ASSERT_EQ(offsets[2], (uint64_t)24);
-  ASSERT_EQ(offsets[3], (uint64_t)32);
+  ASSERT_EQ(offsets[0].first, (uint64_t)0);
+  ASSERT_EQ(offsets[1].first, (uint64_t)16);
+  ASSERT_EQ(offsets[1].second, false);
+  ASSERT_EQ(offsets[2].first, (uint64_t)24);
+  ASSERT_EQ(offsets[2].second, true);
+  ASSERT_EQ(offsets[3].first, (uint64_t)32);
 
   llvm::Type* typesPacked[4] = {primitiveType, shrtTy, intTy, charTy};
   st = llvm::StructType::create(ctx, typesPacked, llvm::StringRef(), true);
@@ -106,10 +112,10 @@ TEST(OffsetFinderTest, StructArray) {
   OffsetFinder ofPacked(dl);
   auto offsetsPacked = ofPacked.visit(packedSturctsArray);
   ASSERT_EQ(offsetsPacked.size(), (uint64_t)6);
-  ASSERT_EQ(offsetsPacked[0], (uint64_t)2);
-  ASSERT_EQ(offsetsPacked[1], (uint64_t)10);
-  ASSERT_EQ(offsetsPacked[2], (uint64_t)18);
-  ASSERT_EQ(offsetsPacked[3], (uint64_t)28);
-  ASSERT_EQ(offsetsPacked[4], (uint64_t)36);
-  ASSERT_EQ(offsetsPacked[5], (uint64_t)44);
+  ASSERT_EQ(offsetsPacked[0].first, (uint64_t)2);
+  ASSERT_EQ(offsetsPacked[1].first, (uint64_t)10);
+  ASSERT_EQ(offsetsPacked[2].first, (uint64_t)18);
+  ASSERT_EQ(offsetsPacked[3].first, (uint64_t)28);
+  ASSERT_EQ(offsetsPacked[4].first, (uint64_t)36);
+  ASSERT_EQ(offsetsPacked[5].first, (uint64_t)44);
 }
