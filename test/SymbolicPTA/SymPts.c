@@ -1,6 +1,8 @@
 // RUN: %llvmgcc -I../../../include -emit-llvm -g -c %s -o %t.bc
 // RUN: rm -rf %t.klee-out
-// RUN: %klee -collect-pta-results -collect-modref  -pta-target=useStruct --output-dir=%t.klee-out --write-kqueries %t.bc > %t.log ; false
+// RUN: %klee -collect-pta-results -collect-modref  -pta-target=useStruct --output-dir=%t.klee-out %t.bc &> %t.log 
+// RUN: grep '<badref> = call' %t.log | wc -l | grep 5
+// RUN: grep '<badref> = call' %t.log | sed -n 's/.*i64 \([0-9]\+\).*/\1/p' | tr '\n' '-' | grep 7-10-11-12-13
 
 #include <stdio.h>
 
@@ -14,7 +16,7 @@ struct mp {
 
 void useStruct(struct mp* obj) {
     obj->values[0] = 2;
-//    obj->str[1] = 'a';
+    obj->str[1] = 'a';
 }
 
 
@@ -26,9 +28,11 @@ int main() {
 
 
   int **ptrs[4];
-  ptrs[0] = malloc(10, "ptr0");
+  ptrs[0] = malloc(19, "ptr0");
+  ptrs[0] = malloc(10, "ptr0.1");
   ptrs[1] = malloc(11, "ptr1");
-  ptrs[2] = malloc(12, "ptr2");
+  ptrs[2] = malloc(18, "ptr2");
+  ptrs[2] = malloc(12, "ptr2.1");
   ptrs[3] = malloc(13, "ptr3");
 
   unsigned i;
