@@ -66,6 +66,7 @@ std::vector<Pointer*> SymbolicPTA::getColocatedPointers(Pointer &p) {
   llvm::PointerType *pty = dyn_cast<llvm::PointerType>(ty); 
   assert(pty != nullptr && "Memory object must point to something");
   ty = pty->getElementType();
+  //stride is in bytes
   auto stride = layout.getTypeAllocSize(ty);
 
   //If it's a pointer type it can be an array

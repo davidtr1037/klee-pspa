@@ -86,7 +86,7 @@ TEST(SymbolicPTATest, BasicTarget) {
     ASSERT_TRUE(IN_CONTAINER(returnedPointers, std::make_pair(pointeePtr,ptr)));
 }
 
-TEST(SymbolicPTATest, BasicColocated) {
+TEST(SymbolicPTATest, ColocatedArray) {
     if(!Context::isInit())
       Context::initialize(true, 64);
     ExecutionState state;
@@ -105,33 +105,49 @@ TEST(SymbolicPTATest, BasicColocated) {
     if(!solver)
         solver = new TimingSolver(klee::createCoreSolver(CoreSolverToUse));
 
-    MemoryObject pointerMo((uint64_t)malloc(100));
+    const auto size = dl.getTypeAllocSize(st)*2;
+    MemoryObject pointerMo((uint64_t)malloc(size));
+    pointerMo.size = size;
 
               
     SymbolicPTA sPTA(*solver, state, dl);
     sPTA.giveMemoryObjectType(&pointerMo, st->getPointerTo());
 
-    Pointer* ptr0 = sPTA.getPointer(&pointerMo, ConstantExpr::create(0,64));
-    Pointer* ptr8 = sPTA.getPointer(&pointerMo, ConstantExpr::create(8,64));
-    Pointer* ptr24 = sPTA.getPointer(&pointerMo, ConstantExpr::create(24,64));
+    Pointer* ptr0_0 = sPTA.getPointer(&pointerMo, ConstantExpr::create(0,64));
+    Pointer* ptr8_0 = sPTA.getPointer(&pointerMo, ConstantExpr::create(8,64));
+    Pointer* ptr24_0 = sPTA.getPointer(&pointerMo, ConstantExpr::create(24,64));
 
-    std::vector<Pointer*> ptrs = sPTA.getColocatedPointers(*ptr0);
-    ASSERT_EQ(ptrs.size(), (uint64_t)3);
-    ASSERT_TRUE(IN_CONTAINER(ptrs, ptr8));
-    ASSERT_TRUE(IN_CONTAINER(ptrs, ptr0));
-    ASSERT_TRUE(IN_CONTAINER(ptrs, ptr24));
+    Pointer* ptr0_1 = sPTA.getPointer(&pointerMo, ConstantExpr::create(32,64));
+    Pointer* ptr8_1 = sPTA.getPointer(&pointerMo, ConstantExpr::create(40,64));
+    Pointer* ptr24_1 = sPTA.getPointer(&pointerMo, ConstantExpr::create(56,64));
 
-    ptrs = sPTA.getColocatedPointers(*ptr8);
-    ASSERT_EQ(ptrs.size(), (uint64_t)3);
-    ASSERT_TRUE(IN_CONTAINER(ptrs, ptr8));
-    ASSERT_TRUE(IN_CONTAINER(ptrs, ptr0));
-    ASSERT_TRUE(IN_CONTAINER(ptrs, ptr24));
+    std::vector<Pointer*> ptrs = sPTA.getColocatedPointers(*ptr0_0);
+    ASSERT_EQ(ptrs.size(), (uint64_t)6);
+    ASSERT_TRUE(IN_CONTAINER(ptrs, ptr8_0));
+    ASSERT_TRUE(IN_CONTAINER(ptrs, ptr0_0));
+    ASSERT_TRUE(IN_CONTAINER(ptrs, ptr24_0));
 
-    ptrs = sPTA.getColocatedPointers(*ptr24);
-    ASSERT_EQ(ptrs.size(), (uint64_t)3);
-    ASSERT_TRUE(IN_CONTAINER(ptrs, ptr8));
-    ASSERT_TRUE(IN_CONTAINER(ptrs, ptr0));
-    ASSERT_TRUE(IN_CONTAINER(ptrs, ptr24));
+    ASSERT_TRUE(IN_CONTAINER(ptrs, ptr8_1));
+    ASSERT_TRUE(IN_CONTAINER(ptrs, ptr0_1));
+    ASSERT_TRUE(IN_CONTAINER(ptrs, ptr24_1));
 
+    ptrs = sPTA.getColocatedPointers(*ptr8_0);
+    ASSERT_EQ(ptrs.size(), (uint64_t)6);
+    ASSERT_TRUE(IN_CONTAINER(ptrs, ptr8_0));
+    ASSERT_TRUE(IN_CONTAINER(ptrs, ptr0_0));
+    ASSERT_TRUE(IN_CONTAINER(ptrs, ptr24_0));
 
+    ASSERT_TRUE(IN_CONTAINER(ptrs, ptr8_1));
+    ASSERT_TRUE(IN_CONTAINER(ptrs, ptr0_1));
+    ASSERT_TRUE(IN_CONTAINER(ptrs, ptr24_1));
+
+    ptrs = sPTA.getColocatedPointers(*ptr24_0);
+    ASSERT_EQ(ptrs.size(), (uint64_t)6);
+    ASSERT_TRUE(IN_CONTAINER(ptrs, ptr8_0));
+    ASSERT_TRUE(IN_CONTAINER(ptrs, ptr0_0));
+    ASSERT_TRUE(IN_CONTAINER(ptrs, ptr24_0));
+
+    ASSERT_TRUE(IN_CONTAINER(ptrs, ptr8_1));
+    ASSERT_TRUE(IN_CONTAINER(ptrs, ptr0_1));
+    ASSERT_TRUE(IN_CONTAINER(ptrs, ptr24_1));
 }
