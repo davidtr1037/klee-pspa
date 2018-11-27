@@ -1,6 +1,12 @@
 // RUN: %llvmgcc -I../../../include -emit-llvm -g -c %s -o %t.bc
-// RUN: rm -rf %t.klee-out
-// RUN: %klee -collect-pta-results -collect-modref  -pta-target=useMatrixViaStruct,useM --output-dir=%t.klee-out --write-kqueries %t.bc > %t.log ; false
+// RUN: rm -rf %t.klee-outViaStruct %t.klee-outuseM
+// RUN: %klee -collect-pta-results -collect-modref  -pta-target=useMatrixViaStruct --output-dir=%t.klee-outViaStruct %t.bc &> %tViaStruct.log 
+// RUN: grep '<badref> = call' %tViaStruct.log | wc -l | grep 3
+// RUN: grep '<badref> = call' %tViaStruct.log | sed -n 's/.*i64 \([0-9]\).*/\1/p' | tr '\n' '-' | grep 6-7-9
+
+// RUN: %klee -collect-pta-results -collect-modref  -pta-target=useM --output-dir=%t.klee-outuseM %t.bc &> %tuseM.log 
+// RUN: grep '<badref> = call' %tuseM.log | wc -l | grep 5
+// RUN: grep '<badref> = call' %tuseM.log | sed -n 's/.*i64 \([0-9][0-9]\).*/\1/p' | tr '\n' '-' | grep 12-16-20-32-28
 
 #include <stdio.h>
 
@@ -48,17 +54,6 @@ int main() {
   matrix[4] = malloc(sizeof(int)*7, "matrix[4]");
   useMatrixViaStruct(mainObj);
   useM(matrix);
-
-  return 0;
-  klee_print_pts(mainObj);
- // klee_print_pts(mainObj->matrix[0]);
-//  klee_print_pts(matrix);
- // useMatrix(mainObj->matrix);
-//  useMatrixViaStruct(mainObj);
-  //  klee_print_pts(mainObj);
-//  klee_print_pts(matrix);
-
-
 
   return 0;
 }
