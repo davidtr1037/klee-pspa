@@ -134,6 +134,14 @@ bool SymbolicPTA::mayBeTrue(klee::ref<Expr> e) {
         assert(0 && "Solver failure not handled in SymbolicPTA");
     }
 }
+
+SymbolicPTA::~SymbolicPTA() {
+   for(const auto& moPtrs : allPointers) {
+       for(const auto& ptr : moPtrs.second) {
+           delete ptr;
+       }
+   }
+}
 /* =====================================Iterator ================================= 
    =================================================================================== */
 SymbolicPTA::TransitiveTraverser::iterator::iterator(SymbolicPTA &s, Pointer *p): symPTA(s) {

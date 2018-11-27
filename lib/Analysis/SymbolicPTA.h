@@ -71,12 +71,14 @@ public:
   SymbolicPTA(TimingSolver &solver, 
               ExecutionState &state, 
               llvm::DataLayout l): solver(solver), state(state), layout(l) {}
+  ~SymbolicPTA();
 
   //Gets the pointer representation of the location
   Pointer* getPointer(const MemoryObject* mo, ref<Expr> offset);
   std::vector<Pointer*> getPointerTarget(Pointer &p);
   std::vector<Pointer*> getColocatedPointers(Pointer &p);
   void giveMemoryObjectType(const MemoryObject* mo, llvm::Type*);
+  llvm::Type* getMemoryObjectType(const MemoryObject* mo);
   TransitiveTraverser traverse(Pointer *p) { return TransitiveTraverser(*this,p); }
   //TODO: dtor
 
@@ -87,7 +89,6 @@ private:
   std::unordered_map<const MemoryObject*, llvm::Type*> moTypes;
   bool mustBeTrue(ref<Expr> e);
   bool mayBeTrue(ref<Expr> e);
-  llvm::Type* getMemoryObjectType(const MemoryObject* mo);
 
   llvm::DataLayout &layout;
 };
