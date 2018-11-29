@@ -335,7 +335,7 @@ namespace {
   CollectModRef("collect-modref", cl::init(false), cl::desc(""));
 
   cl::opt<std::string>
-  DumpPTASummary("dump-pta-summary", cl::init(""), cl::desc(""));
+  PTALog("pta-log", cl::init(""), cl::desc(""));
 }
 
 
@@ -442,10 +442,10 @@ Executor::Executor(LLVMContext &ctx, const InterpreterOptions &opts,
     }
   }
 
-  if (DumpPTASummary == "") {
+  if (PTALog == "") {
     ptaStatsLogger = new PTAStatsPrintLogger();
   } else {
-    ptaStatsLogger = new PTAStatsCSVLogger(DumpPTASummary);
+    ptaStatsLogger = new PTAStatsCSVLogger(PTALog);
   }
 
   if (DumpPTAGraph) {
