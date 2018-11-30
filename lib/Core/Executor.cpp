@@ -336,7 +336,7 @@ namespace {
   CollectModRef("collect-modref", cl::init(false), cl::desc(""));
 
   cl::opt<std::string>
-  DumpPTASummary("dump-pta-summary", cl::init(""), cl::desc(""));
+  PTALog("pta-log", cl::init(""), cl::desc(""));
 }
 
 
@@ -443,10 +443,10 @@ Executor::Executor(LLVMContext &ctx, const InterpreterOptions &opts,
     }
   }
 
-  if (DumpPTASummary == "") {
+  if (PTALog == "") {
     ptaStatsLogger = new PTAStatsPrintLogger();
   } else {
-    ptaStatsLogger = new PTAStatsCSVLogger(DumpPTASummary);
+    ptaStatsLogger = new PTAStatsCSVLogger(PTALog);
   }
 
   if (DumpPTAGraph) {
@@ -2215,7 +2215,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   case Instruction::BitCast: {
     ref<Expr> result = eval(ki, 0, state).value;
     bindLocal(ki, state, result);
-    handleBitCast(state, ki, result);
+    if (isDynamicMode()) {
+      handleBitCast(state, ki, result);
+    }
     break;
   }
 

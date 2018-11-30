@@ -66,3 +66,19 @@ Use the following option to dump the mod set for the target function:
 ```
 -collect-modref
 ```
+
+## Statistics
+Some basic statistics can be dumped to a `.csv` log using the following command:
+```
+gen_pta_stats.py <command> <functions> <csv_file>
+```
+The _command_ file should contain the invocation of the application:
+```
+<bc_file> <arg1> <arg2> ...
+```
+The _functions_ file contains a list of target functions:
+```
+<f1>[:<line1>]
+<f2>[:<line2>]
+...
+```

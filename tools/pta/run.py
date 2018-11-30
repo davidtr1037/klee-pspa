@@ -1,20 +1,13 @@
 import subprocess
 
 
-def run_klee(use_strong_updates, create_unique_as, pta_target, pta_args, app_args):
+def run_klee(args):
     base_args = [
         "klee",
         "-libc=uclibc",
-        "-posix-runtime",
-        "-search=dfs",
-        "-no-output",
-        "-stat=0",
-        "-use-strong-updates=%d" % use_strong_updates,
-        "-create-unique-as=%d" % create_unique_as,
-        "-pta-target=%s" % pta_target,
     ]
-    args = base_args + pta_args + app_args
-    p = subprocess.Popen(args)
+    command = base_args + args
+    p = subprocess.Popen(command)
     p.communicate()
     return p.returncode
 
