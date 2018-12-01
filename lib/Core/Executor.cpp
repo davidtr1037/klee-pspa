@@ -336,6 +336,9 @@ namespace {
 
   cl::opt<std::string>
   PTALog("pta-log", cl::init(""), cl::desc(""));
+
+  cl::opt<bool>
+  NoAnalyze("no-analyze", cl::init(false), cl::desc(""));
 }
 
 
@@ -1457,7 +1460,9 @@ void Executor::executeCall(ExecutionState &state,
       ++stats::staticAnalysisUsage;
       /* run dynamic pointer analysis */
       updatePointsToOnCall(state, f, arguments);
-      state.getPTA()->analyzeFunction(*kmodule->module, f);
+      if (!NoAnalyze) {
+        state.getPTA()->analyzeFunction(*kmodule->module, f);
+      }
     }
 
     /* get the appropriate analyzer */
