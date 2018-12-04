@@ -1450,63 +1450,61 @@ void Executor::executeCall(ExecutionState &state,
     for (unsigned i=0; i<numFormals; ++i) 
       bindArgument(kf, i, state, arguments[i]);
 
-    if (!isTargetFunction(state, f)) {
-      return;
-    }
-
-    if (isDynamicMode()) {
-      /* update statistics */
-      TimerStatIncrementer timer(stats::staticAnalysisTime);
-      ++stats::staticAnalysisUsage;
-      /* run dynamic pointer analysis */
-      updatePointsToOnCall(state, f, arguments);
-      if (!NoAnalyze) {
-        state.getPTA()->analyzeFunction(*kmodule->module, f);
-      }
-    }
-
-    /* get the appropriate analyzer */
-    PointerAnalysis *pta = RunStaticPTA ? staticPTA : state.getPTA().get();
-
-    if (CollectPTAStats) {
-      StatsCollector collector(false);
-      collector.visitReachable(pta, f);
-
-      CallingContext context;
-      context.entry = f;
-      context.line = kmodule->infos->getInfo(i).line;
-      context.call_depth = state.stack.size() - 1;
-      ptaStatsLogger->dump(context, collector.getStats());
-    }
-
-    if (CollectPTAResults) {
-      ResultsCollector collector(errs());
-      collector.visitReachable(pta, f);
-    }
-
-    if (DumpPTAGraph) {
-      if (RunStaticPTA) {
-        /* TODO: use getAllValidPtrs? */
-        klee_error("Doesn't support static mode...");
-      }
-      PTAGraphDumper dumper(*ptaGraphLog);
-      dumper.dump(state.getPTA().get());
-    }
-
-    if (CollectModRef) {
-      set<Function *> functions;
-      for (unsigned int i = 0; i < state.stack.size() - 1; i++) {
-        StackFrame &sf = state.stack[i];
-        functions.insert(sf.kf->function);
+    if (isTargetFunction(state, f)) {
+      if (isDynamicMode()) {
+        /* update statistics */
+        TimerStatIncrementer timer(stats::staticAnalysisTime);
+        ++stats::staticAnalysisUsage;
+        /* run dynamic pointer analysis */
+        updatePointsToOnCall(state, f, arguments);
+        if (!NoAnalyze) {
+          state.getPTA()->analyzeFunction(*kmodule->module, f);
+        }
       }
 
-      ModRefCollector collector(functions);
-      collector.visitReachable(pta, f);
-      collector.dumpModSet(pta);
-    }
+      /* get the appropriate analyzer */
+      PointerAnalysis *pta = RunStaticPTA ? staticPTA : state.getPTA().get();
 
-    if (!RunStaticPTA) {
-      state.getPTA()->postAnalysisCleanup();
+      if (CollectPTAStats) {
+        StatsCollector collector(false);
+        collector.visitReachable(pta, f);
+
+        CallingContext context;
+        context.entry = f;
+        context.line = kmodule->infos->getInfo(i).line;
+        context.call_depth = state.stack.size() - 1;
+        ptaStatsLogger->dump(context, collector.getStats());
+      }
+
+      if (CollectPTAResults) {
+        ResultsCollector collector(errs());
+        collector.visitReachable(pta, f);
+      }
+
+      if (DumpPTAGraph) {
+        if (RunStaticPTA) {
+          /* TODO: use getAllValidPtrs? */
+          klee_error("Doesn't support static mode...");
+        }
+        PTAGraphDumper dumper(*ptaGraphLog);
+        dumper.dump(state.getPTA().get());
+      }
+
+      if (CollectModRef) {
+        set<Function *> functions;
+        for (unsigned int i = 0; i < state.stack.size() - 1; i++) {
+          StackFrame &sf = state.stack[i];
+          functions.insert(sf.kf->function);
+        }
+
+        ModRefCollector collector(functions);
+        collector.visitReachable(pta, f);
+        collector.dumpModSet(pta);
+      }
+
+      if (!RunStaticPTA) {
+        state.getPTA()->postAnalysisCleanup();
+      }
     }
   }
 }
