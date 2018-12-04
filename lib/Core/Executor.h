@@ -592,6 +592,11 @@ public:
                             llvm::Function *f,
                             std::vector<ref<Expr>> &arguments);
 
+  void analyzeTargetFunction(ExecutionState &state,
+                             KInstruction *ki,
+                             llvm::Function *f,
+                             std::vector<ref<Expr>> &arguments);
+
   void logCall(ExecutionState &state,
                llvm::Function *f);
 
