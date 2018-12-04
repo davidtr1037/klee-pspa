@@ -4335,14 +4335,14 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
       continue;
     }
     if(true) {
-        errs() << "HERE!!!\n";
+        errs() << f->getName() << " HERE!!!\n";
 
     	 SymbolicPTA sPTA(*solver, state, *kmodule->targetData);
-       ExactResolutionList rl1;
-       resolveExact(state, e, rl1, "pts OnCall");
+       ResolutionList rl1;
+       state.addressSpace.resolve(state, solver, e, rl1);
        NodeID formalParamId = state.getPTA()->getPAG()->getValueNode(&arg);
        for (auto &op1 : rl1) {
-					const MemoryObject* mo = op1.first.first;
+					const MemoryObject* mo = op1.first;
 					auto ptr = sPTA.getPointer(mo, mo->getOffsetExpr(e));
           for(auto parentChild : sPTA.traverse(ptr)) {
               auto from = ptrToAbstract(state, parentChild.first);
@@ -4357,6 +4357,7 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
 
     } else {
 
+        errs() << f->getName() << " HERE in other bit!!!\n";
     /* TODO: check return value */
     std::vector<DynamicMemoryLocation> locations;
     getDynamicMemoryLocations(state, e, paramType, locations);

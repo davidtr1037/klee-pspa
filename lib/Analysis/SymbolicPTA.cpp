@@ -98,8 +98,12 @@ llvm::Type* SymbolicPTA::getMemoryObjectType(const MemoryObject* mo) {
         assert(GV->getType()->isPointerTy() && "GV has non pointer type");
         t = GV->getType();
     } else if(mo->allocSite->getNumUses() != 1) {
+        mo->allocSite->dump();
+//        state.dumpStack(llvm::errs());
+        mo->allocSite->getType()->dump();
         llvm::errs() << mo->name << " has multiple uses\n";
-        assert(0 && "Unhandled multiple uses");
+//        assert(0 && "Unhandled multiple uses");
+        t = mo->allocSite->getType();
     } else if(const auto BI = dyn_cast<llvm::CastInst>(mo->allocSite->user_back())) {
         t = BI->getDestTy();
         assert(t->isPointerTy() && "BI has non pointer type");
