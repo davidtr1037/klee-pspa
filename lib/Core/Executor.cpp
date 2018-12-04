@@ -335,6 +335,9 @@ namespace {
   cl::opt<bool>
   CollectModRef("collect-modref", cl::init(false), cl::desc(""));
 
+  cl::opt<bool>
+  UseSymPta("sym-pta", cl::init(false), cl::desc(""));
+
   cl::opt<std::string>
   PTALog("pta-log", cl::init(""), cl::desc(""));
 }
@@ -3464,7 +3467,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
           ObjectState *wos = state.addressSpace.getWriteable(mo, os);
           wos->write(offset, value);
 
-          if (isDynamicMode() && shouldUpdatePoinstTo(state)) {
+          if (!UseSymPta && isDynamicMode() && shouldUpdatePoinstTo(state)) {
             updatePointsToOnStore(state, state.prevPC, mo, offset, value, UseStrongUpdates);
           }
         }
@@ -3512,7 +3515,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
           ObjectState *wos = bound->addressSpace.getWriteable(mo, os);
           wos->write(offset, value);
 
-          if (isDynamicMode() && shouldUpdatePoinstTo(state)) {
+          if (!UseSymPta &&isDynamicMode() && shouldUpdatePoinstTo(state)) {
             updatePointsToOnStore(state, state.prevPC, mo, offset, value, UseStrongUpdates);
           }
         }
@@ -4334,7 +4337,7 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
       /* resolve only pointer values */
       continue;
     }
-    if(true) {
+    if(UseSymPta) {
         errs() << f->getName() << " HERE!!!\n";
 
     	 SymbolicPTA sPTA(*solver, state, *kmodule->targetData);
