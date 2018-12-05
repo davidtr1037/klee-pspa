@@ -1,8 +1,8 @@
 // RUN: %llvmgcc -I../../../include -emit-llvm -g -c %s -o %t.bc
 // RUN: rm -rf %t.klee-out
-// RUN: %klee -collect-pta-results -collect-modref  -pta-target=useStruct --output-dir=%t.klee-out %t.bc &> %t.log 
+// RUN: %klee -sym-pta -collect-pta-results -collect-modref  -pta-target=useStruct --output-dir=%t.klee-out %t.bc &> %t.log 
 // RUN: grep '<badref> = call' %t.log | wc -l | grep 5
-// RUN: grep '<badref> = call' %t.log | sed -n 's/.*i64 \([0-9]\+\).*/\1/p' | tr '\n' '-' | grep 7-10-11-12-13
+// RUN: grep '<badref> = call' %t.log | sed -n 's/.*i64 \([0-9]\+\).*/\1/p' | tr '\n' '-' | grep 10-11-12-13-7
 
 #include <stdio.h>
 

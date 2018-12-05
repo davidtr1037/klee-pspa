@@ -28,13 +28,18 @@ class Pointer {
 	friend Executor;
 public:
  bool isWeak() {return weakUpdate;}
- std::string print() { return "mo: " + pointerContainer->name ; }
+ bool isFunctionPtr() { return pointerContainer == nullptr; }
+ std::string print() { 
+     return isFunctionPtr() ? ("fun:" + fun->getName().str()) : ("mo: " + pointerContainer->name) ; 
+ }
 private:
- Pointer (const MemoryObject* mo, ref<ConstantExpr> o): pointerContainer(mo), offset(o) {}
+ Pointer (const MemoryObject* mo, ref<ConstantExpr> o): pointerContainer(mo), offset(o), fun(nullptr) {}
+ Pointer (const llvm::Function *f): pointerContainer(nullptr), offset(nullptr), fun(f) {}
  const MemoryObject* pointerContainer; //chuck of memory where pointer can be read from
  ref<ConstantExpr> offset; //offset into the container where pointer is located
  bool multiplePointers = false;
  bool weakUpdate = false;
+ const llvm::Function* fun;
 
 };
 
@@ -70,11 +75,13 @@ class SymbolicPTA {
 public:
   SymbolicPTA(TimingSolver &solver, 
               ExecutionState &state, 
-              llvm::DataLayout l): solver(solver), state(state), layout(l) {}
+              std::set<uint64_t> &lf,
+              llvm::DataLayout l): solver(solver), state(state), legalFunctions(lf), layout(l) {}
   ~SymbolicPTA();
 
   //Gets the pointer representation of the location
   Pointer* getPointer(const MemoryObject* mo, ref<Expr> offset);
+  Pointer* getFunctionPointer(const llvm::Function* f);
   std::vector<Pointer*> getPointerTarget(Pointer &p);
   std::vector<Pointer*> getColocatedPointers(Pointer &p);
   void giveMemoryObjectType(const MemoryObject* mo, llvm::Type*);
@@ -89,7 +96,9 @@ private:
   std::unordered_map<const MemoryObject*, llvm::Type*> moTypes;
   bool mustBeTrue(ref<Expr> e);
   bool mayBeTrue(ref<Expr> e);
+  std::vector<Pointer*> handleFunctionPtr(ref<Expr> fp);
 
+  std::set<uint64_t>& legalFunctions;
   llvm::DataLayout &layout;
 };
 

@@ -684,6 +684,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
       MemoryObject *mo = memory->allocate(size, /*isLocal=*/false,
                                           /*isGlobal=*/true, /*allocSite=*/v,
                                           /*alignment=*/globalObjectAlignment);
+      mo->name = v->getName();
       ObjectState *os = bindObjectInState(state, mo, false);
       globalObjects.insert(std::make_pair(v, mo));
       globalAddresses.insert(std::make_pair(v, mo->getBaseExpr()));
@@ -712,6 +713,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
                                           /*alignment=*/globalObjectAlignment);
       if (!mo)
         llvm::report_fatal_error("out of memory");
+      mo->name = v->getName();
       ObjectState *os = bindObjectInState(state, mo, false);
       globalObjects.insert(std::make_pair(v, mo));
       globalAddresses.insert(std::make_pair(v, mo->getBaseExpr()));
@@ -4308,6 +4310,10 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
 
 
 NodeID Executor::ptrToAbstract(ExecutionState &state, Pointer *p) {
+  if(p->isFunctionPtr()) {
+		DynamicMemoryLocation dl(p->fun, false, 0, nullptr);
+		return computeAbstractMO(state.getPTA().get(), dl, false);
+  }
 	auto m = p->pointerContainer;
 	auto offset = dyn_cast<ConstantExpr>(p->offset);
 
@@ -4322,6 +4328,32 @@ NodeID Executor::ptrToAbstract(ExecutionState &state, Pointer *p) {
 void Executor::updatePointsToOnCall(ExecutionState &state,
                                     Function *f,
                                     std::vector<ref<Expr>> &arguments) {
+
+  SymbolicPTA sPTA(*solver, state, legalFunctions, *kmodule->targetData);
+  //Update pts of globals
+  if(UseSymPta) {
+      for(const auto& vmo : globalObjects) {
+          MemoryObject* mo = vmo.second;
+          const GlobalVariable* gv = dyn_cast<GlobalVariable>(vmo.first);
+          if(gv && !gv->isConstant() && gv->getType()->isPointerTy()) {
+            NodeID formalGlobalId = state.getPTA()->getPAG()->getValueNode(gv);
+            errs() << "In global: " << gv->getName() << "\n";
+
+  					auto ptr = sPTA.getPointer(mo, ConstantExpr::create(0, 64));
+            for(auto parentChild : sPTA.traverse(ptr)) {
+                auto from = ptrToAbstract(state, parentChild.first);
+                auto to = ptrToAbstract(state, parentChild.second);
+                errs() << "Global Update " << from << " to: " << to << " isWeak " << parentChild.first->isWeak() << " " + parentChild.second->print() << "\n";
+                state.updatePTS(from, to, !parentChild.first->isWeak() && !parentChild.second->isWeak());
+            }
+            auto dst = ptrToAbstract(state,ptr);
+            errs() << "Global Update " << formalGlobalId << " to " << dst << " mo: " << mo->name << " isWeak " << " " + ptr->isWeak() << "\n";
+            state.updatePTS(formalGlobalId, dst, !ptr->isWeak());
+
+          }
+      }
+  }
+
   unsigned int argIndex = 0;
   for (Function::arg_iterator ai = f->arg_begin(); ai != f->arg_end(); ai++) {
     Argument &arg = *ai;
@@ -4340,7 +4372,6 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
     if(UseSymPta) {
         errs() << f->getName() << " HERE!!!\n";
 
-    	 SymbolicPTA sPTA(*solver, state, *kmodule->targetData);
        ResolutionList rl1;
        state.addressSpace.resolve(state, solver, e, rl1);
        NodeID formalParamId = state.getPTA()->getPAG()->getValueNode(&arg);

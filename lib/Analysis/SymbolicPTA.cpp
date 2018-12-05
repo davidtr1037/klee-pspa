@@ -32,9 +32,33 @@ Pointer* SymbolicPTA::getPointer(const MemoryObject* mo, ref<Expr> offset) {
     return retPtr;
 }
 
-std::vector<Pointer*> SymbolicPTA::getPointerTarget(Pointer &p) {
-    const ObjectState* os = state.addressSpace.findObject(p.pointerContainer);
+Pointer* SymbolicPTA::getFunctionPointer(const llvm::Function* f) {
+    //MemoryObject and llvm::Function addresses can't overlap so this is fine but hacky
+    std::vector<Pointer*> &ptrs = allPointers[(const MemoryObject*)f];
+    if(ptrs.size() > 0) 
+       return ptrs[0];
+
+    Pointer* retPtr = new Pointer(f);
+    ptrs.push_back(retPtr);
+    return retPtr;
+}
+std::vector<Pointer*> SymbolicPTA::handleFunctionPtr(ref<Expr> fp) {
     std::vector<Pointer*> ret;
+    auto cfp = dyn_cast<ConstantExpr>(fp);
+    if(cfp == nullptr) return ret;
+    //TODO: symbolic function pointers
+    uint64_t addr = cfp->getZExtValue();
+
+    if (legalFunctions.count(addr)) {
+      const llvm::Function* f = (const llvm::Function *)(addr);
+      ret.push_back(getFunctionPointer(f));
+    }
+    return ret;
+}
+std::vector<Pointer*> SymbolicPTA::getPointerTarget(Pointer &p) {
+    std::vector<Pointer*> ret;
+    if(p.isFunctionPtr()) return ret;
+    const ObjectState* os = state.addressSpace.findObject(p.pointerContainer);
     auto ptrWidth = Context::get().getPointerWidth();
     //holds pointers that need to be considered
     std::vector<Pointer*> ps;
@@ -56,11 +80,18 @@ std::vector<Pointer*> SymbolicPTA::getPointerTarget(Pointer &p) {
           ret.push_back(p);
           cnt++;
       }
+      auto fps = handleFunctionPtr(ptr);
+      ret.insert(ret.end(), std::begin(fps), std::end(fps));
+
     }
     return ret;
 }
 
 std::vector<Pointer*> SymbolicPTA::getColocatedPointers(Pointer &p) {
+  //If it's a pointer type it can be an array
+  std::vector<Pointer*> ret; 
+  if(p.isFunctionPtr()) return ret;
+
   const MemoryObject* mo = p.pointerContainer;
   llvm::Type* ty = getMemoryObjectType(mo);
   llvm::PointerType *pty = dyn_cast<llvm::PointerType>(ty); 
@@ -69,8 +100,6 @@ std::vector<Pointer*> SymbolicPTA::getColocatedPointers(Pointer &p) {
   //stride is in bytes
   auto stride = layout.getTypeAllocSize(ty);
 
-  //If it's a pointer type it can be an array
-  std::vector<Pointer*> ret; 
 
   OffsetFinder of(layout);
   std::vector<std::pair<unsigned, bool>> offsets = of.visit(ty);

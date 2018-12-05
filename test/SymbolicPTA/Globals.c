@@ -1,11 +1,10 @@
 // RUN: %llvmgcc -I../../../include -emit-llvm -g -c %s -o %t.bc
 // RUN: rm -rf %t.klee-outViaStruct %t.klee-outUseGlobal
-// RUN: %klee -collect-pta-results -collect-modref  -pta-target=useMatrixViaStruct --output-dir=%t.klee-outViaStruct %t.bc &> %tViaStruct.log 
+// RUN: %klee -sym-pta -collect-pta-results -collect-modref  -pta-target=useMatrixViaStruct --output-dir=%t.klee-outViaStruct %t.bc &> %tViaStruct.log 
 // RUN: grep 'AS: ' %tViaStruct.log | wc -l | grep 2
 // RUN: grep '\[6 x i8\] c"haha' %tViaStruct.log 
 // RUN: grep 'malloc(i64 56, i8*' %tViaStruct.log 
 
-// RUN: %klee -collect-pta-results -collect-modref  -pta-target=useGlobal --output-dir=%t.klee-outUseGlobal %t.bc > %tUseGlobal.log ; false
 
 #include <stdio.h>
 
