@@ -1,6 +1,26 @@
 #include "SymbolicPTA.h"
 using namespace klee;
 
+bool SymbolicPTA::isPointerOffset(Pointer& p) {
+    auto type = getMemoryObjectType(p.pointerContainer);
+    auto pty = dyn_cast<llvm::PointerType>(type);
+    assert(pty && "assumes input is a pointer type");
+
+    auto typeSize = layout.getTypeStoreSize(pty->getElementType());
+    auto offset = p.offset->getZExtValue();
+    offset = offset % typeSize;
+
+    OffsetFinder ofPacked(layout);
+    for(const auto& offsetWeak : ofPacked.visit(pty->getElementType())) {
+        if(offsetWeak.first == offset) 
+            return true;
+    }
+    llvm::errs() << p.print();
+    pty->dump();
+    return false;
+}
+
+//Pointers can also be the pointed to objects which are not neccesarly pointers
 //This currently ignores cases where offset can point to multiple pointers in a MemoryObject
 Pointer* SymbolicPTA::getPointer(const MemoryObject* mo, ref<Expr> offset) {
     Pointer *retPtr = nullptr;
@@ -70,6 +90,7 @@ std::vector<Pointer*> SymbolicPTA::getPointerTarget(Pointer &p) {
 
     int cnt = 0;
     for(auto cp : ps) {
+      assert(isPointerOffset(*cp) && "Trying to resolve non pointer type field as pointer");  
       ref<Expr> ptr = os->read(cp->offset, ptrWidth);
       ResolutionList rl;
       state.addressSpace.resolve(state, &solver, ptr, rl);
@@ -98,7 +119,7 @@ std::vector<Pointer*> SymbolicPTA::getColocatedPointers(Pointer &p) {
   assert(pty != nullptr && "Memory object must point to something");
   ty = pty->getElementType();
   //stride is in bytes
-  auto stride = layout.getTypeAllocSize(ty);
+  auto stride = layout.getTypeStoreSize(ty);
 
 
   OffsetFinder of(layout);
@@ -122,8 +143,14 @@ llvm::Type* SymbolicPTA::getMemoryObjectType(const MemoryObject* mo) {
         return t;
     if(mo->allocSite == nullptr) 
        assert(0 && "Can't type memory object without allocSite, caller needs to giveMOType");
-    
-    if(auto GV = dyn_cast<llvm::GlobalVariable>(mo->allocSite)) {
+
+    //special cases
+    if(mo->name == "__args") { //for MO that holds arguments
+        t = llvm::Type::getInt8Ty(mo->allocSite->getContext())->getPointerTo();
+    } else if(mo->name == "argv") { //For argvMO
+        t = llvm::Type::getInt8Ty(mo->allocSite->getContext())->getPointerTo()->getPointerTo();
+   //End special cases 
+    } else if(auto GV = dyn_cast<llvm::GlobalVariable>(mo->allocSite)) {
         assert(GV->getType()->isPointerTy() && "GV has non pointer type");
         t = GV->getType();
     } else if(mo->allocSite->getNumUses() != 1) {
@@ -186,9 +213,11 @@ void SymbolicPTA::TransitiveTraverser::iterator::processNext(Pointer *p) {
     //avoid loops
     if(seenPointers.count(p) != 0) 
         return;
+    seenPointers.insert(p); //If p is not a pointer
 
     for(Pointer* s: symPTA.getColocatedPointers(*p)) {
         seenPointers.insert(s);
+
         for(Pointer* t: symPTA.getPointerTarget(*s)) {
             ptrsToReturn.emplace_back(s, t);
         }
@@ -267,7 +296,7 @@ void OffsetFinder::visitStruct(llvm::StructType* ST) {
 
 void OffsetFinder::visitArray(llvm::ArrayType* AT) {
     int numElements = AT->getNumElements();
-    auto len = layout.getTypeAllocSize(AT->getElementType()); 
+    auto len = layout.getTypeStoreSize(AT->getElementType()); 
     for(int i = 0; i < numElements; i++) {
       if(!weakUpdate)
         weakUpdate = i != 0;

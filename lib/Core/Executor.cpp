@@ -1406,6 +1406,7 @@ void Executor::executeCall(ExecutionState &state,
       MemoryObject *mo = sf.varargs =
           memory->allocate(size, true, false, state.prevPC->inst,
                            (requires16ByteAlignment ? 16 : 8));
+      mo->name = "varrr args";
       if (!mo && size) {
         terminateStateOnExecError(state, "out of memory (varargs)");
         return;
@@ -3656,6 +3657,7 @@ void Executor::runFunctionAsMain(Function *f,
           memory->allocate((argc + 1 + envc + 1 + 1) * NumPtrBytes,
                            /*isLocal=*/false, /*isGlobal=*/true,
                            /*allocSite=*/first, /*alignment=*/8);
+      argvMO->name = "argv";
 
       if (!argvMO)
         klee_error("Could not allocate memory for function arguments");
@@ -3708,6 +3710,7 @@ void Executor::runFunctionAsMain(Function *f,
         MemoryObject *arg =
             memory->allocate(len + 1, /*isLocal=*/false, /*isGlobal=*/true,
                              /*allocSite=*/state->pc->inst, /*alignment=*/8);
+        arg->name = "__args";
         if (!arg)
           klee_error("Could not allocate memory for function arguments");
         ObjectState *os = bindObjectInState(*state, arg, false);
@@ -4335,7 +4338,7 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
       for(const auto& vmo : globalObjects) {
           MemoryObject* mo = vmo.second;
           const GlobalVariable* gv = dyn_cast<GlobalVariable>(vmo.first);
-          if(gv && !gv->isConstant() && gv->getType()->isPointerTy()) {
+          if(gv && !gv->isConstant() && !gv->isDeclaration() && gv->getType()->isPointerTy()) {
             NodeID formalGlobalId = state.getPTA()->getPAG()->getValueNode(gv);
             errs() << "In global: " << gv->getName() << "\n";
 

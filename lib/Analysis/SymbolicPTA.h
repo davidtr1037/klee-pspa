@@ -30,7 +30,9 @@ public:
  bool isWeak() {return weakUpdate;}
  bool isFunctionPtr() { return pointerContainer == nullptr; }
  std::string print() { 
-     return isFunctionPtr() ? ("fun:" + fun->getName().str()) : ("mo: " + pointerContainer->name) ; 
+     return isFunctionPtr() ? 
+              ("fun:" + fun->getName().str()) : 
+              ("mo: " + pointerContainer->name + ":" + std::to_string(offset->getZExtValue())) ; 
  }
 private:
  Pointer (const MemoryObject* mo, ref<ConstantExpr> o): pointerContainer(mo), offset(o), fun(nullptr) {}
@@ -98,6 +100,7 @@ private:
   bool mayBeTrue(ref<Expr> e);
   std::vector<Pointer*> handleFunctionPtr(ref<Expr> fp);
 
+  bool isPointerOffset(Pointer& p);
   std::set<uint64_t>& legalFunctions;
   llvm::DataLayout &layout;
 };
