@@ -84,11 +84,6 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
   }
 
   if (mem->isHeap()) {
-    /* TODO: check the number of array elements? */
-    if (canStronglyUpdate) {
-      *canStronglyUpdate = false;
-    }
-
     if (!location.hint) {
       /* handle field-insensitively */
       if (canStronglyUpdate) {
@@ -103,6 +98,12 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
     /* we have a type hint... */
     elementType = location.hint->getElementType();
     StInfo *stInfo = SymbolTableInfo::SymbolInfo()->getStructInfo(elementType);
+    if (location.size > stInfo->getSize()) {
+      /* that should be an array, then we can't perform strong update */
+      if (canStronglyUpdate) {
+          *canStronglyUpdate = false;
+      }
+    }
     offset = offset % stInfo->getSize();
     abstractOffset = computeAbstractFieldOffset(offset, elementType, isArrayElement);
     return pta->getGepObjNode(nodeId, LocationSet(abstractOffset));

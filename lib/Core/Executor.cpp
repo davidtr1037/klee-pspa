@@ -343,6 +343,9 @@ namespace {
 
   cl::opt<std::string>
   PTALog("pta-log", cl::init(""), cl::desc(""));
+
+  cl::opt<bool>
+  NoAnalyze("no-analyze", cl::init(false), cl::desc(""));
 }
 
 
@@ -1457,98 +1460,8 @@ void Executor::executeCall(ExecutionState &state,
     for (unsigned i=0; i<numFormals; ++i) 
       bindArgument(kf, i, state, arguments[i]);
 
-    if (!isTargetFunction(state, f)) {
-      return;
-    }
-
-    if (isDynamicMode()) {
-      /* update statistics */
-      TimerStatIncrementer timer(stats::staticAnalysisTime);
-      ++stats::staticAnalysisUsage;
-      /* run dynamic pointer analysis */
-      ExecutionState es(state);
-      if(UseSymPta) {
-        updatePointsToOnCallApi(state, f, arguments);
-      } else {
-        if(SymPtaSanityCheck) {
-            es.getPTA()->clearPointsTo();
-            updatePointsToOnCallApi(es, f, arguments);
-            es.getPTA()->analyzeFunction(*kmodule->module, f);
-            //TODO
-        }
-        updatePointsToOnCall(state, f, arguments);
-      }
-      state.getPTA()->analyzeFunction(*kmodule->module, f);
-      if(SymPtaSanityCheck) {
-          auto abstractPTA = state.getPTA();
-          auto symbolicPTA = es.getPTA();
-          for(auto& idToType : *abstractPTA->getPAG()) {
-              auto nodeId = idToType.first;
-              PointsTo& abstractPts = abstractPTA->getPts(nodeId);
-              PointsTo& symbolicPts = symbolicPTA->getPts(nodeId);
-              symbolicPts.intersectWithComplement(abstractPts);
-              if(symbolicPts.count() > 0) {
-                //Check if they are FS version of FI objects
-                for( auto nid : symbolicPts ) {
-                  errs() << abstractPTA->getFIObjNode(nid) << "\n";
-
-                }
-                errs() << "PointsTo sets for " << nodeId << " don't match\n";
-                dump(symbolicPts, errs());
-                errs() << "abstract pts: ";
-                dump(abstractPts, errs());
-                abstractPTA->getPAG()->getPAGNode(nodeId)->getValue()->dump();
-                assert(0 && "Pts sets don't match");
-              }
-
-          }
-      }
-
-    }
-
-    /* get the appropriate analyzer */
-    PointerAnalysis *pta = RunStaticPTA ? staticPTA : state.getPTA().get();
-
-    if (CollectPTAStats) {
-      StatsCollector collector(false);
-      collector.visitReachable(pta, f);
-
-      CallingContext context;
-      context.entry = f;
-      context.line = kmodule->infos->getInfo(i).line;
-      context.call_depth = state.stack.size() - 1;
-      ptaStatsLogger->dump(context, collector.getStats());
-    }
-
-    if (CollectPTAResults) {
-      ResultsCollector collector(errs());
-      collector.visitReachable(pta, f);
-    }
-
-    if (DumpPTAGraph) {
-      if (RunStaticPTA) {
-        /* TODO: use getAllValidPtrs? */
-        klee_error("Doesn't support static mode...");
-      }
-      PTAGraphDumper dumper(*ptaGraphLog);
-      dumper.dump(state.getPTA().get());
-    }
-
-    if (CollectModRef) {
-      set<Function *> functions;
-      for (unsigned int i = 0; i < state.stack.size() - 1; i++) {
-        StackFrame &sf = state.stack[i];
-        functions.insert(sf.kf->function);
-      }
-
-      ModRefCollector collector(functions);
-      collector.visitReachable(pta, f);
-      collector.dumpModSet(pta);
-//      collector.dumpRefSet(pta);
-    }
-
-    if (!RunStaticPTA) {
-      state.getPTA()->postAnalysisCleanup();
+    if (isTargetFunction(state, f)) {
+      analyzeTargetFunction(state, ki, f, arguments);
     }
   }
 }
@@ -4138,6 +4051,7 @@ bool Executor::getDynamicMemoryLocation(ExecutionState &state,
       /* check if it's a NULL value */
       if (addr == 0 || addr == (uint64_t)(-1)) {
         location.value = ConstantPointerNull::get(valueType);
+        location.size = 0;
         location.isSymbolicOffset = false;
         location.offset = 0;
         location.hint = NULL;
@@ -4147,6 +4061,7 @@ bool Executor::getDynamicMemoryLocation(ExecutionState &state,
       /* it may be a function pointer */
       if (legalFunctions.count(addr)) {
         location.value = (const Function *)(addr);
+        location.size = 0;
         location.isSymbolicOffset = false;
         location.offset = 0;
         location.hint = NULL;
@@ -4177,6 +4092,7 @@ bool Executor::getDynamicMemoryLocation(ExecutionState &state,
   }
 
   location.value = getAllocSite(state, mo);
+  location.size = mo->size;
   location.hint = getTypeHint(mo);
   return true;
 }
@@ -4317,9 +4233,11 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
   }
 
   /* TODO: it would be better to use the same API... */
-  const Value *storeAllocSite = getAllocSite(state, mo);
-  PointerType *hint = getTypeHint(mo);
-  DynamicMemoryLocation storeLocation(storeAllocSite, false, ce->getZExtValue(), hint);
+  DynamicMemoryLocation storeLocation(getAllocSite(state, mo),
+                                      mo->size,
+                                      false,
+                                      ce->getZExtValue(),
+                                      getTypeHint(mo));
 
   bool canStronglyUpdate;
   NodeID src = computeAbstractMO(state.getPTA().get(),
@@ -4354,14 +4272,14 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
 
 NodeID Executor::ptrToAbstract(ExecutionState &state, Pointer *p) {
   if(p->isFunctionPtr()) {
-		DynamicMemoryLocation dl(p->fun, false, 0, nullptr);
+		DynamicMemoryLocation dl(p->fun,0, false, 0, nullptr);
 		return computeAbstractMO(state.getPTA().get(), dl, false);
   }
 	auto m = p->pointerContainer;
 	auto offset = dyn_cast<ConstantExpr>(p->offset);
 
 	if(offset) {
-		DynamicMemoryLocation dl(getAllocSite(state,m), false, offset->getZExtValue(), getTypeHint(m));
+		DynamicMemoryLocation dl(getAllocSite(state,m),m->size, false, offset->getZExtValue(), getTypeHint(m));
 		return computeAbstractMO(state.getPTA().get(), dl, false);
 	} else {
 		assert(0 && "TODO symbolic offset");
@@ -4463,6 +4381,102 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
       state.updatePTS(formalParamId,dst, i==0);
       errs() << dst << " is FI: " << state.getPTA()->isFieldInsensitive(dst) << "\n";
     }
+  }
+}
+
+void Executor::analyzeTargetFunction(ExecutionState &state,
+                                     KInstruction *ki,
+                                     Function *f,
+                                     std::vector<ref<Expr>> &arguments) {
+   if (isDynamicMode()) {
+    /* update statistics */
+    TimerStatIncrementer timer(stats::staticAnalysisTime);
+    ++stats::staticAnalysisUsage;
+    /* run dynamic pointer analysis */
+    ExecutionState es(state);
+    if(UseSymPta) {
+      updatePointsToOnCallApi(state, f, arguments);
+    } else {
+      if(SymPtaSanityCheck) {
+          es.getPTA()->clearPointsTo();
+          updatePointsToOnCallApi(es, f, arguments);
+          es.getPTA()->analyzeFunction(*kmodule->module, f);
+          //TODO
+      }
+      updatePointsToOnCall(state, f, arguments);
+    }
+
+    if (!NoAnalyze) {
+      state.getPTA()->analyzeFunction(*kmodule->module, f);
+      if(SymPtaSanityCheck) {
+          auto abstractPTA = state.getPTA();
+          auto symbolicPTA = es.getPTA();
+          for(auto& idToType : *abstractPTA->getPAG()) {
+              auto nodeId = idToType.first;
+              PointsTo& abstractPts = abstractPTA->getPts(nodeId);
+              PointsTo& symbolicPts = symbolicPTA->getPts(nodeId);
+              symbolicPts.intersectWithComplement(abstractPts);
+              if(symbolicPts.count() > 0) {
+                //Check if they are FS version of FI objects
+                for( auto nid : symbolicPts ) {
+                  errs() << abstractPTA->getFIObjNode(nid) << "\n";
+
+                }
+                errs() << "PointsTo sets for " << nodeId << " don't match\n";
+                dump(symbolicPts, errs());
+                errs() << "abstract pts: ";
+                dump(abstractPts, errs());
+                abstractPTA->getPAG()->getPAGNode(nodeId)->getValue()->dump();
+                assert(0 && "Pts sets don't match");
+              }
+
+          }
+      }
+    }
+  }
+
+  /* get the appropriate analyzer */
+  PointerAnalysis *pta = RunStaticPTA ? staticPTA : state.getPTA().get();
+
+  if (CollectPTAStats) {
+    StatsCollector collector(false);
+    collector.visitReachable(pta, f);
+
+    CallingContext context;
+    context.entry = f;
+    context.line = kmodule->infos->getInfo(ki->inst).line;
+    context.call_depth = state.stack.size() - 1;
+    ptaStatsLogger->dump(context, collector.getStats());
+  }
+
+  if (CollectPTAResults) {
+    ResultsCollector collector(errs());
+    collector.visitReachable(pta, f);
+  }
+
+  if (DumpPTAGraph) {
+    if (RunStaticPTA) {
+      /* TODO: use getAllValidPtrs? */
+      klee_error("Doesn't support static mode...");
+    }
+    PTAGraphDumper dumper(*ptaGraphLog);
+    dumper.dump(state.getPTA().get());
+  }
+
+  if (CollectModRef) {
+    set<Function *> functions;
+    for (unsigned int i = 0; i < state.stack.size() - 1; i++) {
+      StackFrame &sf = state.stack[i];
+      functions.insert(sf.kf->function);
+    }
+
+    ModRefCollector collector(functions);
+    collector.visitReachable(pta, f);
+    collector.dumpModSet(pta);
+  }
+
+  if (!RunStaticPTA) {
+    state.getPTA()->postAnalysisCleanup();
   }
 }
 

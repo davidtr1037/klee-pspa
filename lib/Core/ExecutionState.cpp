@@ -96,8 +96,6 @@ ExecutionState::~ExecutionState() {
   }
 
   while (!stack.empty()) popFrame();
-
-  TimerStatIncrementer timer(stats::staticAnalysisTime);
 }
 
 ExecutionState::ExecutionState(const ExecutionState& state):
