@@ -595,6 +595,9 @@ public:
                             llvm::Function *f,
                             std::vector<ref<Expr>> &arguments);
 
+  void updatePointsToOnCallApi(ExecutionState &state,
+                            llvm::Function *f,
+                            std::vector<ref<Expr>> &arguments);
   void logCall(ExecutionState &state,
                llvm::Function *f);
 
