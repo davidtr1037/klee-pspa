@@ -4035,6 +4035,7 @@ bool Executor::getDynamicMemoryLocation(ExecutionState &state,
       /* check if it's a NULL value */
       if (addr == 0 || addr == (uint64_t)(-1)) {
         location.value = ConstantPointerNull::get(valueType);
+        location.size = 0;
         location.isSymbolicOffset = false;
         location.offset = 0;
         location.hint = NULL;
@@ -4044,6 +4045,7 @@ bool Executor::getDynamicMemoryLocation(ExecutionState &state,
       /* it may be a function pointer */
       if (legalFunctions.count(addr)) {
         location.value = (const Function *)(addr);
+        location.size = 0;
         location.isSymbolicOffset = false;
         location.offset = 0;
         location.hint = NULL;
@@ -4074,6 +4076,7 @@ bool Executor::getDynamicMemoryLocation(ExecutionState &state,
   }
 
   location.value = getAllocSite(state, mo);
+  location.size = mo->size;
   location.hint = getTypeHint(mo);
   return true;
 }
@@ -4214,9 +4217,11 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
   }
 
   /* TODO: it would be better to use the same API... */
-  const Value *storeAllocSite = getAllocSite(state, mo);
-  PointerType *hint = getTypeHint(mo);
-  DynamicMemoryLocation storeLocation(storeAllocSite, false, ce->getZExtValue(), hint);
+  DynamicMemoryLocation storeLocation(getAllocSite(state, mo),
+                                      mo->size,
+                                      false,
+                                      ce->getZExtValue(),
+                                      getTypeHint(mo));
 
   bool canStronglyUpdate;
   NodeID src = computeAbstractMO(state.getPTA().get(),
