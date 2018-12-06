@@ -98,14 +98,14 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
     /* we have a type hint... */
     elementType = location.hint->getElementType();
     StInfo *stInfo = SymbolTableInfo::SymbolInfo()->getStructInfo(elementType);
-    if (location.size > stInfo->getSize()) {
+    offset = offset % stInfo->getSize();
+    abstractOffset = computeAbstractFieldOffset(offset, elementType, isArrayElement);
+    if (location.size > stInfo->getSize() || isArrayElement) {
       /* that should be an array, then we can't perform strong update */
       if (canStronglyUpdate) {
           *canStronglyUpdate = false;
       }
     }
-    offset = offset % stInfo->getSize();
-    abstractOffset = computeAbstractFieldOffset(offset, elementType, isArrayElement);
     return pta->getGepObjNode(nodeId, LocationSet(abstractOffset));
   }
 
