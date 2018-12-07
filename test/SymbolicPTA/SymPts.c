@@ -2,7 +2,7 @@
 // RUN: rm -rf  %t.klee-out %t.klee-outSanity
 // RUN: %klee -sym-pta -collect-pta-results -collect-modref  -pta-target=useStruct --output-dir=%t.klee-out %t.bc &> %t.log 
 // RUN: grep '<badref> = call' %t.log | wc -l | grep 5
-// RUN: grep '<badref> = call' %t.log | sed -n 's/.*i64 \([0-9]\+\).*/\1/p' | tr '\n' '-' | grep 10-11-12-13-7
+// RUN: grep '<badref> = call' %t.log | sed -n 's/.*i64 \([0-9]\+\).*/\1/p' | tr '\n' '-' | grep 7-10-11-12-13
 // RUN: %klee -sym-pta-sanity -collect-pta-results -collect-modref  -pta-target=useStruct --output-dir=%t.klee-outSanity %t.bc 
 
 #include <stdio.h>

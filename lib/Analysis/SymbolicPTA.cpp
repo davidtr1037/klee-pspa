@@ -10,8 +10,7 @@ bool SymbolicPTA::isPointerOffset(Pointer& p) {
     auto offset = p.offset->getZExtValue();
     offset = offset % typeSize;
 
-    OffsetFinder ofPacked(layout);
-    for(const auto& offsetWeak : ofPacked.visit(pty->getElementType())) {
+    for(const auto& offsetWeak : of.visit(pty->getElementType())) {
         if(offsetWeak.first == offset) 
             return true;
     }
@@ -122,7 +121,6 @@ std::vector<Pointer*> SymbolicPTA::getColocatedPointers(Pointer &p) {
   auto stride = layout.getTypeStoreSize(ty);
 
 
-  OffsetFinder of(layout);
   std::vector<std::pair<unsigned, bool>> offsets = of.visit(ty);
   
   for(auto o : offsets) {
@@ -214,7 +212,6 @@ void SymbolicPTA::TransitiveTraverser::iterator::processNext(Pointer *p) {
     if(seenPointers.count(p) != 0) 
         return;
     seenPointers.insert(p); //If p is not a pointer
-
     for(Pointer* s: symPTA.getColocatedPointers(*p)) {
         seenPointers.insert(s);
 
@@ -255,6 +252,7 @@ std::pair<Pointer*, Pointer*>* SymbolicPTA::TransitiveTraverser::iterator::opera
    =================================================================================== */
 template <class T>
 T TypeVisitor<T>::visit(llvm::Type* t) {
+    if(visitCount == 0 && cache.count(t) == 1) return cache.at(t);
     visitCount++;
     if(t->isStructTy()) 
         visitStruct(dyn_cast<llvm::StructType>(t));
@@ -272,8 +270,10 @@ T TypeVisitor<T>::visit(llvm::Type* t) {
 
     visitCount--;
     T r =  results;
-    if(visitCount == 0)
+    if(visitCount == 0) {
+        cache[t] = r;
         reset();
+    }
     return r;
 }
 

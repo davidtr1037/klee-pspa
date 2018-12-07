@@ -582,7 +582,7 @@ public:
                      ref<Expr> value);
 
   bool shouldUpdatePoinstTo(ExecutionState &state);
-  NodeID ptrToAbstract(ExecutionState &state, Pointer *p);
+  NodeID ptrToAbstract(ExecutionState &state, Pointer *p, SymbolicPTA &spta);
 
   void updatePointsToOnStore(ExecutionState &state,
                              KInstruction *ki,

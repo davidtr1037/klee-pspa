@@ -45,6 +45,38 @@ private:
 
 };
 
+template <class T>
+class TypeVisitor {
+  int visitCount = 0;
+  std::unordered_map<llvm::Type*, T> cache;
+public:
+  T visit(llvm::Type* t);
+  virtual void reset() = 0;
+
+protected:
+  T results;
+  virtual void visitStruct(llvm::StructType* st) = 0;
+  virtual void visitArray(llvm::ArrayType* at) = 0;
+  virtual void visitPointer(llvm::PointerType* st) = 0;
+  virtual void visitInteger(llvm::IntegerType* st) = 0;
+
+};
+
+class OffsetFinder : public TypeVisitor<std::vector<std::pair<unsigned, bool>>> {
+  void visitStruct(llvm::StructType* st);
+  void visitArray(llvm::ArrayType* at);
+  void visitPointer(llvm::PointerType* st);
+  void visitInteger(llvm::IntegerType* st);
+
+  int globalOffset = 0;
+  bool weakUpdate = false;
+  llvm::DataLayout &layout;
+public:
+  OffsetFinder(llvm::DataLayout &l): TypeVisitor<std::vector<std::pair<unsigned, bool>>>(), layout(l) {}
+  virtual void reset();
+};
+
+
 class SymbolicPTA {
 
   class TransitiveTraverser {
@@ -78,7 +110,7 @@ public:
   SymbolicPTA(TimingSolver &solver, 
               ExecutionState &state, 
               std::set<uint64_t> &lf,
-              llvm::DataLayout l): solver(solver), state(state), legalFunctions(lf), layout(l) {}
+              llvm::DataLayout l): solver(solver), state(state), legalFunctions(lf), layout(l), of(l) {}
   ~SymbolicPTA();
 
   //Gets the pointer representation of the location
@@ -103,38 +135,8 @@ private:
   bool isPointerOffset(Pointer& p);
   std::set<uint64_t>& legalFunctions;
   llvm::DataLayout &layout;
+  OffsetFinder of;
 };
-
-template <class T>
-class TypeVisitor {
-  int visitCount = 0;
-public:
-  T visit(llvm::Type* t);
-  virtual void reset() = 0;
-
-protected:
-  T results;
-  virtual void visitStruct(llvm::StructType* st) = 0;
-  virtual void visitArray(llvm::ArrayType* at) = 0;
-  virtual void visitPointer(llvm::PointerType* st) = 0;
-  virtual void visitInteger(llvm::IntegerType* st) = 0;
-
-};
-
-class OffsetFinder : public TypeVisitor<std::vector<std::pair<unsigned, bool>>> {
-  void visitStruct(llvm::StructType* st);
-  void visitArray(llvm::ArrayType* at);
-  void visitPointer(llvm::PointerType* st);
-  void visitInteger(llvm::IntegerType* st);
-
-  int globalOffset = 0;
-  bool weakUpdate = false;
-  llvm::DataLayout &layout;
-public:
-  OffsetFinder(llvm::DataLayout &l): TypeVisitor<std::vector<std::pair<unsigned, bool>>>(), layout(l) {}
-  virtual void reset();
-};
-
 
 }
 #endif

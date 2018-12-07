@@ -4191,6 +4191,7 @@ bool Executor::isDynamicMode() {
 void Executor::handleBitCast(ExecutionState &state,
                              KInstruction *ki,
                              ref<Expr> value) {
+  if(UseSymPta) return;
   TimerStatIncrementer timer(stats::staticAnalysisTime);
 
   BitCastInst *castInst = dyn_cast<BitCastInst>(ki->inst);
@@ -4331,7 +4332,7 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
 }
 
 
-NodeID Executor::ptrToAbstract(ExecutionState &state, Pointer *p) {
+NodeID Executor::ptrToAbstract(ExecutionState &state, Pointer *p, SymbolicPTA &sPTA) {
   if(p->isFunctionPtr()) {
 		DynamicMemoryLocation dl(p->fun,0, false, 0, nullptr);
 		return computeAbstractMO(state.getPTA().get(), dl, false);
@@ -4340,7 +4341,9 @@ NodeID Executor::ptrToAbstract(ExecutionState &state, Pointer *p) {
 	auto offset = dyn_cast<ConstantExpr>(p->offset);
 
 	if(offset) {
-		DynamicMemoryLocation dl(getAllocSite(state,m),m->size, false, offset->getZExtValue(), getTypeHint(m));
+    auto pt = dyn_cast<PointerType>(sPTA.getMemoryObjectType(m));
+
+		DynamicMemoryLocation dl(getAllocSite(state,m),m->size, false, offset->getZExtValue(), pt);
 		return computeAbstractMO(state.getPTA().get(), dl, false);
 	} else {
 		assert(0 && "TODO symbolic offset");
@@ -4377,12 +4380,12 @@ void Executor::updatePointsToOnCallApi(ExecutionState &state,
 		 	const MemoryObject* mo = op1.first;
 		 	auto ptr = sPTA.getPointer(mo, mo->getOffsetExpr(e));
        for(auto parentChild : sPTA.traverse(ptr)) {
-           auto from = ptrToAbstract(state, parentChild.first);
-           auto to = ptrToAbstract(state, parentChild.second);
+           auto from = ptrToAbstract(state, parentChild.first, sPTA);
+           auto to = ptrToAbstract(state, parentChild.second, sPTA);
            errs() << "Update " << from << " to: " << to << " isWeak " << parentChild.first->isWeak() << " " + parentChild.second->print() << "\n";
            state.updatePTS(from, to, !parentChild.first->isWeak() && !parentChild.second->isWeak());
        }
-       auto dst = ptrToAbstract(state,ptr);
+       auto dst = ptrToAbstract(state,ptr, sPTA);
        errs() << "Update " << formalParamId << " to " << dst << " mo: " << mo->name << " isWeak " << " " + ptr->isWeak() << "\n";
        state.updatePTS(formalParamId, dst, !ptr->isWeak());
   	}
@@ -4400,12 +4403,12 @@ void Executor::updateGlobalsPts(ExecutionState &state, SymbolicPTA &sPTA) {
 
   			auto ptr = sPTA.getPointer(mo, ConstantExpr::create(0, 64));
         for(auto parentChild : sPTA.traverse(ptr)) {
-            auto from = ptrToAbstract(state, parentChild.first);
-            auto to = ptrToAbstract(state, parentChild.second);
+            auto from = ptrToAbstract(state, parentChild.first, sPTA);
+            auto to = ptrToAbstract(state, parentChild.second, sPTA);
 //            errs() << "Global Update " << from << " to: " << to << " isWeak " << parentChild.first->isWeak() << " " + parentChild.second->print() <<  "\n";
             state.updatePTS(from, to, !parentChild.first->isWeak() && !parentChild.second->isWeak());
         }
-        auto dst = ptrToAbstract(state, ptr);
+        auto dst = ptrToAbstract(state, ptr, sPTA);
         errs() << "Global Update " << formalGlobalId << " to " << dst << " mo: " << mo->name << " isWeak " << " " + ptr->isWeak() << "\n";
         state.updatePTS(formalGlobalId, dst, !ptr->isWeak());
 
@@ -4462,14 +4465,15 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
     TimerStatIncrementer timer(stats::staticAnalysisTime);
     ++stats::staticAnalysisUsage;
     /* run dynamic pointer analysis */
-    ExecutionState es(state);
+    ExecutionState *es;
     if(UseSymPta) {
       updatePointsToOnCallApi(state, f, arguments);
     } else {
       if(SymPtaSanityCheck) {
-          es.getPTA()->clearPointsTo();
-          updatePointsToOnCallApi(es, f, arguments);
-          es.getPTA()->analyzeFunction(*kmodule->module, f);
+          es = new ExecutionState(state);
+          es->getPTA()->clearPointsTo();
+          updatePointsToOnCallApi(*es, f, arguments);
+          es->getPTA()->analyzeFunction(*kmodule->module, f);
           //TODO
       }
       updatePointsToOnCall(state, f, arguments);
@@ -4479,7 +4483,7 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
       state.getPTA()->analyzeFunction(*kmodule->module, f);
       if(SymPtaSanityCheck) {
           auto abstractPTA = state.getPTA();
-          auto symbolicPTA = es.getPTA();
+          auto symbolicPTA = es->getPTA();
           for(auto& idToType : *abstractPTA->getPAG()) {
               auto nodeId = idToType.first;
               PointsTo& abstractPts = abstractPTA->getPts(nodeId);
@@ -4500,6 +4504,7 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
               }
 
           }
+          delete es;
       }
     }
   }
