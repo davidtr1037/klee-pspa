@@ -375,7 +375,7 @@ PTAInfo::PTAInfo(const llvm::Value *allocSite) :
 }
 
 PTAInfo::~PTAInfo() {
-  TimerStatIncrementer timer(stats::staticAnalysisTime);
+//  TimerStatIncrementer timer(stats::staticAnalysisTime);
   PAG::getPAG()->removeExternalObjNode(allocSite);
   delete allocSite;
   allocSite = NULL;
@@ -1459,6 +1459,11 @@ void Executor::executeCall(ExecutionState &state,
     unsigned numFormals = f->arg_size();
     for (unsigned i=0; i<numFormals; ++i) 
       bindArgument(kf, i, state, arguments[i]);
+
+    if(UseSymPta && f->getName() == "__user_main") {
+      SymbolicPTA sPTA(*solver, state, legalFunctions, *kmodule->targetData);
+      updateGlobalsPts(state, sPTA);
+    }
 
     if (isTargetFunction(state, f)) {
       analyzeTargetFunction(state, ki, f, arguments);
@@ -3422,8 +3427,9 @@ void Executor::executeMemoryOperation(ExecutionState &state,
         } else {
           ObjectState *wos = state.addressSpace.getWriteable(mo, os);
           wos->write(offset, value);
-          if(mo->isGlobal && mo->allocSite != nullptr)
+          if(mo->isGlobal && mo->allocSite != nullptr) {
             state.modifiedGlobals.insert(mo->allocSite);
+          }
 
           if (!UseSymPta && isDynamicMode() && shouldUpdatePoinstTo(state)) {
             updatePointsToOnStore(state, state.prevPC, mo, offset, value, UseStrongUpdates);
@@ -4488,20 +4494,29 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
           auto symbolicPTA = es->getPTA();
           for(auto& idToType : *abstractPTA->getPAG()) {
               auto nodeId = idToType.first;
+              if(nodeId == 0) continue;
               PointsTo& abstractPts = abstractPTA->getPts(nodeId);
               PointsTo& symbolicPts = symbolicPTA->getPts(nodeId);
               symbolicPts.intersectWithComplement(abstractPts);
               if(symbolicPts.count() > 0) {
                 //Check if they are FS version of FI objects
+                bool ok = true;
                 for( auto nid : symbolicPts ) {
-                  errs() << abstractPTA->getFIObjNode(nid) << "\n";
-
+                  errs() << "checking " << abstractPTA->getFIObjNode(nid) << "\n";
+                  ok &= abstractPts.test(abstractPTA->getFIObjNode(nid));
+                      
                 }
-                errs() << "PointsTo sets for " << nodeId << " don't match\n";
+                if(ok) continue;
+                errs() << "PointsTo sets for " << nodeId << " don't match\nsymbolic pts: ";
                 dump(symbolicPts, errs());
                 errs() << "abstract pts: ";
                 dump(abstractPts, errs());
-                abstractPTA->getPAG()->getPAGNode(nodeId)->getValue()->dump();
+                if(abstractPTA->getPAG()->getPAGNode(nodeId)->hasValue()) {
+
+//                  if(isa<GlobalValue>(abstractPTA->getPAG()->getPAGNode(nodeId)->getValue()))
+//                      continue; //globals can missmatch at this point
+                  abstractPTA->getPAG()->getPAGNode(nodeId)->getValue()->dump();
+                }
                 assert(0 && "Pts sets don't match");
               }
 
