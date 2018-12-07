@@ -339,6 +339,9 @@ namespace {
 
   cl::opt<bool>
   NoAnalyze("no-analyze", cl::init(false), cl::desc(""));
+
+  cl::opt<bool>
+  AnalyzeAll("analyze-all", cl::init(false), cl::desc(""));
 }
 
 
@@ -3891,6 +3894,11 @@ size_t Executor::getAllocationAlignment(const llvm::Value *allocSite) const {
 }
 
 bool Executor::isTargetFunction(ExecutionState &state, Function *f) {
+  if (AnalyzeAll) {
+    /* don't analyze klee_* functons */
+    return f->getName().find("klee_") != 0;
+  }
+
   for (const TargetFunctionOption &option :  interpreterOpts.targetFunctions) {
     if (f->getName() == option.name) {
       const std::vector<unsigned int> &lines = option.lines;
@@ -4167,7 +4175,7 @@ bool Executor::getDynamicMemoryLocations(ExecutionState &state,
 }
 
 bool Executor::isDynamicMode() {
-  return !RunStaticPTA && !interpreterOpts.targetFunctions.empty();
+  return !RunStaticPTA && (!interpreterOpts.targetFunctions.empty() || AnalyzeAll);
 }
 
 void Executor::handleBitCast(ExecutionState &state,
