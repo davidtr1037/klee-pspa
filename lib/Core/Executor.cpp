@@ -4368,6 +4368,11 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
     }
   }
 
+  if (NoAnalyze) {
+    /* no statistics in this mode... */
+    return;
+  }
+
   /* get the appropriate analyzer */
   PointerAnalysis *pta = RunStaticPTA ? staticPTA : state.getPTA().get();
 
