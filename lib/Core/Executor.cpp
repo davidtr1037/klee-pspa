@@ -4365,6 +4365,8 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
                                      KInstruction *ki,
                                      Function *f,
                                      std::vector<ref<Expr>> &arguments) {
+  AndersenDynamic *clonedPTA = NULL;
+
   if (isDynamicMode()) {
     /* update statistics */
     TimerStatIncrementer timer(stats::staticAnalysisTime);
@@ -4372,7 +4374,9 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
     /* run dynamic pointer analysis */
     updatePointsToOnCall(state, f, arguments);
     if (!NoAnalyze) {
-      state.getPTA()->analyzeFunction(*kmodule->module, f);
+      clonedPTA = new AndersenDynamic(*state.getPTA().get());
+      clonedPTA->initialize(*kmodule->module);
+      clonedPTA->analyzeFunction(*kmodule->module, f);
     }
   }
 
@@ -4382,7 +4386,7 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
   }
 
   /* get the appropriate analyzer */
-  PointerAnalysis *pta = RunStaticPTA ? staticPTA : state.getPTA().get();
+  PointerAnalysis *pta = RunStaticPTA ? staticPTA : clonedPTA;
 
   if (CollectPTAStats) {
     StatsCollector collector(false);
@@ -4422,7 +4426,7 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
   }
 
   if (!RunStaticPTA) {
-    state.getPTA()->postAnalysisCleanup();
+    delete clonedPTA;
   }
 }
 
