@@ -4103,13 +4103,6 @@ bool Executor::getDynamicMemoryLocations(ExecutionState &state,
                                          ref<Expr> value,
                                          PointerType *valueType,
                                          std::vector<DynamicMemoryLocation> &locations) {
-  DynamicMemoryLocation location;
-  bool result = getDynamicMemoryLocation(state, value, valueType, location);
-  if (result) {
-    locations.push_back(location);
-    return true;
-  }
-
   /* try to resolve multiple objects... */
   ResolutionList rl;
   solver->setTimeout(coreSolverTimeout);
@@ -4120,15 +4113,74 @@ bool Executor::getDynamicMemoryLocations(ExecutionState &state,
                                                0,
                                                coreSolverTimeout);
   solver->setTimeout(0);
-
-  /* TODO: check when it happens */
-  (void)(incomplete);
-
-  if (!rl.empty()) {
-    /* TODO: add all locations */
-    assert(false);
+  if (incomplete) {
+    /* TODO: should we concretize here? */
+    return false;
   }
 
+  if (rl.empty()) {
+    ConstantExpr *ce = dyn_cast<ConstantExpr>(value);
+    if (ce) {
+      uint64_t addr = ce->getZExtValue();
+
+      /* check if it's a NULL value */
+      if (addr == 0 || addr == (uint64_t)(-1)) {
+        DynamicMemoryLocation location;
+        location.value = ConstantPointerNull::get(valueType);
+        location.size = 0;
+        location.isSymbolicOffset = false;
+        location.offset = 0;
+        location.hint = NULL;
+        locations.push_back(location);
+        return true;
+      }
+
+      /* it may be a function pointer */
+      if (legalFunctions.count(addr)) {
+        DynamicMemoryLocation location;
+        location.value = (const Function *)(addr);
+        location.size = 0;
+        location.isSymbolicOffset = false;
+        location.offset = 0;
+        location.hint = NULL;
+        locations.push_back(location);
+        return true;
+      }
+    }
+
+    /* decrement 1 from the address expression and retry... */
+    bool wasResolved;
+    ObjectPair op;
+    ref<Expr> subValue = SubExpr::create(value,
+                                         ConstantExpr::alloc(1, value->getWidth()));
+    solver->setTimeout(coreSolverTimeout);
+    bool complete = state.addressSpace.resolveOne(state, solver, subValue, op, wasResolved);
+    solver->setTimeout(0);
+    if (!complete || !wasResolved) {
+      return false;
+    } else {
+      rl.push_back(op);
+    }
+  }
+
+  for (ObjectPair op : rl) {
+    DynamicMemoryLocation location;
+    const MemoryObject *mo = op.first;
+
+    ref<Expr> offsetExpr = mo->getOffsetExpr(value);
+    ConstantExpr *ce = dyn_cast<ConstantExpr>(offsetExpr);
+    if (!ce) {
+      location.isSymbolicOffset = true;
+    } else {
+      location.isSymbolicOffset = false;
+      location.offset = ce->getZExtValue();
+    }
+
+    location.value = getAllocSite(state, mo);
+    location.size = mo->size;
+    location.hint = getTypeHint(mo);
+    locations.push_back(location);
+  }
   return true;
 }
 
@@ -4261,10 +4313,17 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
     }
   }
 
-  for (DynamicMemoryLocation location : locations) {
+  for (unsigned int i = 0; i < locations.size(); i++) {
+    DynamicMemoryLocation &location = locations[i];
     NodeID dst = computeAbstractMO(state.getPTA().get(), location, true);
-    if (useStrongUpdates && canStronglyUpdate && !isLocalObjectInRecursion && locations.size() == 1) {
-      state.getPTA()->strongUpdate(src, dst);
+    if (useStrongUpdates && canStronglyUpdate && !isLocalObjectInRecursion) {
+      /* if we have more than one object,
+         then only the first update should be strong */
+      if (locations.size() > 1 && i > 0) {
+        state.getPTA()->weakUpdate(src, dst);
+      } else {
+        state.getPTA()->strongUpdate(src, dst);
+      }
     } else {
       state.getPTA()->weakUpdate(src, dst);
     }
@@ -4378,9 +4437,11 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
     /* TODO: check return value */
     std::vector<DynamicMemoryLocation> locations;
     getDynamicMemoryLocations(state, e, paramType, locations);
-
-    if (locations.empty()) 
-      klee_warning("argument %d of '%s' is out of bound...", argIndex - 1, f->getName().data());
+    if (locations.empty()) {
+      klee_warning("argument %d of '%s' is out of bound...",
+                   argIndex - 1,
+                   f->getName().data());
+    }
 
     NodeID formalParamId = state.getPTA()->getPAG()->getValueNode(&arg);
     for (unsigned int i = 0; i < locations.size(); i++) {
