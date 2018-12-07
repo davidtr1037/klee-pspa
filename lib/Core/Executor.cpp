@@ -3422,6 +3422,8 @@ void Executor::executeMemoryOperation(ExecutionState &state,
         } else {
           ObjectState *wos = state.addressSpace.getWriteable(mo, os);
           wos->write(offset, value);
+          if(mo->isGlobal && mo->allocSite != nullptr)
+            state.modifiedGlobals.insert(mo->allocSite);
 
           if (!UseSymPta && isDynamicMode() && shouldUpdatePoinstTo(state)) {
             updatePointsToOnStore(state, state.prevPC, mo, offset, value, UseStrongUpdates);
@@ -4290,27 +4292,9 @@ void Executor::updatePointsToOnCallApi(ExecutionState &state,
                                     Function *f,
                                     std::vector<ref<Expr>> &arguments) {
   SymbolicPTA sPTA(*solver, state, legalFunctions, *kmodule->targetData);
-  for(const auto& vmo : globalObjects) {
-      MemoryObject* mo = vmo.second;
-      const GlobalVariable* gv = dyn_cast<GlobalVariable>(vmo.first);
-      if(gv && !gv->isConstant() && !gv->isDeclaration() && gv->getType()->isPointerTy()) {
-        NodeID formalGlobalId = state.getPTA()->getPAG()->getValueNode(gv);
+  updateGlobalsPts(state, sPTA);
 
-  			auto ptr = sPTA.getPointer(mo, ConstantExpr::create(0, 64));
-        for(auto parentChild : sPTA.traverse(ptr)) {
-            auto from = ptrToAbstract(state, parentChild.first);
-            auto to = ptrToAbstract(state, parentChild.second);
-            errs() << "Global Update " << from << " to: " << to << " isWeak " << parentChild.first->isWeak() << " " + parentChild.second->print() <<  "\n";
-            state.updatePTS(from, to, !parentChild.first->isWeak() && !parentChild.second->isWeak());
-        }
-        auto dst = ptrToAbstract(state,ptr);
-        errs() << "Global Update " << formalGlobalId << " to " << dst << " mo: " << mo->name << " isWeak " << " " + ptr->isWeak() << "\n";
-        state.updatePTS(formalGlobalId, dst, !ptr->isWeak());
-
-      }
-  }
-
-  unsigned int argIndex = 0;
+    unsigned int argIndex = 0;
   for (Function::arg_iterator ai = f->arg_begin(); ai != f->arg_end(); ai++) {
     Argument &arg = *ai;
 
@@ -4347,6 +4331,30 @@ void Executor::updatePointsToOnCallApi(ExecutionState &state,
   }
 
 }
+
+void Executor::updateGlobalsPts(ExecutionState &state, SymbolicPTA &sPTA) {
+    for(const llvm::Value* v : state.modifiedGlobals) {
+      const GlobalVariable* gv = dyn_cast<GlobalVariable>(v);
+      if(gv && !gv->isConstant() && !gv->isDeclaration() && gv->getType()->isPointerTy()) {
+        auto mo = globalObjects[gv];
+        NodeID formalGlobalId = state.getPTA()->getPAG()->getValueNode(gv);
+
+  			auto ptr = sPTA.getPointer(mo, ConstantExpr::create(0, 64));
+        for(auto parentChild : sPTA.traverse(ptr)) {
+            auto from = ptrToAbstract(state, parentChild.first);
+            auto to = ptrToAbstract(state, parentChild.second);
+//            errs() << "Global Update " << from << " to: " << to << " isWeak " << parentChild.first->isWeak() << " " + parentChild.second->print() <<  "\n";
+            state.updatePTS(from, to, !parentChild.first->isWeak() && !parentChild.second->isWeak());
+        }
+        auto dst = ptrToAbstract(state, ptr);
+        errs() << "Global Update " << formalGlobalId << " to " << dst << " mo: " << mo->name << " isWeak " << " " + ptr->isWeak() << "\n";
+        state.updatePTS(formalGlobalId, dst, !ptr->isWeak());
+
+      }
+  }
+  state.modifiedGlobals.clear();
+}
+
 void Executor::updatePointsToOnCall(ExecutionState &state,
                                     Function *f,
                                     std::vector<ref<Expr>> &arguments) {
@@ -4434,11 +4442,12 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
       }
     }
   }
+  
 
   /* get the appropriate analyzer */
   PointerAnalysis *pta = RunStaticPTA ? staticPTA : state.getPTA().get();
 
-  if (CollectPTAStats) {
+  if (CollectPTAStats && !NoAnalyze) {
     StatsCollector collector(false);
     collector.visitReachable(pta, f);
 
@@ -4449,12 +4458,12 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
     ptaStatsLogger->dump(context, collector.getStats());
   }
 
-  if (CollectPTAResults) {
+  if (CollectPTAResults && !NoAnalyze) {
     ResultsCollector collector(errs());
     collector.visitReachable(pta, f);
   }
 
-  if (DumpPTAGraph) {
+  if (DumpPTAGraph && !NoAnalyze) {
     if (RunStaticPTA) {
       /* TODO: use getAllValidPtrs? */
       klee_error("Doesn't support static mode...");
@@ -4463,7 +4472,7 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
     dumper.dump(state.getPTA().get());
   }
 
-  if (CollectModRef) {
+  if (CollectModRef && !NoAnalyze) {
     set<Function *> functions;
     for (unsigned int i = 0; i < state.stack.size() - 1; i++) {
       StackFrame &sf = state.stack[i];
@@ -4475,9 +4484,10 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
     collector.dumpModSet(pta);
   }
 
-  if (!RunStaticPTA) {
+  if (!RunStaticPTA && !NoAnalyze) {
     state.getPTA()->postAnalysisCleanup();
   }
+  
 }
 
 void Executor::logCall(ExecutionState &state,

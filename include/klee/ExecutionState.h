@@ -159,6 +159,8 @@ public:
   // The objects handling the klee_open_merge calls this state ran through
   std::vector<ref<MergeHandler> > openMergeStack;
 
+  std::set<const llvm::Value*> modifiedGlobals;
+
 private:
 
 public:

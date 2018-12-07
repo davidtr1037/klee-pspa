@@ -606,6 +606,7 @@ public:
   void logCall(ExecutionState &state,
                llvm::Function *f);
 
+    void updateGlobalsPts(ExecutionState &state, SymbolicPTA &sPTA);
 };
   
 } // End klee namespace
