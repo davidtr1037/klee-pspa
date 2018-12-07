@@ -4338,12 +4338,14 @@ NodeID Executor::ptrToAbstract(ExecutionState &state, Pointer *p, SymbolicPTA &s
 		return computeAbstractMO(state.getPTA().get(), dl, false);
   }
 	auto m = p->pointerContainer;
-	auto offset = dyn_cast<ConstantExpr>(p->offset);
+	auto offset = p->offset;
 
-	if(offset) {
+	if(true ||!p->multiplePointers) {
+    if(p->multiplePointers)
+        errs() << "Multiple pointers!!!!!!!!!!\n";
+
     auto pt = dyn_cast<PointerType>(sPTA.getMemoryObjectType(m));
-
-		DynamicMemoryLocation dl(getAllocSite(state,m),m->size, false, offset->getZExtValue(), pt);
+		DynamicMemoryLocation dl(getAllocSite(state,m),m->size, false, offset, pt);
 		return computeAbstractMO(state.getPTA().get(), dl, false);
 	} else {
 		assert(0 && "TODO symbolic offset");

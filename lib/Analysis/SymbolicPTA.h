@@ -32,13 +32,13 @@ public:
  std::string print() { 
      return isFunctionPtr() ? 
               ("fun:" + fun->getName().str()) : 
-              ("mo: " + pointerContainer->name + ":" + std::to_string(offset->getZExtValue())) ; 
+              ("mo: " + pointerContainer->name + ":" + std::to_string(offset)) ; 
  }
 private:
- Pointer (const MemoryObject* mo, ref<ConstantExpr> o): pointerContainer(mo), offset(o), fun(nullptr) {}
- Pointer (const llvm::Function *f): pointerContainer(nullptr), offset(nullptr), fun(f) {}
+ Pointer (const MemoryObject* mo, ref<ConstantExpr> o): pointerContainer(mo), offset(o->getZExtValue()), fun(nullptr) {}
+ Pointer (const llvm::Function *f): pointerContainer(nullptr), offset(0), fun(f) {}
  const MemoryObject* pointerContainer; //chuck of memory where pointer can be read from
- ref<ConstantExpr> offset; //offset into the container where pointer is located
+ uint64_t offset; //offset into the container where pointer is located
  bool multiplePointers = false;
  bool weakUpdate = false;
  const llvm::Function* fun;

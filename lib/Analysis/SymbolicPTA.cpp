@@ -7,7 +7,7 @@ bool SymbolicPTA::isPointerOffset(Pointer& p) {
     assert(pty && "assumes input is a pointer type");
 
     auto typeSize = layout.getTypeStoreSize(pty->getElementType());
-    auto offset = p.offset->getZExtValue();
+    auto offset = p.offset;
     offset = offset % typeSize;
 
     for(const auto& offsetWeak : of.visit(pty->getElementType())) {
@@ -24,29 +24,40 @@ bool SymbolicPTA::isPointerOffset(Pointer& p) {
 Pointer* SymbolicPTA::getPointer(const MemoryObject* mo, ref<Expr> offset) {
     Pointer *retPtr = nullptr;
     std::vector<Pointer*> &ptrs = allPointers[mo];
-    for(auto p : ptrs) {
-        if(mayBeTrue(EqExpr::create(p->offset->ZExt(offset->getWidth()), offset))) {
-            if(retPtr == nullptr) {
-                retPtr = p;
-            } else {
-              //We resolved to a ptr already, so we flag it as mutliple resultions
-                retPtr->multiplePointers = true;
+    if(auto co = dyn_cast<ConstantExpr>(offset)) {
+      auto off = co->getZExtValue();
+      for(auto p : ptrs) {
+          if(p->offset == off)
+              return p;
+
+      }
+      retPtr = new Pointer(mo, co);
+      ptrs.push_back(retPtr);
+      return retPtr;
+    } else {
+        for(auto p : ptrs) {
+            if(mayBeTrue(EqExpr::create(ConstantExpr::create(p->offset, offset->getWidth()), 
+                                        offset))) {
+                if(retPtr == nullptr) {
+                    retPtr = p;
+                } else {
+                  //We resolved to a ptr already, so we flag it as mutliple resultions
+                    retPtr->multiplePointers = true;
+                }
             }
         }
     }
-
+    
+    //On a path where offset is symbolic
     if(retPtr != nullptr) 
        return retPtr;
 
-    if(auto co = dyn_cast<ConstantExpr>(offset))
-      retPtr = new Pointer(mo, co);
-    else {
-      ref<ConstantExpr> constant_offset;
-      solver.getValue(state, offset, constant_offset);
-      retPtr = new Pointer(mo, constant_offset);
-      if(mayBeTrue(NeExpr::create(offset, constant_offset)))
-        retPtr->multiplePointers = true;
-    }
+    ref<ConstantExpr> constant_offset;
+    solver.getValue(state, offset, constant_offset);
+    retPtr = new Pointer(mo, constant_offset);
+    if(mayBeTrue(NeExpr::create(offset, constant_offset)))
+      retPtr->multiplePointers = true;
+
     ptrs.push_back(retPtr);
     return retPtr;
 }
