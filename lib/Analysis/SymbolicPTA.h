@@ -110,7 +110,7 @@ public:
   SymbolicPTA(TimingSolver &solver, 
               ExecutionState &state, 
               std::set<uint64_t> &lf,
-              llvm::DataLayout l): solver(solver), state(state), legalFunctions(lf), layout(l), of(l) {}
+              llvm::DataLayout &l): solver(solver), state(state), legalFunctions(lf), layout(l), of(l) {}
   ~SymbolicPTA();
 
   //Gets the pointer representation of the location

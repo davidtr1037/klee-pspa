@@ -163,9 +163,9 @@ llvm::Type* SymbolicPTA::getMemoryObjectType(const MemoryObject* mo) {
         assert(GV->getType()->isPointerTy() && "GV has non pointer type");
         t = GV->getType();
     } else if(mo->allocSite->getNumUses() != 1) {
-        mo->allocSite->dump();
+//        mo->allocSite->dump();
 //        state.dumpStack(llvm::errs());
-        mo->allocSite->getType()->dump();
+//        mo->allocSite->getType()->dump();
         llvm::errs() << mo->name << " has multiple uses\n";
 //        assert(0 && "Unhandled multiple uses");
         t = mo->allocSite->getType();
@@ -174,8 +174,8 @@ llvm::Type* SymbolicPTA::getMemoryObjectType(const MemoryObject* mo) {
         assert(t->isPointerTy() && "BI has non pointer type");
     } else {
         llvm::errs() << mo->name << " has non bitcast 1 use\n";
-        mo->allocSite->dump();
-        mo->allocSite->user_back()->dump();
+//        mo->allocSite->dump();
+//        mo->allocSite->user_back()->dump();
         //assert(0 && "Unhandled BI type");
         t = mo->allocSite->getType();
     }
@@ -319,6 +319,9 @@ void OffsetFinder::visitArray(llvm::ArrayType* AT) {
 }
 void OffsetFinder::visitPointer(llvm::PointerType* st) {
     results.emplace_back(globalOffset, weakUpdate);
+//    if(st->getElementType()->isFunctionTy()) {
+//        llvm::errs() << "FP at offetset: " << globalOffset << " !!!\n";
+//    }
 }
 void OffsetFinder::visitInteger(llvm::IntegerType* st) {
     //Do nothing

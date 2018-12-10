@@ -37,6 +37,7 @@ void klee::dumpNodeInfo(PointerAnalysis *pta,
       errs() << "-- AS: " << *value << "\n";
     }
     errs() << "   -- kind: " << obj->getNodeKind() << "\n";
+    errs() << " -- base: " << pta->getBaseObjNode(obj->getId()) << "\n";
     GepObjPN *gepObj = dyn_cast<GepObjPN>(obj);
     if (gepObj) {
        errs() << "   -- ls: " << gepObj->getLocationSet().getOffset() << "\n";
