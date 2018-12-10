@@ -217,7 +217,6 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
   //
   // NOTE: Must come before division/overshift checks because those passes
   // don't know how to handle vector instructions.
-  pm.add(createScalarizerPass());
   if (opts.CheckDivZero) pm.add(new DivCheckPass());
   if (opts.CheckOvershift) pm.add(new OvershiftCheckPass());
   // FIXME: This false here is to work around a bug in
@@ -261,6 +260,7 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
   // directly I think?
   LegacyLLVMPassManagerTy pm3;
   pm3.add(createCFGSimplificationPass());
+  pm3.add(createScalarizerPass());
   switch(SwitchType) {
   case eSwitchTypeInternal: break;
   case eSwitchTypeSimple: pm3.add(new LowerSwitchPass()); break;

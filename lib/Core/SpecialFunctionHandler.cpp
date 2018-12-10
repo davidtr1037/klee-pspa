@@ -111,6 +111,7 @@ static SpecialFunctionHandler::HandlerInfo handlerInfo[] = {
   add("klee_warning_once", handleWarningOnce, false),
   add("klee_alias_function", handleAliasFunction, false),
   add("malloc", handleMalloc, true),
+  add("mymalloc", handleMalloc, true),
   add("realloc", handleRealloc, true),
 
   // operator delete[](void*)
