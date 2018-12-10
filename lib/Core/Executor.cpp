@@ -375,7 +375,7 @@ PTAInfo::PTAInfo(const llvm::Value *allocSite) :
 }
 
 PTAInfo::~PTAInfo() {
-//  TimerStatIncrementer timer(stats::staticAnalysisTime);
+  TimerStatIncrementer timer(stats::staticAnalysisTime);
   PAG::getPAG()->removeExternalObjNode(allocSite);
   delete allocSite;
   allocSite = NULL;
@@ -994,6 +994,11 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
     ExecutionState *falseState, *trueState = &current;
 
     ++stats::forks;
+    {
+      TimerStatIncrementer timer(stats::staticAnalysisTime);
+      SymbolicPTA sPTA(*solver, current, legalFunctions, *kmodule->targetData);
+      updateGlobalsPts(current, sPTA);
+    }
 
     falseState = trueState->branch();
     addedStates.push_back(falseState);
@@ -1461,8 +1466,8 @@ void Executor::executeCall(ExecutionState &state,
       bindArgument(kf, i, state, arguments[i]);
 
     if(UseSymPta && f->getName() == "__user_main") {
-      SymbolicPTA sPTA(*solver, state, legalFunctions, *kmodule->targetData);
-      updateGlobalsPts(state, sPTA);
+//      SymbolicPTA sPTA(*solver, state, legalFunctions, *kmodule->targetData);
+//      updateGlobalsPts(state, sPTA);
     }
 
     if (isTargetFunction(state, f)) {
