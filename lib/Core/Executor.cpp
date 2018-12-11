@@ -4407,11 +4407,11 @@ void Executor::updatePointsToOnCallApi(ExecutionState &state,
        for(auto parentChild : sPTA.traverse(ptr)) {
            auto from = ptrToAbstract(state, parentChild.first, sPTA);
            auto to = ptrToAbstract(state, parentChild.second, sPTA);
-           errs() << "Update " << from << " to: " << to << " isWeak " << parentChild.first->isWeak() << " " + parentChild.second->print() << "\n";
+//           errs() << "Update " << from << " to: " << to << " isWeak " << parentChild.first->isWeak() << " " + parentChild.second->print() << "\n";
            state.updatePTS(from, to, !parentChild.first->isWeak() && !parentChild.second->isWeak());
        }
        auto dst = ptrToAbstract(state,ptr, sPTA);
-       errs() << "Update " << formalParamId << " to " << dst << " mo: " << mo->name << " isWeak " << " " + ptr->isWeak() << "\n";
+ //      errs() << "Update " << formalParamId << " to " << dst << " mo: " << mo->name << " isWeak " << " " + ptr->isWeak() << "\n";
        state.updatePTS(formalParamId, dst, !ptr->isWeak());
   	}
 
@@ -4476,7 +4476,7 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
       DynamicMemoryLocation &location = locations[i];
       NodeID dst = computeAbstractMO(state.getPTA().get(), location, false);
       state.updatePTS(formalParamId,dst, i==0);
-      errs() << dst << " is FI: " << state.getPTA()->isFieldInsensitive(dst) << "\n";
+//      errs() << dst << " is FI: " << state.getPTA()->isFieldInsensitive(dst) << "\n";
     }
   }
 }
@@ -4593,7 +4593,7 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
     collector.dumpModSet(pta);
   }
 
-  if (!NoAnalyze) {
+  if (!RunStaticPTA && !NoAnalyze) {
     delete clonedPTA;
   }
   
