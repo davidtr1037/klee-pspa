@@ -3927,7 +3927,7 @@ size_t Executor::getAllocationAlignment(const llvm::Value *allocSite) const {
 bool Executor::isTargetFunction(ExecutionState &state, Function *f) {
   if (AnalyzeAll) {
     /* don't analyze klee_* functons */
-    return f->getName().find("klee_") != 0;
+    return  f->getName().find("strncasecmp_l") != 0 && f->getName().find("tolower_l") != 0 && f->getName().find("klee_") != 0;
   }
 
   for (const TargetFunctionOption &option :  interpreterOpts.targetFunctions) {
