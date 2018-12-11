@@ -3484,6 +3484,10 @@ void Executor::executeMemoryOperation(ExecutionState &state,
           ObjectState *wos = bound->addressSpace.getWriteable(mo, os);
           wos->write(offset, value);
 
+          if(mo->isGlobal && mo->allocSite != nullptr) {
+            state.modifiedGlobals.insert(mo->allocSite);
+          }
+
           if (!UseSymPta &&isDynamicMode() && shouldUpdatePoinstTo(state)) {
             updatePointsToOnStore(state, state.prevPC, mo, offset, value, UseStrongUpdates);
           }
