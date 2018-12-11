@@ -308,12 +308,15 @@ void OffsetFinder::visitStruct(llvm::StructType* ST) {
 void OffsetFinder::visitArray(llvm::ArrayType* AT) {
     int numElements = AT->getNumElements();
     auto len = layout.getTypeStoreSize(AT->getElementType()); 
+    auto numResults = results.size();
     for(int i = 0; i < numElements; i++) {
       if(!weakUpdate)
         weakUpdate = i != 0;
       globalOffset += i*len; 
       visit(AT->getElementType());
       globalOffset -= i*len;
+      if(numResults == results.size())
+          break; //All elements are of the same type so nothing will change
     }
 
 }
