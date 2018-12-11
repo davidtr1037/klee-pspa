@@ -346,6 +346,9 @@ namespace {
 
   cl::opt<bool>
   NoAnalyze("no-analyze", cl::init(false), cl::desc(""));
+
+  cl::opt<bool>
+  AnalyzeAll("analyze-all", cl::init(false), cl::desc(""));
 }
 
 
@@ -3922,6 +3925,11 @@ size_t Executor::getAllocationAlignment(const llvm::Value *allocSite) const {
 }
 
 bool Executor::isTargetFunction(ExecutionState &state, Function *f) {
+  if (AnalyzeAll) {
+    /* don't analyze klee_* functons */
+    return f->getName().find("klee_") != 0;
+  }
+
   for (const TargetFunctionOption &option :  interpreterOpts.targetFunctions) {
 
     auto n = f->getName();
@@ -4200,7 +4208,7 @@ bool Executor::getDynamicMemoryLocations(ExecutionState &state,
 }
 
 bool Executor::isDynamicMode() {
-  return !RunStaticPTA && !interpreterOpts.targetFunctions.empty();
+  return !RunStaticPTA && (!interpreterOpts.targetFunctions.empty() || AnalyzeAll);
 }
 
 void Executor::handleBitCast(ExecutionState &state,
@@ -4477,7 +4485,9 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
                                      KInstruction *ki,
                                      Function *f,
                                      std::vector<ref<Expr>> &arguments) {
-   if (isDynamicMode()) {
+  AndersenDynamic *clonedPTA = NULL;
+
+  if (isDynamicMode()) {
     /* update statistics */
     TimerStatIncrementer timer(stats::staticAnalysisTime);
     ++stats::staticAnalysisUsage;
@@ -4497,7 +4507,9 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
     }
 
     if (!NoAnalyze) {
-      state.getPTA()->analyzeFunction(*kmodule->module, f);
+      clonedPTA = new AndersenDynamic(*state.getPTA().get());
+      clonedPTA->initialize(*kmodule->module);
+      clonedPTA->analyzeFunction(*kmodule->module, f);
       if(SymPtaSanityCheck) {
           auto abstractPTA = state.getPTA();
           auto symbolicPTA = es->getPTA();
@@ -4536,8 +4548,13 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
   }
   
 
+  if (NoAnalyze) {
+    /* no statistics in this mode... */
+    return;
+  }
+
   /* get the appropriate analyzer */
-  PointerAnalysis *pta = RunStaticPTA ? staticPTA : state.getPTA().get();
+  PointerAnalysis *pta = RunStaticPTA ? staticPTA : clonedPTA;
 
   if (CollectPTAStats && !NoAnalyze) {
     StatsCollector collector(false);
@@ -4576,8 +4593,8 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
     collector.dumpModSet(pta);
   }
 
-  if (!RunStaticPTA && !NoAnalyze) {
-    state.getPTA()->postAnalysisCleanup();
+  if (!NoAnalyze) {
+    delete clonedPTA;
   }
   
 }
