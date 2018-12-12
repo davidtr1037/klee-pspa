@@ -131,30 +131,17 @@ bool ModularPTA::checkIsomorphism(EntryState &es1,
         return false;
       }
 
-      if (pts1.count() > 1) {
-        assert(false);
+      std::vector<NodeID> ptsList1;
+      std::vector<NodeID> ptsList2;
+      for (NodeID x : pts1) {
+        ptsList1.push_back(x);
       }
-
-      /* if the points-to is empty, we are fine */
-      if (pts1.count() > 0) {
-        NodeID p1 = *pts1.begin();
-        NodeID p2 = *pts2.begin();
-
-        /* TODO: is it correct? */
-        /* TODO: should we check it at the beginning of checkIsomorphism? */
-        if (!es1.pta->getPAG()->findPAGNode(p1)) {
-          if (es2.pta->getPAG()->findPAGNode(p2)) {
-            return false;
-          }
-          continue;
-        }
-        if (!es2.pta->getPAG()->findPAGNode(p2)) {
-          if (es1.pta->getPAG()->findPAGNode(p1)) {
-            return false;
-          }
-          continue;
-        }
-
+      for (NodeID x : pts2) {
+        ptsList2.push_back(x);
+      }
+      for (unsigned int i = 0; i < ptsList1.size(); i++) {
+        NodeID p1 = ptsList1[i];
+        NodeID p2 = ptsList2[i];
         worklist.push_back(make_pair(p1, p2));
       }
     }
