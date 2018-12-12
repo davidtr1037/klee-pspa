@@ -80,6 +80,20 @@ bool ModularPTA::checkIsomorphism(EntryState &es1,
     NodeID n1 = p.first;
     NodeID n2 = p.second;
 
+    if (!es1.pta->getPAG()->findPAGNode(n1)) {
+      if (es2.pta->getPAG()->findPAGNode(n2)) {
+        return false;
+      }
+      continue;
+    }
+
+    if (!es2.pta->getPAG()->findPAGNode(n2)) {
+      if (es1.pta->getPAG()->findPAGNode(n1)) {
+        return false;
+      }
+      continue;
+    }
+
     PAGNode *pagNode;
     pagNode = es1.pta->getPAG()->getPAGNode(n1);
     ObjPN *obj1 = dyn_cast<ObjPN>(pagNode);
@@ -151,6 +165,7 @@ bool ModularPTA::checkIsomorphism(EntryState &es1,
     NodeID base2 = es2.pta->getBaseObjNode(n2);
     info.mapping[base1] = base2;
 
+    /* TODO: is it the right place? */
     /* update checked pairs */
     checked.insert(p);
   }
