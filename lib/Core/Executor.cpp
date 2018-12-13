@@ -4511,7 +4511,7 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
       clonedPTA->initialize(*kmodule->module);
       clonedPTA->analyzeFunction(*kmodule->module, f);
       if(SymPtaSanityCheck) {
-          auto abstractPTA = state.getPTA();
+          auto abstractPTA = clonedPTA;
           auto symbolicPTA = es->getPTA();
           for(auto& idToType : *abstractPTA->getPAG()) {
               auto nodeId = idToType.first;
