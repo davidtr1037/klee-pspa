@@ -339,7 +339,13 @@ namespace {
   CollectModRef("collect-modref", cl::init(false), cl::desc(""));
 
   cl::opt<std::string>
-  DumpPTASummary("dump-pta-summary", cl::init(""), cl::desc(""));
+  PTALog("pta-log", cl::init(""), cl::desc(""));
+
+  cl::opt<bool>
+  NoAnalyze("no-analyze", cl::init(false), cl::desc(""));
+
+  cl::opt<bool>
+  AnalyzeAll("analyze-all", cl::init(false), cl::desc(""));
 
   cl::opt<bool>
   UseStaticModRef("use-static-modref", cl::init(true), cl::desc(""));
@@ -456,16 +462,10 @@ Executor::Executor(LLVMContext &ctx, const InterpreterOptions &opts,
     }
   }
 
-  if (DumpPTASummary == "") {
+  if (PTALog == "") {
     ptaStatsLogger = new PTAStatsPrintLogger();
   } else {
-    ptaStatsLogger = new PTAStatsCSVLogger(DumpPTASummary);
-  }
-
-  if (CollectPTAResults) {
-    ptaLog = interpreterHandler->openOutputFile("pta.log");
-  } else {
-    ptaLog = NULL;
+    ptaStatsLogger = new PTAStatsCSVLogger(PTALog);
   }
 
   if (DumpPTAGraph) {
@@ -589,9 +589,6 @@ Executor::~Executor() {
   delete debugInstFile;
   if (ptaStatsLogger) {
     delete ptaStatsLogger;
-  }
-  if (ptaLog) {
-    delete ptaLog;
   }
   if (ptaGraphLog) {
     delete ptaGraphLog;
@@ -1495,61 +1492,6 @@ void Executor::executeCall(ExecutionState &state,
     // instead of the actual instruction, since we can't make a KInstIterator
     // from just an instruction (unlike LLVM).
 
-    if (isTargetFunction(state, f)) {
-      if (isDynamicMode()) {
-        /* update statistics */
-        TimerStatIncrementer timer(stats::staticAnalysisTime);
-        ++stats::staticAnalysisUsage;
-        /* run dynamic pointer analysis */
-        updatePointsToOnCall(state, f, arguments);
-        state.getPTA()->analyzeFunction(*kmodule->module, f);
-      }
-
-      /* get the appropriate analyzer */
-      PointerAnalysis *pta = RunStaticPTA ? staticPTA : state.getPTA().get();
-
-      if (CollectPTAStats) {
-        StatsCollector collector(false);
-        collector.visitReachable(pta, f);
-
-        CallingContext context;
-        context.entry = f;
-        context.line = kmodule->infos->getInfo(i).line;
-        context.call_depth = state.stack.size() - 1;
-        ptaStatsLogger->dump(context, collector.getStats());
-      }
-
-      if (CollectPTAResults) {
-        ResultsCollector collector(*ptaLog);
-        collector.visitReachable(pta, f);
-      }
-
-      if (DumpPTAGraph) {
-        if (RunStaticPTA) {
-          /* TODO: use getAllValidPtrs? */
-          klee_error("Doesn't support static mode...");
-        }
-        PTAGraphDumper dumper(*ptaGraphLog);
-        dumper.dump(state.getPTA().get());
-      }
-
-      if (CollectModRef) {
-        set<Function *> functions;
-        for (unsigned int i = 0; i < state.stack.size() - 1; i++) {
-          StackFrame &sf = state.stack[i];
-          functions.insert(sf.kf->function);
-        }
-
-        ModRefCollector collector(functions);
-        collector.visitReachable(pta, f);
-        collector.dumpModSet(pta);
-      }
-
-      if (!RunStaticPTA) {
-        state.getPTA()->postAnalysisCleanup();
-      }
-    }
-
     if (state.isNormalState() && !state.isRecoveryState() && isFunctionToSkip(state, f)) {
       /* first, check if the skipped function has side effects */
       if (isDynamicMode() || mra->hasSideEffects(f)) {
@@ -1692,6 +1634,10 @@ void Executor::executeCall(ExecutionState &state,
     unsigned numFormals = f->arg_size();
     for (unsigned i=0; i<numFormals; ++i) 
       bindArgument(kf, i, state, arguments[i]);
+
+    if (isTargetFunction(state, f)) {
+      analyzeTargetFunction(state, ki, f, arguments);
+    }
   }
 }
 
@@ -4229,7 +4175,12 @@ size_t Executor::getAllocationAlignment(const llvm::Value *allocSite) const {
 }
 
 bool Executor::isTargetFunction(ExecutionState &state, Function *f) {
-  for (const FunctionOption &option :  interpreterOpts.targetFunctions) {
+  if (AnalyzeAll) {
+    /* don't analyze klee_* functons */
+    return f->getName().find("klee_") != 0;
+  }
+
+  for (const FunctionOption &option : interpreterOpts.targetFunctions) {
     if (f->getName() == option.name) {
       const std::vector<unsigned int> &lines = option.lines;
 
@@ -4419,13 +4370,6 @@ bool Executor::getDynamicMemoryLocations(ExecutionState &state,
                                          ref<Expr> value,
                                          PointerType *valueType,
                                          std::vector<DynamicMemoryLocation> &locations) {
-  DynamicMemoryLocation location;
-  bool result = getDynamicMemoryLocation(state, value, valueType, location);
-  if (result) {
-    locations.push_back(location);
-    return true;
-  }
-
   /* try to resolve multiple objects... */
   ResolutionList rl;
   solver->setTimeout(coreSolverTimeout);
@@ -4436,15 +4380,74 @@ bool Executor::getDynamicMemoryLocations(ExecutionState &state,
                                                0,
                                                coreSolverTimeout);
   solver->setTimeout(0);
-
-  /* TODO: check when it happens */
-  (void)(incomplete);
-
-  if (!rl.empty()) {
-    /* TODO: add all locations */
-    assert(false);
+  if (incomplete) {
+    /* TODO: should we concretize here? */
+    return false;
   }
 
+  if (rl.empty()) {
+    ConstantExpr *ce = dyn_cast<ConstantExpr>(value);
+    if (ce) {
+      uint64_t addr = ce->getZExtValue();
+
+      /* check if it's a NULL value */
+      if (addr == 0 || addr == (uint64_t)(-1)) {
+        DynamicMemoryLocation location;
+        location.value = ConstantPointerNull::get(valueType);
+        location.size = 0;
+        location.isSymbolicOffset = false;
+        location.offset = 0;
+        location.hint = NULL;
+        locations.push_back(location);
+        return true;
+      }
+
+      /* it may be a function pointer */
+      if (legalFunctions.count(addr)) {
+        DynamicMemoryLocation location;
+        location.value = (const Function *)(addr);
+        location.size = 0;
+        location.isSymbolicOffset = false;
+        location.offset = 0;
+        location.hint = NULL;
+        locations.push_back(location);
+        return true;
+      }
+    }
+
+    /* decrement 1 from the address expression and retry... */
+    bool wasResolved;
+    ObjectPair op;
+    ref<Expr> subValue = SubExpr::create(value,
+                                         ConstantExpr::alloc(1, value->getWidth()));
+    solver->setTimeout(coreSolverTimeout);
+    bool complete = state.addressSpace.resolveOne(state, solver, subValue, op, wasResolved);
+    solver->setTimeout(0);
+    if (!complete || !wasResolved) {
+      return false;
+    } else {
+      rl.push_back(op);
+    }
+  }
+
+  for (ObjectPair op : rl) {
+    DynamicMemoryLocation location;
+    const MemoryObject *mo = op.first;
+
+    ref<Expr> offsetExpr = mo->getOffsetExpr(value);
+    ConstantExpr *ce = dyn_cast<ConstantExpr>(offsetExpr);
+    if (!ce) {
+      location.isSymbolicOffset = true;
+    } else {
+      location.isSymbolicOffset = false;
+      location.offset = ce->getZExtValue();
+    }
+
+    location.value = getAllocSite(state, mo);
+    location.size = mo->size;
+    location.hint = getTypeHint(mo);
+    locations.push_back(location);
+  }
   return true;
 }
 
@@ -4577,10 +4580,17 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
     }
   }
 
-  for (DynamicMemoryLocation location : locations) {
+  for (unsigned int i = 0; i < locations.size(); i++) {
+    DynamicMemoryLocation &location = locations[i];
     NodeID dst = computeAbstractMO(state.getPTA().get(), location, true);
-    if (useStrongUpdates && canStronglyUpdate && !isLocalObjectInRecursion && locations.size() == 1) {
-      state.getPTA()->strongUpdate(src, dst);
+    if (useStrongUpdates && canStronglyUpdate && !isLocalObjectInRecursion) {
+      /* if we have more than one object,
+         then only the first update should be strong */
+      if (locations.size() > 1 && i > 0) {
+        state.getPTA()->weakUpdate(src, dst);
+      } else {
+        state.getPTA()->strongUpdate(src, dst);
+      }
     } else {
       state.getPTA()->weakUpdate(src, dst);
     }
@@ -4611,7 +4621,6 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
     /* TODO: check return value */
     std::vector<DynamicMemoryLocation> locations;
     getDynamicMemoryLocations(state, e, paramType, locations);
-
     if (locations.empty()) {
       klee_warning("argument %d of '%s' is out of bound...",
                    argIndex - 1,
@@ -4628,6 +4637,75 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
         state.getPTA()->weakUpdate(formalParamId, dst);
       }
     }
+  }
+}
+
+void Executor::analyzeTargetFunction(ExecutionState &state,
+                                     KInstruction *ki,
+                                     Function *f,
+                                     std::vector<ref<Expr>> &arguments) {
+  AndersenDynamic *clonedPTA = NULL;
+
+  if (isDynamicMode()) {
+    /* update statistics */
+    TimerStatIncrementer timer(stats::staticAnalysisTime);
+    ++stats::staticAnalysisUsage;
+    /* run dynamic pointer analysis */
+    updatePointsToOnCall(state, f, arguments);
+    if (!NoAnalyze) {
+      clonedPTA = new AndersenDynamic(*state.getPTA().get());
+      clonedPTA->initialize(*kmodule->module);
+      clonedPTA->analyzeFunction(*kmodule->module, f);
+    }
+  }
+
+  if (NoAnalyze) {
+    /* no statistics in this mode... */
+    return;
+  }
+
+  /* get the appropriate analyzer */
+  PointerAnalysis *pta = RunStaticPTA ? staticPTA : clonedPTA;
+
+  if (CollectPTAStats) {
+    StatsCollector collector(false);
+    collector.visitReachable(pta, f);
+
+    CallingContext context;
+    context.entry = f;
+    context.line = kmodule->infos->getInfo(ki->inst).line;
+    context.call_depth = state.stack.size() - 1;
+    ptaStatsLogger->dump(context, collector.getStats());
+  }
+
+  if (CollectPTAResults) {
+    ResultsCollector collector(errs());
+    collector.visitReachable(pta, f);
+  }
+
+  if (DumpPTAGraph) {
+    if (RunStaticPTA) {
+      /* TODO: use getAllValidPtrs? */
+      klee_error("Doesn't support static mode...");
+    }
+    PTAGraphDumper dumper(*ptaGraphLog);
+    dumper.dump(state.getPTA().get());
+  }
+
+  if (CollectModRef) {
+    set<Function *> functions;
+    for (unsigned int i = 0; i < state.stack.size() - 1; i++) {
+      StackFrame &sf = state.stack[i];
+      functions.insert(sf.kf->function);
+    }
+
+    ModRefCollector collector(functions);
+    collector.visitReachable(pta, f);
+    collector.dumpModSet(pta);
+  }
+
+  if (!RunStaticPTA) {
+    delete clonedPTA;
   }
 }
 

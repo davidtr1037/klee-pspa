@@ -136,7 +136,7 @@ void StatsCollector::updateStats(NodeID nodeId, unsigned size) {
 
 void ResultsCollector::visitReachable(PointerAnalysis *pta,
                                       llvm::Function *entry) {
-  log << "----\n";
+  log << "Entry: " << entry->getName() << "\n";
   InstructionVisitor::visitReachable(pta, entry);
 }
 
@@ -146,12 +146,12 @@ void ResultsCollector::visitStore(PointerAnalysis *pta,
   NodeID id = pta->getPAG()->getValueNode(inst->getPointerOperand());
   PointsTo &pts = pta->getPts(id);
 
-  log << f->getName() << " " << id << " ";
+  log << "[S] " << f->getName() << " " << id << ": { ";
   for (PointsTo::iterator i = pts.begin(); i != pts.end(); ++i) {
     NodeID nodeId = *i;
     log << nodeId << " ";
   }
-  log << "\n";
+  log << "}\n";
 }
 
 void ResultsCollector::visitLoad(PointerAnalysis *pta,
@@ -160,12 +160,12 @@ void ResultsCollector::visitLoad(PointerAnalysis *pta,
   NodeID id = pta->getPAG()->getValueNode(inst->getPointerOperand());
   PointsTo &pts = pta->getPts(id);
 
-  log << f->getName() << " " << id << " ";
+  log << "[L] " << f->getName() << " " << id << ": { ";
   for (PointsTo::iterator i = pts.begin(); i != pts.end(); ++i) {
     NodeID nodeId = *i;
     log << nodeId << " ";
   }
-  log << "\n";
+  log << "}\n";
 }
 
 bool ModRefCollector::canEscape(PointerAnalysis *pta,
@@ -203,6 +203,9 @@ void ModRefCollector::visitStore(PointerAnalysis *pta,
 
   for (NodeID nodeId : pts) {
     if (canEscape(pta, nodeId)) {
+      continue;
+    }
+    if (nodeId == pta->getPAG()->getConstantNode()) {
       continue;
     }
     mod.insert(nodeId);

@@ -255,9 +255,6 @@ private:
   PTAStatsLogger *ptaStatsLogger;
 
   /* TODO: add docs */
-  llvm::raw_ostream *ptaLog;
-
-  /* TODO: add docs */
   llvm::raw_ostream *ptaGraphLog;
 
   /* TODO: add docs */
@@ -633,6 +630,11 @@ public:
   void updatePointsToOnCall(ExecutionState &state,
                             llvm::Function *f,
                             std::vector<ref<Expr>> &arguments);
+
+  void analyzeTargetFunction(ExecutionState &state,
+                             KInstruction *ki,
+                             llvm::Function *f,
+                             std::vector<ref<Expr>> &arguments);
 
   void logCall(ExecutionState &state,
                llvm::Function *f);

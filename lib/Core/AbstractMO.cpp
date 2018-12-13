@@ -106,6 +106,12 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
     }
     offset = offset % stInfo->getSize();
     abstractOffset = computeAbstractFieldOffset(offset, elementType, isArrayElement);
+    if (location.size > stInfo->getSize() || isArrayElement) {
+      /* that should be an array, then we can't perform strong update */
+      if (canStronglyUpdate) {
+          *canStronglyUpdate = false;
+      }
+    }
     return pta->getGepObjNode(nodeId, LocationSet(abstractOffset));
   }
 
