@@ -200,6 +200,9 @@ void ModRefCollector::visitStore(PointerAnalysis *pta,
     if (canEscape(pta, nodeId)) {
       continue;
     }
+    if (nodeId == pta->getPAG()->getConstantNode()) {
+      continue;
+    }
     mod.insert(nodeId);
   }
 }
