@@ -146,9 +146,9 @@ public:
   virtual void reset();
 };
 
-class SymbolicPTA {
+typedef std::pair<Pointer *, Pointer *> PointsToPair;
 
-  typedef std::pair<Pointer *, Pointer *> PointsToPair;
+class SymbolicPTA {
 
   class TransitiveTraverser {
 

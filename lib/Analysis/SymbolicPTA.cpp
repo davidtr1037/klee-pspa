@@ -279,11 +279,11 @@ void SymbolicPTA::TransitiveTraverser::iterator::operator++() {
   ptrsToReturn.pop_front();
 }
 
-SymbolicPTA::PointsToPair& SymbolicPTA::TransitiveTraverser::iterator::operator*() {
+PointsToPair& SymbolicPTA::TransitiveTraverser::iterator::operator*() {
   return ptrsToReturn[0];
 }
 
-SymbolicPTA::PointsToPair* SymbolicPTA::TransitiveTraverser::iterator::operator->() {
+PointsToPair* SymbolicPTA::TransitiveTraverser::iterator::operator->() {
   return &ptrsToReturn[0];
 }
 

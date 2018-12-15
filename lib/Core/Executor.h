@@ -601,9 +601,9 @@ public:
   void updateGlobalsPts(ExecutionState &state,
                         SymbolicPTA &sPTA);
 
-  void updatePointsToOnCallApi(ExecutionState &state,
-                               llvm::Function *f,
-                               std::vector<ref<Expr>> &arguments);
+  void updatePointsToOnCallSymbolic(ExecutionState &state,
+                                    llvm::Function *f,
+                                    std::vector<ref<Expr>> &arguments);
 
   void analyzeTargetFunction(ExecutionState &state,
                              KInstruction *ki,

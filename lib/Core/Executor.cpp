@@ -4395,8 +4395,8 @@ NodeID Executor::ptrToAbstract(ExecutionState &state,
     return computeAbstractMO(state.getPTA().get(), dl, false);
   }
 
-  auto m = p->pointerContainer;
-  auto offset = p->offset;
+  const MemoryObject *m = p->pointerContainer;
+  uint64_t offset = p->offset;
 
   /* TODO: why always true? */
   if (true || !p->multiplePointers) {
@@ -4404,7 +4404,7 @@ NodeID Executor::ptrToAbstract(ExecutionState &state,
       /* TODO: do we want to assert here? */
     }
 
-    auto pt = dyn_cast<PointerType>(sPTA.getMemoryObjectType(m));
+    PointerType *pt = dyn_cast<PointerType>(sPTA.getMemoryObjectType(m));
     DynamicMemoryLocation dl(getAllocSite(state,m), m->size, false, offset, pt);
     return computeAbstractMO(state.getPTA().get(), dl, false);
   } else {
@@ -4412,7 +4412,8 @@ NodeID Executor::ptrToAbstract(ExecutionState &state,
   }
 }
 
-void Executor::updateGlobalsPts(ExecutionState &state, SymbolicPTA &sPTA) {
+void Executor::updateGlobalsPts(ExecutionState &state,
+                                SymbolicPTA &sPTA) {
   for (const llvm::Value *v : state.modifiedGlobals) {
     const GlobalVariable *gv = dyn_cast<GlobalVariable>(v);
     if (gv && !gv->isConstant() && !gv->isDeclaration() && gv->getType()->isPointerTy()) {
@@ -4420,11 +4421,11 @@ void Executor::updateGlobalsPts(ExecutionState &state, SymbolicPTA &sPTA) {
       NodeID formalGlobalId = state.getPTA()->getPAG()->getValueNode(gv);
 
       Pointer *ptr = sPTA.getPointer(mo, ConstantExpr::create(0, 64));
-      for (auto parentChild : sPTA.traverse(ptr)) {
-        auto from = ptrToAbstract(state, parentChild.first, sPTA);
-        auto to = ptrToAbstract(state, parentChild.second, sPTA);
-        // errs() << "Global Update " << from << " to: " << to << " isWeak " << parentChild.first->isWeak() << " " + parentChild.second->print() <<  "\n";
-        state.updatePointsTo(from, to, !parentChild.first->isWeak() && !parentChild.second->isWeak());
+      for (PointsToPair &pair : sPTA.traverse(ptr)) {
+        NodeID from = ptrToAbstract(state, pair.first, sPTA);
+        NodeID to = ptrToAbstract(state, pair.second, sPTA);
+        // errs() << "Global Update " << from << " to: " << to << " isWeak " << pair.first->isWeak() << " " + pair.second->print() <<  "\n";
+        state.updatePointsTo(from, to, !pair.first->isWeak() && !pair.second->isWeak());
       }
       auto dst = ptrToAbstract(state, ptr, sPTA);
       // errs() << "Global Update " << formalGlobalId << " to " << dst << " mo: " << mo->name << " isWeak " << " " + ptr->isWeak() << "\n";
@@ -4434,9 +4435,9 @@ void Executor::updateGlobalsPts(ExecutionState &state, SymbolicPTA &sPTA) {
   state.modifiedGlobals.clear();
 }
 
-void Executor::updatePointsToOnCallApi(ExecutionState &state,
-                                       Function *f,
-                                       std::vector<ref<Expr>> &arguments) {
+void Executor::updatePointsToOnCallSymbolic(ExecutionState &state,
+                                            Function *f,
+                                            std::vector<ref<Expr>> &arguments) {
   SymbolicPTA sPTA(*solver, state, legalFunctions, *kmodule->targetData);
   updateGlobalsPts(state, sPTA);
 
@@ -4461,15 +4462,16 @@ void Executor::updatePointsToOnCallApi(ExecutionState &state,
     NodeID formalParamId = state.getPTA()->getPAG()->getValueNode(&arg);
     for (auto &op1 : rl1) {
       const MemoryObject* mo = op1.first;
-      auto ptr = sPTA.getPointer(mo, mo->getOffsetExpr(e));
-      for (auto parentChild : sPTA.traverse(ptr)) {
-        auto from = ptrToAbstract(state, parentChild.first, sPTA);
-        auto to = ptrToAbstract(state, parentChild.second, sPTA);
-        // errs() << "Update " << from << " to: " << to << " isWeak " << parentChild.first->isWeak() << " " + parentChild.second->print() << "\n";
-        state.updatePointsTo(from, to, !parentChild.first->isWeak() && !parentChild.second->isWeak());
+      Pointer *ptr = sPTA.getPointer(mo, mo->getOffsetExpr(e));
+      for (PointsToPair &pair : sPTA.traverse(ptr)) {
+        NodeID from = ptrToAbstract(state, pair.first, sPTA);
+        NodeID to = ptrToAbstract(state, pair.second, sPTA);
+        // errs() << "Update " << from << " to: " << to << " isWeak " << pair.first->isWeak() << " " + pair.second->print() << "\n";
+        state.updatePointsTo(from, to, !pair.first->isWeak() && !pair.second->isWeak());
       }
-      auto dst = ptrToAbstract(state,ptr, sPTA);
+      NodeID dst = ptrToAbstract(state, ptr, sPTA);
       // errs() << "Update " << formalParamId << " to " << dst << " mo: " << mo->name << " isWeak " << " " + ptr->isWeak() << "\n";
+      /*  TODO: should we force weak update on non-first iterations? */
       state.updatePointsTo(formalParamId, dst, !ptr->isWeak());
   	}
   }
@@ -4487,7 +4489,7 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
     ++stats::staticAnalysisUsage;
     /* run dynamic pointer analysis */
     if (UseSymPta) {
-      updatePointsToOnCallApi(state, f, arguments);
+      updatePointsToOnCallSymbolic(state, f, arguments);
     } else {
       updatePointsToOnCall(state, f, arguments);
     }
@@ -4500,7 +4502,7 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
         /* build the symbolic points-to from scratch */
         ExecutionState *es = new ExecutionState(state);
         es->getPTA()->clearPointsTo();
-        updatePointsToOnCallApi(*es, f, arguments);
+        updatePointsToOnCallSymbolic(*es, f, arguments);
         es->getPTA()->analyzeFunction(*kmodule->module, f);
 
         /* compare with the abstrac points-to */
