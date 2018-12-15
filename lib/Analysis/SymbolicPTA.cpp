@@ -1,18 +1,23 @@
+#include <llvm/IR/Type.h>
+#include <llvm/IR/DerivedTypes.h>
+
 #include "SymbolicPTA.h"
 
+using namespace llvm;
 using namespace klee;
 
+
 bool SymbolicPTA::isPointerOffset(Pointer &p) {
-  auto type = getMemoryObjectType(p.pointerContainer);
-  auto pty = dyn_cast<llvm::PointerType>(type);
+  Type *type = getMemoryObjectType(p.pointerContainer);
+  PointerType *pty = dyn_cast<llvm::PointerType>(type);
   assert(pty && "assumes input is a pointer type");
 
-  auto typeSize = layout.getTypeStoreSize(pty->getElementType());
-  auto offset = p.offset;
+  uint64_t typeSize = layout.getTypeStoreSize(pty->getElementType());
+  uint64_t offset = p.offset;
   offset = offset % typeSize;
 
   for (const auto &offsetWeak : of.visit(pty->getElementType())) {
-    if (offsetWeak.first == offset) {
+    if (offsetWeak.offset == offset) {
       return true;
     }
   }
@@ -26,8 +31,8 @@ Pointer* SymbolicPTA::getPointer(const MemoryObject *mo,
   Pointer *retPtr = nullptr;
   std::vector<Pointer*> &ptrs = allPointers[mo];
   if (auto co = dyn_cast<ConstantExpr>(offset)) {
-    auto off = co->getZExtValue();
-    for (auto p : ptrs) {
+    uint64_t off = co->getZExtValue();
+    for (Pointer *p : ptrs) {
       if (p->offset == off) {
         return p;
       }
@@ -37,7 +42,7 @@ Pointer* SymbolicPTA::getPointer(const MemoryObject *mo,
     return retPtr;
   } else {
     for (auto p : ptrs) {
-      auto e = EqExpr::create(ConstantExpr::create(p->offset, offset->getWidth()), offset);
+      ref<Expr> e = EqExpr::create(ConstantExpr::create(p->offset, offset->getWidth()), offset);
       if (mayBeTrue(e)) {
         if (retPtr == nullptr) {
           retPtr = p;
@@ -79,7 +84,7 @@ Pointer* SymbolicPTA::getFunctionPointer(const llvm::Function *f) {
 
 std::vector<Pointer*> SymbolicPTA::handleFunctionPtr(ref<Expr> fp) {
   std::vector<Pointer*> ret;
-  auto cfp = dyn_cast<ConstantExpr>(fp);
+  ConstantExpr *cfp = dyn_cast<ConstantExpr>(fp);
   if (cfp == nullptr) {
     return ret;
   }
@@ -100,17 +105,17 @@ std::vector<Pointer*> SymbolicPTA::getPointerTarget(Pointer &p) {
   }
 
   const ObjectState* os = state.addressSpace.findObject(p.pointerContainer);
-  auto ptrWidth = Context::get().getPointerWidth();
+  uint64_t ptrWidth = Context::get().getPointerWidth();
   // holds pointers that need to be considered
-  std::vector<Pointer*> ps;
+  std::vector<Pointer *> pointers;
   if (p.multiplePointers) {
-    ps = getColocatedPointers(p);
+    pointers = getColocatedPointers(p);
   } else {
-    ps.push_back(&p);
+    pointers.push_back(&p);
   }
 
   int cnt = 0;
-  for (auto cp : ps) {
+  for (Pointer *cp : pointers) {
     assert(isPointerOffset(*cp) && "Trying to resolve non pointer type field as pointer");
     ref<Expr> ptr = os->read(cp->offset, ptrWidth);
     ResolutionList rl;
@@ -143,12 +148,12 @@ std::vector<Pointer*> SymbolicPTA::getColocatedPointers(Pointer &p) {
   // stride is in bytes
   auto stride = layout.getTypeStoreSize(ty);
 
-  std::vector<std::pair<unsigned, bool>> offsets = of.visit(ty);
+  std::vector<TypeInfo> offsets = of.visit(ty);
 
   for (auto o : offsets) {
-    for (auto off = o.first; off < mo->size; off += stride) {
+    for (unsigned int off = o.offset; off < mo->size; off += stride) {
       Pointer *p = getPointer(mo, ConstantExpr::create(off, Expr::Int32));
-      p->weakUpdate = o.second || off != o.first;
+      p->weakUpdate = o.isWeak || off != o.offset;
       ret.push_back(p);
     }
   }
@@ -357,4 +362,4 @@ void OffsetFinder::visitInteger(llvm::IntegerType *it) {
   // Do nothing
 }
 
-template class TypeVisitor<std::vector<std::pair<unsigned, bool>>>;
+template class TypeVisitor<std::vector<TypeInfo>>;

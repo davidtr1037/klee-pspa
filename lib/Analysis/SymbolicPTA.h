@@ -104,7 +104,21 @@ protected:
   T results;
 };
 
-class OffsetFinder : public TypeVisitor<std::vector<std::pair<unsigned, bool>>> {
+struct TypeInfo {
+
+    TypeInfo(unsigned int offset, bool isWeak) :
+      offset(offset),
+      isWeak(isWeak) {
+
+    }
+
+    /* the offset of the field (in bytes) */
+    unsigned int offset;
+    /* weather the field must be weakly updated */
+    bool isWeak;
+};
+
+class OffsetFinder : public TypeVisitor<std::vector<TypeInfo>> {
 
   void visitStruct(llvm::StructType *st);
 
@@ -123,7 +137,7 @@ class OffsetFinder : public TypeVisitor<std::vector<std::pair<unsigned, bool>>> 
 public:
 
   OffsetFinder(llvm::DataLayout &l) :
-    TypeVisitor<std::vector<std::pair<unsigned, bool>>>(),
+    TypeVisitor<std::vector<TypeInfo>>(),
     layout(l) {
 
   }
