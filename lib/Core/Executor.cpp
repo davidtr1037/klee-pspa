@@ -336,10 +336,12 @@ namespace {
   CollectModRef("collect-modref", cl::init(false), cl::desc(""));
 
   cl::opt<bool>
-  UseSymPta("sym-pta", cl::init(false), cl::desc("use symbolic pta"));
+  UseSymPta("use-sym-pta", cl::init(false), cl::desc("use symbolic pta"));
 
   cl::opt<bool>
-  SymPtaSanityCheck("sym-pta-sanity", cl::init(false), cl::desc("Runs noapi and sanity checks symbolic-pta"));
+  RunSymPtaSanityCheck("run-sym-pta-sanity",
+                       cl::init(false),
+                       cl::desc("Runs with abstract PTA and sanity checks symbolic PTA"));
 
   cl::opt<std::string>
   PTALog("pta-log", cl::init(""), cl::desc(""));
@@ -4498,7 +4500,7 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
       clonedPTA = new AndersenDynamic(*state.getPTA().get());
       clonedPTA->initialize(*kmodule->module);
       clonedPTA->analyzeFunction(*kmodule->module, f);
-      if (SymPtaSanityCheck) {
+      if (RunSymPtaSanityCheck) {
         /* build the symbolic points-to from scratch */
         ExecutionState *es = new ExecutionState(state);
         es->getPTA()->clearPointsTo();
