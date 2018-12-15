@@ -114,7 +114,7 @@ std::vector<Pointer*> SymbolicPTA::getPointerTarget(Pointer &p) {
     pointers.push_back(&p);
   }
 
-  int cnt = 0;
+  uint64_t cnt = 0;
   for (Pointer *cp : pointers) {
     assert(isPointerOffset(*cp) && "Trying to resolve non pointer type field as pointer");
     ref<Expr> ptr = os->read(cp->offset, ptrWidth);
@@ -133,21 +133,20 @@ std::vector<Pointer*> SymbolicPTA::getPointerTarget(Pointer &p) {
   return ret;
 }
 
-std::vector<Pointer*> SymbolicPTA::getColocatedPointers(Pointer &p) {
+std::vector<Pointer *> SymbolicPTA::getColocatedPointers(Pointer &p) {
   // If it's a pointer type it can be an array
-  std::vector<Pointer*> ret;
+  std::vector<Pointer *> ret;
   if (p.isFunctionPtr()) {
     return ret;
   }
 
-  const MemoryObject* mo = p.pointerContainer;
-  llvm::Type* ty = getMemoryObjectType(mo);
+  const MemoryObject *mo = p.pointerContainer;
+  llvm::Type *ty = getMemoryObjectType(mo);
   llvm::PointerType *pty = dyn_cast<llvm::PointerType>(ty); 
   assert(pty != nullptr && "Memory object must point to something");
   ty = pty->getElementType();
   // stride is in bytes
-  auto stride = layout.getTypeStoreSize(ty);
-
+  uint64_t stride = layout.getTypeStoreSize(ty);
   std::vector<TypeInfo> offsets = of.visit(ty);
 
   for (auto o : offsets) {
@@ -162,43 +161,44 @@ std::vector<Pointer*> SymbolicPTA::getColocatedPointers(Pointer &p) {
 }
  
 llvm::Type* SymbolicPTA::getMemoryObjectType(const MemoryObject *mo) {
-    llvm::Type* t = moTypes[mo];
-    if (t != nullptr) {
-      return t;
-    }
-    if (mo->allocSite == nullptr) {
-       assert(0 && "Can't type memory object without allocSite, caller needs to giveMOType");
-    }
-
-    // special cases
-    if (mo->name == "__args") { // for MO that holds arguments
-      t = llvm::Type::getInt8Ty(mo->allocSite->getContext())->getPointerTo();
-    } else if (mo->name == "argv") { // For argvMO
-      t = llvm::Type::getInt8Ty(mo->allocSite->getContext())->getPointerTo()->getPointerTo();
-      // End special cases
-    } else if (auto GV = dyn_cast<llvm::GlobalVariable>(mo->allocSite)) {
-      assert(GV->getType()->isPointerTy() && "GV has non pointer type");
-      t = GV->getType();
-    } else if (mo->allocSite->getNumUses() != 1) {
-      // mo->allocSite->dump();
-      // state.dumpStack(llvm::errs());
-      // mo->allocSite->getType()->dump();
-      // llvm::errs() << mo->name << " has multiple uses\n";
-      // assert(0 && "Unhandled multiple uses");
-      t = mo->allocSite->getType();
-    } else if (const auto BI = dyn_cast<llvm::CastInst>(mo->allocSite->user_back())) {
-        t = BI->getDestTy();
-        assert(t->isPointerTy() && "BI has non pointer type");
-    } else {
-      // llvm::errs() << mo->name << " has non bitcast 1 use\n";
-      // mo->allocSite->dump();
-      // mo->allocSite->user_back()->dump();
-      // assert(0 && "Unhandled BI type");
-      t = mo->allocSite->getType();
-    }
-
-    setMemoryObjectType(mo, t);
+  llvm::Type *t = moTypes[mo];
+  if (t != nullptr) {
     return t;
+  }
+
+  if (mo->allocSite == nullptr) {
+    assert(0 && "Can't type memory object without allocSite, caller needs to giveMOType");
+  }
+
+  // special cases
+  if (mo->name == "__args") { // for MO that holds arguments
+    t = llvm::Type::getInt8Ty(mo->allocSite->getContext())->getPointerTo();
+  } else if (mo->name == "argv") { // For argvMO
+    t = llvm::Type::getInt8Ty(mo->allocSite->getContext())->getPointerTo()->getPointerTo();
+    // End special cases
+  } else if (auto GV = dyn_cast<llvm::GlobalVariable>(mo->allocSite)) {
+    assert(GV->getType()->isPointerTy() && "GV has non pointer type");
+    t = GV->getType();
+  } else if (mo->allocSite->getNumUses() != 1) {
+    // mo->allocSite->dump();
+    // state.dumpStack(llvm::errs());
+    // mo->allocSite->getType()->dump();
+    // llvm::errs() << mo->name << " has multiple uses\n";
+    // assert(0 && "Unhandled multiple uses");
+    t = mo->allocSite->getType();
+  } else if (const auto BI = dyn_cast<llvm::CastInst>(mo->allocSite->user_back())) {
+      t = BI->getDestTy();
+      assert(t->isPointerTy() && "BI has non pointer type");
+  } else {
+    // llvm::errs() << mo->name << " has non bitcast 1 use\n";
+    // mo->allocSite->dump();
+    // mo->allocSite->user_back()->dump();
+    // assert(0 && "Unhandled BI type");
+    t = mo->allocSite->getType();
+  }
+
+  setMemoryObjectType(mo, t);
+  return t;
 }
 
 void SymbolicPTA::setMemoryObjectType(const MemoryObject *mo,
@@ -225,8 +225,8 @@ bool SymbolicPTA::mayBeTrue(klee::ref<Expr> e) {
 }
 
 SymbolicPTA::~SymbolicPTA() {
-  for (const auto &moPtrs : allPointers) {
-    for (const auto &ptr : moPtrs.second) {
+  for (auto &i : allPointers) {
+    for (Pointer *ptr : i.second) {
       delete ptr;
     }
   }
@@ -326,7 +326,7 @@ void OffsetFinder::visitStruct(llvm::StructType *st) {
   const llvm::StructLayout *l = layout.getStructLayout(st);
   int index = 0;
   for (auto subType : st->elements()) {
-    auto offset = l->getElementOffset(index);
+    uint64_t offset = l->getElementOffset(index);
     globalOffset += offset;
     visit(subType);
     globalOffset -= offset;
@@ -335,10 +335,10 @@ void OffsetFinder::visitStruct(llvm::StructType *st) {
 }
 
 void OffsetFinder::visitArray(llvm::ArrayType *at) {
-  int numElements = at->getNumElements();
-  auto len = layout.getTypeStoreSize(at->getElementType());
-  auto numResults = results.size();
-  for (int i = 0; i < numElements; i++) {
+  uint64_t numElements = at->getNumElements();
+  uint64_t len = layout.getTypeStoreSize(at->getElementType());
+  size_t numResults = results.size();
+  for (uint64_t i = 0; i < numElements; i++) {
     if (!weakUpdate) {
       weakUpdate = i != 0;
     }
