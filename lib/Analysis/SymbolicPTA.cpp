@@ -9,7 +9,7 @@ using namespace klee;
 
 bool SymbolicPTA::isPointerOffset(Pointer &p) {
   Type *type = getMemoryObjectType(p.pointerContainer);
-  PointerType *pty = dyn_cast<llvm::PointerType>(type);
+  PointerType *pty = dyn_cast<PointerType>(type);
   assert(pty && "assumes input is a pointer type");
 
   uint64_t typeSize = layout.getTypeStoreSize(pty->getElementType());
@@ -70,8 +70,8 @@ Pointer* SymbolicPTA::getPointer(const MemoryObject *mo,
   return retPtr;
 }
 
-Pointer* SymbolicPTA::getFunctionPointer(const llvm::Function *f) {
-  // MemoryObject and llvm::Function addresses can't overlap so this is fine but hacky
+Pointer* SymbolicPTA::getFunctionPointer(const Function *f) {
+  // MemoryObject and Function addresses can't overlap so this is fine but hacky
   std::vector<Pointer*> &ptrs = allPointers[(const MemoryObject*)(f)];
   if (ptrs.size() > 0) {
    return ptrs[0];
@@ -92,7 +92,7 @@ std::vector<Pointer*> SymbolicPTA::handleFunctionPtr(ref<Expr> fp) {
   // TODO: symbolic function pointers
   uint64_t addr = cfp->getZExtValue();
   if (legalFunctions.count(addr)) {
-    const llvm::Function *f = (const llvm::Function *)(addr);
+    const Function *f = (const Function *)(addr);
     ret.push_back(getFunctionPointer(f));
   }
   return ret;
@@ -141,8 +141,8 @@ std::vector<Pointer *> SymbolicPTA::getColocatedPointers(Pointer &p) {
   }
 
   const MemoryObject *mo = p.pointerContainer;
-  llvm::Type *ty = getMemoryObjectType(mo);
-  llvm::PointerType *pty = dyn_cast<llvm::PointerType>(ty); 
+  Type *ty = getMemoryObjectType(mo);
+  PointerType *pty = dyn_cast<PointerType>(ty);
   assert(pty != nullptr && "Memory object must point to something");
   ty = pty->getElementType();
   // stride is in bytes
@@ -160,8 +160,8 @@ std::vector<Pointer *> SymbolicPTA::getColocatedPointers(Pointer &p) {
   return ret;
 }
  
-llvm::Type* SymbolicPTA::getMemoryObjectType(const MemoryObject *mo) {
-  llvm::Type *t = moTypes[mo];
+Type* SymbolicPTA::getMemoryObjectType(const MemoryObject *mo) {
+  Type *t = moTypes[mo];
   if (t != nullptr) {
     return t;
   }
@@ -172,25 +172,25 @@ llvm::Type* SymbolicPTA::getMemoryObjectType(const MemoryObject *mo) {
 
   // special cases
   if (mo->name == "__args") { // for MO that holds arguments
-    t = llvm::Type::getInt8Ty(mo->allocSite->getContext())->getPointerTo();
+    t = Type::getInt8Ty(mo->allocSite->getContext())->getPointerTo();
   } else if (mo->name == "argv") { // For argvMO
-    t = llvm::Type::getInt8Ty(mo->allocSite->getContext())->getPointerTo()->getPointerTo();
+    t = Type::getInt8Ty(mo->allocSite->getContext())->getPointerTo()->getPointerTo();
     // End special cases
-  } else if (auto GV = dyn_cast<llvm::GlobalVariable>(mo->allocSite)) {
+  } else if (auto GV = dyn_cast<GlobalVariable>(mo->allocSite)) {
     assert(GV->getType()->isPointerTy() && "GV has non pointer type");
     t = GV->getType();
   } else if (mo->allocSite->getNumUses() != 1) {
     // mo->allocSite->dump();
-    // state.dumpStack(llvm::errs());
+    // state.dumpStack(errs());
     // mo->allocSite->getType()->dump();
-    // llvm::errs() << mo->name << " has multiple uses\n";
+    // errs() << mo->name << " has multiple uses\n";
     // assert(0 && "Unhandled multiple uses");
     t = mo->allocSite->getType();
-  } else if (const auto BI = dyn_cast<llvm::CastInst>(mo->allocSite->user_back())) {
+  } else if (const auto BI = dyn_cast<CastInst>(mo->allocSite->user_back())) {
       t = BI->getDestTy();
       assert(t->isPointerTy() && "BI has non pointer type");
   } else {
-    // llvm::errs() << mo->name << " has non bitcast 1 use\n";
+    // errs() << mo->name << " has non bitcast 1 use\n";
     // mo->allocSite->dump();
     // mo->allocSite->user_back()->dump();
     // assert(0 && "Unhandled BI type");
@@ -202,7 +202,7 @@ llvm::Type* SymbolicPTA::getMemoryObjectType(const MemoryObject *mo) {
 }
 
 void SymbolicPTA::setMemoryObjectType(const MemoryObject *mo,
-                                      llvm::Type *type) {
+                                      Type *type) {
   moTypes[mo] = type;
 }
 
@@ -289,21 +289,21 @@ SymbolicPTA::PointsToPair* SymbolicPTA::TransitiveTraverser::iterator::operator-
 /* Type Visitor */
 
 template <class T>
-T TypeVisitor<T>::visit(llvm::Type *t) {
+T TypeVisitor<T>::visit(Type *t) {
   if (visitCount == 0 && cache.count(t) == 1) {
     return cache.at(t);
   }
   visitCount++;
   if (t->isStructTy()) {
-    visitStruct(dyn_cast<llvm::StructType>(t));
+    visitStruct(dyn_cast<StructType>(t));
   } else if (t->isArrayTy()) {
-    visitArray(dyn_cast<llvm::ArrayType>(t));
+    visitArray(dyn_cast<ArrayType>(t));
   } else if (t->isPointerTy()) {
-    visitPointer(dyn_cast<llvm::PointerType>(t));
+    visitPointer(dyn_cast<PointerType>(t));
   } else if (t->isIntegerTy()) {
-    visitInteger(dyn_cast<llvm::IntegerType>(t));
+    visitInteger(dyn_cast<IntegerType>(t));
   } else {
-    llvm::errs() << "Unhandled type\n";
+    errs() << "Unhandled type\n";
     t->dump();
     assert(0 && "Unhandled type");
   }
@@ -322,8 +322,8 @@ void OffsetFinder::reset() {
   globalOffset = 0;
 }
 
-void OffsetFinder::visitStruct(llvm::StructType *st) {
-  const llvm::StructLayout *l = layout.getStructLayout(st);
+void OffsetFinder::visitStruct(StructType *st) {
+  const StructLayout *l = layout.getStructLayout(st);
   int index = 0;
   for (auto subType : st->elements()) {
     uint64_t offset = l->getElementOffset(index);
@@ -334,7 +334,7 @@ void OffsetFinder::visitStruct(llvm::StructType *st) {
   }
 }
 
-void OffsetFinder::visitArray(llvm::ArrayType *at) {
+void OffsetFinder::visitArray(ArrayType *at) {
   uint64_t numElements = at->getNumElements();
   uint64_t len = layout.getTypeStoreSize(at->getElementType());
   size_t numResults = results.size();
@@ -351,14 +351,14 @@ void OffsetFinder::visitArray(llvm::ArrayType *at) {
   }
 }
 
-void OffsetFinder::visitPointer(llvm::PointerType *pt) {
+void OffsetFinder::visitPointer(PointerType *pt) {
   results.emplace_back(globalOffset, weakUpdate);
   // if (st->getElementType()->isFunctionTy()) {
-  //   llvm::errs() << "FP at offetset: " << globalOffset << " !!!\n";
+  //   errs() << "FP at offetset: " << globalOffset << " !!!\n";
   // }
 }
 
-void OffsetFinder::visitInteger(llvm::IntegerType *it) {
+void OffsetFinder::visitInteger(IntegerType *it) {
   // Do nothing
 }
 
