@@ -147,7 +147,7 @@ std::vector<Pointer *> SymbolicPTA::getColocatedPointers(Pointer &p) {
   ty = pty->getElementType();
   // stride is in bytes
   uint64_t stride = layout.getTypeStoreSize(ty);
-  std::vector<TypeInfo> offsets = of.visit(ty);
+  std::vector<FieldDetails> offsets = of.visit(ty);
 
   for (auto o : offsets) {
     for (unsigned int off = o.offset; off < mo->size; off += stride) {
@@ -362,4 +362,4 @@ void OffsetFinder::visitInteger(IntegerType *it) {
   // Do nothing
 }
 
-template class TypeVisitor<std::vector<TypeInfo>>;
+template class TypeVisitor<std::vector<FieldDetails>>;

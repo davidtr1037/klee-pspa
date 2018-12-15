@@ -104,9 +104,9 @@ protected:
   T results;
 };
 
-struct TypeInfo {
+struct FieldDetails {
 
-    TypeInfo(unsigned int offset, bool isWeak) :
+    FieldDetails(unsigned int offset, bool isWeak) :
       offset(offset),
       isWeak(isWeak) {
 
@@ -118,7 +118,7 @@ struct TypeInfo {
     bool isWeak;
 };
 
-class OffsetFinder : public TypeVisitor<std::vector<TypeInfo>> {
+class OffsetFinder : public TypeVisitor<std::vector<FieldDetails>> {
 
   void visitStruct(llvm::StructType *st);
 
@@ -137,7 +137,7 @@ class OffsetFinder : public TypeVisitor<std::vector<TypeInfo>> {
 public:
 
   OffsetFinder(llvm::DataLayout &l) :
-    TypeVisitor<std::vector<TypeInfo>>(),
+    TypeVisitor<std::vector<FieldDetails>>(),
     layout(l) {
 
   }
