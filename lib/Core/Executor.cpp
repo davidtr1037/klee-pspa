@@ -4520,7 +4520,7 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
   /* get the appropriate analyzer */
   PointerAnalysis *pta = RunStaticPTA ? staticPTA : clonedPTA;
 
-  if (CollectPTAStats && !NoAnalyze) {
+  if (CollectPTAStats) {
     StatsCollector collector(false);
     collector.visitReachable(pta, f);
 
@@ -4531,12 +4531,12 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
     ptaStatsLogger->dump(context, collector.getStats());
   }
 
-  if (CollectPTAResults && !NoAnalyze) {
+  if (CollectPTAResults) {
     ResultsCollector collector(errs());
     collector.visitReachable(pta, f);
   }
 
-  if (DumpPTAGraph && !NoAnalyze) {
+  if (DumpPTAGraph) {
     if (RunStaticPTA) {
       /* TODO: use getAllValidPtrs? */
       klee_error("Doesn't support static mode...");
@@ -4545,7 +4545,7 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
     dumper.dump(state.getPTA().get());
   }
 
-  if (CollectModRef && !NoAnalyze) {
+  if (CollectModRef) {
     set<Function *> functions;
     for (unsigned int i = 0; i < state.stack.size() - 1; i++) {
       StackFrame &sf = state.stack[i];
@@ -4557,7 +4557,7 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
     collector.dumpModSet(pta);
   }
 
-  if (!RunStaticPTA && !NoAnalyze) {
+  if (!RunStaticPTA) {
     delete clonedPTA;
   }
 }
@@ -4565,7 +4565,7 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
 void Executor::comparePointsToStates(AndersenDynamic *abstractPTA,
                                      AndersenDynamic *symbolicPTA) {
   for (auto &idToType : *abstractPTA->getPAG()) {
-    auto nodeId = idToType.first;
+    NodeID nodeId = idToType.first;
     if (nodeId == 0) {
       continue;
     }
