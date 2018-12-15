@@ -4343,13 +4343,9 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
     if (useStrongUpdates && canStronglyUpdate && !isLocalObjectInRecursion) {
       /* if we have more than one object,
          then only the first update should be strong */
-      if (locations.size() > 1 && i > 0) {
-        state.getPTA()->weakUpdate(src, dst);
-      } else {
-        state.getPTA()->strongUpdate(src, dst);
-      }
+      state.updatePointsTo(src, dst, i == 0);
     } else {
-      state.getPTA()->weakUpdate(src, dst);
+      state.updatePointsTo(src, dst, false);
     }
   }
 }
