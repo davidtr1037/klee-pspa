@@ -4402,9 +4402,10 @@ NodeID Executor::ptrToAbstract(ExecutionState &state,
   auto m = p->pointerContainer;
   auto offset = p->offset;
 
+  /* TODO: why always true? */
   if (true || !p->multiplePointers) {
     if (p->multiplePointers) {
-      errs() << "Multiple pointers!!!!!!!!!!\n";
+      /* TODO: do we want to assert here? */
     }
 
     auto pt = dyn_cast<PointerType>(sPTA.getMemoryObjectType(m));
