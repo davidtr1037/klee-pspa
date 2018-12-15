@@ -78,6 +78,7 @@ private:
   const llvm::Function *f;
 };
 
+/* TODO: we can use here getStructInfo, getFieldLayoutVec, ... from SVF */
 template <class T>
 class TypeVisitor {
 

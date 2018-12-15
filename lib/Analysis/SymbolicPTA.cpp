@@ -72,18 +72,18 @@ Pointer* SymbolicPTA::getPointer(const MemoryObject *mo,
 
 Pointer* SymbolicPTA::getFunctionPointer(const Function *f) {
   // MemoryObject and Function addresses can't overlap so this is fine but hacky
-  std::vector<Pointer*> &ptrs = allPointers[(const MemoryObject*)(f)];
+  std::vector<Pointer *> &ptrs = allPointers[(const MemoryObject *)(f)];
   if (ptrs.size() > 0) {
-   return ptrs[0];
+    return ptrs[0];
   }
 
-  Pointer* retPtr = new Pointer(f);
+  Pointer *retPtr = new Pointer(f);
   ptrs.push_back(retPtr);
   return retPtr;
 }
 
-std::vector<Pointer*> SymbolicPTA::handleFunctionPtr(ref<Expr> fp) {
-  std::vector<Pointer*> ret;
+std::vector<Pointer *> SymbolicPTA::handleFunctionPtr(ref<Expr> fp) {
+  std::vector<Pointer *> ret;
   ConstantExpr *cfp = dyn_cast<ConstantExpr>(fp);
   if (cfp == nullptr) {
     return ret;
@@ -98,8 +98,8 @@ std::vector<Pointer*> SymbolicPTA::handleFunctionPtr(ref<Expr> fp) {
   return ret;
 }
 
-std::vector<Pointer*> SymbolicPTA::getPointerTarget(Pointer &p) {
-  std::vector<Pointer*> ret;
+std::vector<Pointer *> SymbolicPTA::getPointerTarget(Pointer &p) {
+  std::vector<Pointer *> ret;
   if (p.isFunctionPtr()) {
     return ret;
   }
@@ -121,7 +121,7 @@ std::vector<Pointer*> SymbolicPTA::getPointerTarget(Pointer &p) {
     ResolutionList rl;
     state.addressSpace.resolve(state, &solver, ptr, rl);
     for (auto &op : rl) {
-      const MemoryObject* mo = op.first;
+      const MemoryObject *mo = op.first;
       Pointer *p = getPointer(mo, mo->getOffsetExpr(ptr));
       p->weakUpdate = cnt != 0;
       ret.push_back(p);
@@ -160,6 +160,7 @@ std::vector<Pointer *> SymbolicPTA::getColocatedPointers(Pointer &p) {
   return ret;
 }
  
+/* TODO: we can use the type info collected by Executor::handleBitCast */
 Type* SymbolicPTA::getMemoryObjectType(const MemoryObject *mo) {
   Type *t = moTypes[mo];
   if (t != nullptr) {
