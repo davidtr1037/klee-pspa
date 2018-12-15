@@ -582,7 +582,6 @@ public:
                      ref<Expr> value);
 
   bool shouldUpdatePoinstTo(ExecutionState &state);
-  NodeID ptrToAbstract(ExecutionState &state, Pointer *p, SymbolicPTA &spta);
 
   void updatePointsToOnStore(ExecutionState &state,
                              KInstruction *ki,
@@ -595,18 +594,28 @@ public:
                             llvm::Function *f,
                             std::vector<ref<Expr>> &arguments);
 
+  NodeID ptrToAbstract(ExecutionState &state,
+                       Pointer *p,
+                       SymbolicPTA &spta);
+
+  void updateGlobalsPts(ExecutionState &state,
+                        SymbolicPTA &sPTA);
+
   void updatePointsToOnCallApi(ExecutionState &state,
-                            llvm::Function *f,
-                            std::vector<ref<Expr>> &arguments);
+                               llvm::Function *f,
+                               std::vector<ref<Expr>> &arguments);
+
   void analyzeTargetFunction(ExecutionState &state,
                              KInstruction *ki,
                              llvm::Function *f,
                              std::vector<ref<Expr>> &arguments);
 
+  void comparePointsToStates(AndersenDynamic *abstractPTA,
+                             AndersenDynamic *symbolicPTA);
+
   void logCall(ExecutionState &state,
                llvm::Function *f);
 
-    void updateGlobalsPts(ExecutionState &state, SymbolicPTA &sPTA);
 };
   
 } // End klee namespace

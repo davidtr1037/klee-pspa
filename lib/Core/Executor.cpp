@@ -4354,34 +4354,10 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
   }
 }
 
-
-NodeID Executor::ptrToAbstract(ExecutionState &state, Pointer *p, SymbolicPTA &sPTA) {
-  if(p->isFunctionPtr()) {
-		DynamicMemoryLocation dl(p->fun,0, false, 0, nullptr);
-		return computeAbstractMO(state.getPTA().get(), dl, false);
-  }
-	auto m = p->pointerContainer;
-	auto offset = p->offset;
-
-	if(true ||!p->multiplePointers) {
-    if(p->multiplePointers)
-        errs() << "Multiple pointers!!!!!!!!!!\n";
-
-    auto pt = dyn_cast<PointerType>(sPTA.getMemoryObjectType(m));
-		DynamicMemoryLocation dl(getAllocSite(state,m),m->size, false, offset, pt);
-		return computeAbstractMO(state.getPTA().get(), dl, false);
-	} else {
-		assert(0 && "TODO symbolic offset");
-	}
-}
-
-void Executor::updatePointsToOnCallApi(ExecutionState &state,
+void Executor::updatePointsToOnCall(ExecutionState &state,
                                     Function *f,
                                     std::vector<ref<Expr>> &arguments) {
-  SymbolicPTA sPTA(*solver, state, legalFunctions, *kmodule->targetData);
-  updateGlobalsPts(state, sPTA);
-
-    unsigned int argIndex = 0;
+  unsigned int argIndex = 0;
   for (Function::arg_iterator ai = f->arg_begin(); ai != f->arg_end(); ai++) {
     Argument &arg = *ai;
 
@@ -4396,55 +4372,76 @@ void Executor::updatePointsToOnCallApi(ExecutionState &state,
       /* resolve only pointer values */
       continue;
     }
-    errs() << f->getName() << " HERE!!!\n";
 
-    ResolutionList rl1;
-    state.addressSpace.resolve(state, solver, e, rl1);
+    /* TODO: check return value */
+    std::vector<DynamicMemoryLocation> locations;
+    getDynamicMemoryLocations(state, e, paramType, locations);
+    if (locations.empty()) {
+      klee_warning("argument %d of '%s' is out of bound...",
+                   argIndex - 1,
+                   f->getName().data());
+    }
+
     NodeID formalParamId = state.getPTA()->getPAG()->getValueNode(&arg);
-    for (auto &op1 : rl1) {
-		 	const MemoryObject* mo = op1.first;
-		 	auto ptr = sPTA.getPointer(mo, mo->getOffsetExpr(e));
-       for(auto parentChild : sPTA.traverse(ptr)) {
-           auto from = ptrToAbstract(state, parentChild.first, sPTA);
-           auto to = ptrToAbstract(state, parentChild.second, sPTA);
-//           errs() << "Update " << from << " to: " << to << " isWeak " << parentChild.first->isWeak() << " " + parentChild.second->print() << "\n";
-           state.updatePTS(from, to, !parentChild.first->isWeak() && !parentChild.second->isWeak());
-       }
-       auto dst = ptrToAbstract(state,ptr, sPTA);
- //      errs() << "Update " << formalParamId << " to " << dst << " mo: " << mo->name << " isWeak " << " " + ptr->isWeak() << "\n";
-       state.updatePTS(formalParamId, dst, !ptr->isWeak());
-  	}
+    for (unsigned int i = 0; i < locations.size(); i++) {
+      DynamicMemoryLocation &location = locations[i];
+      NodeID dst = computeAbstractMO(state.getPTA().get(), location, false);
+      state.updatePointsTo(formalParamId,dst, i == 0);
+    }
+  }
+}
 
+NodeID Executor::ptrToAbstract(ExecutionState &state,
+                               Pointer *p,
+                               SymbolicPTA &sPTA) {
+  if (p->isFunctionPtr()) {
+    DynamicMemoryLocation dl(p->fun, 0, false, 0, nullptr);
+    return computeAbstractMO(state.getPTA().get(), dl, false);
   }
 
+  auto m = p->pointerContainer;
+  auto offset = p->offset;
+
+  if (true || !p->multiplePointers) {
+    if (p->multiplePointers) {
+      errs() << "Multiple pointers!!!!!!!!!!\n";
+    }
+
+    auto pt = dyn_cast<PointerType>(sPTA.getMemoryObjectType(m));
+    DynamicMemoryLocation dl(getAllocSite(state,m), m->size, false, offset, pt);
+    return computeAbstractMO(state.getPTA().get(), dl, false);
+  } else {
+    assert(0 && "TODO symbolic offset");
+  }
 }
 
 void Executor::updateGlobalsPts(ExecutionState &state, SymbolicPTA &sPTA) {
-    for(const llvm::Value* v : state.modifiedGlobals) {
-      const GlobalVariable* gv = dyn_cast<GlobalVariable>(v);
-      if(gv && !gv->isConstant() && !gv->isDeclaration() && gv->getType()->isPointerTy()) {
-        auto mo = globalObjects[gv];
-        NodeID formalGlobalId = state.getPTA()->getPAG()->getValueNode(gv);
+  for (const llvm::Value *v : state.modifiedGlobals) {
+    const GlobalVariable *gv = dyn_cast<GlobalVariable>(v);
+    if (gv && !gv->isConstant() && !gv->isDeclaration() && gv->getType()->isPointerTy()) {
+      auto mo = globalObjects[gv];
+      NodeID formalGlobalId = state.getPTA()->getPAG()->getValueNode(gv);
 
-  			auto ptr = sPTA.getPointer(mo, ConstantExpr::create(0, 64));
-        for(auto parentChild : sPTA.traverse(ptr)) {
-            auto from = ptrToAbstract(state, parentChild.first, sPTA);
-            auto to = ptrToAbstract(state, parentChild.second, sPTA);
-//            errs() << "Global Update " << from << " to: " << to << " isWeak " << parentChild.first->isWeak() << " " + parentChild.second->print() <<  "\n";
-            state.updatePTS(from, to, !parentChild.first->isWeak() && !parentChild.second->isWeak());
-        }
-        auto dst = ptrToAbstract(state, ptr, sPTA);
-        errs() << "Global Update " << formalGlobalId << " to " << dst << " mo: " << mo->name << " isWeak " << " " + ptr->isWeak() << "\n";
-        state.updatePTS(formalGlobalId, dst, !ptr->isWeak());
-
+      auto ptr = sPTA.getPointer(mo, ConstantExpr::create(0, 64));
+      for (auto parentChild : sPTA.traverse(ptr)) {
+        auto from = ptrToAbstract(state, parentChild.first, sPTA);
+        auto to = ptrToAbstract(state, parentChild.second, sPTA);
+        // errs() << "Global Update " << from << " to: " << to << " isWeak " << parentChild.first->isWeak() << " " + parentChild.second->print() <<  "\n";
+        state.updatePointsTo(from, to, !parentChild.first->isWeak() && !parentChild.second->isWeak());
       }
+      auto dst = ptrToAbstract(state, ptr, sPTA);
+      // errs() << "Global Update " << formalGlobalId << " to " << dst << " mo: " << mo->name << " isWeak " << " " + ptr->isWeak() << "\n";
+      state.updatePointsTo(formalGlobalId, dst, !ptr->isWeak());
+    }
   }
   state.modifiedGlobals.clear();
 }
 
-void Executor::updatePointsToOnCall(ExecutionState &state,
-                                    Function *f,
-                                    std::vector<ref<Expr>> &arguments) {
+void Executor::updatePointsToOnCallApi(ExecutionState &state,
+                                       Function *f,
+                                       std::vector<ref<Expr>> &arguments) {
+  SymbolicPTA sPTA(*solver, state, legalFunctions, *kmodule->targetData);
+  updateGlobalsPts(state, sPTA);
 
   unsigned int argIndex = 0;
   for (Function::arg_iterator ai = f->arg_begin(); ai != f->arg_end(); ai++) {
@@ -4461,23 +4458,23 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
       /* resolve only pointer values */
       continue;
     }
-    errs() << f->getName() << " HERE in other bit!!!\n";
-    /* TODO: check return value */
-    std::vector<DynamicMemoryLocation> locations;
-    getDynamicMemoryLocations(state, e, paramType, locations);
-    if (locations.empty()) {
-      klee_warning("argument %d of '%s' is out of bound...",
-                   argIndex - 1,
-                   f->getName().data());
-    }
 
+    ResolutionList rl1;
+    state.addressSpace.resolve(state, solver, e, rl1);
     NodeID formalParamId = state.getPTA()->getPAG()->getValueNode(&arg);
-    for (unsigned int i = 0; i < locations.size(); i++) {
-      DynamicMemoryLocation &location = locations[i];
-      NodeID dst = computeAbstractMO(state.getPTA().get(), location, false);
-      state.updatePTS(formalParamId,dst, i==0);
-//      errs() << dst << " is FI: " << state.getPTA()->isFieldInsensitive(dst) << "\n";
-    }
+    for (auto &op1 : rl1) {
+      const MemoryObject* mo = op1.first;
+      auto ptr = sPTA.getPointer(mo, mo->getOffsetExpr(e));
+      for (auto parentChild : sPTA.traverse(ptr)) {
+        auto from = ptrToAbstract(state, parentChild.first, sPTA);
+        auto to = ptrToAbstract(state, parentChild.second, sPTA);
+        // errs() << "Update " << from << " to: " << to << " isWeak " << parentChild.first->isWeak() << " " + parentChild.second->print() << "\n";
+        state.updatePointsTo(from, to, !parentChild.first->isWeak() && !parentChild.second->isWeak());
+      }
+      auto dst = ptrToAbstract(state,ptr, sPTA);
+      // errs() << "Update " << formalParamId << " to " << dst << " mo: " << mo->name << " isWeak " << " " + ptr->isWeak() << "\n";
+      state.updatePointsTo(formalParamId, dst, !ptr->isWeak());
+  	}
   }
 }
 
@@ -4492,17 +4489,9 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
     TimerStatIncrementer timer(stats::staticAnalysisTime);
     ++stats::staticAnalysisUsage;
     /* run dynamic pointer analysis */
-    ExecutionState *es;
-    if(UseSymPta) {
+    if (UseSymPta) {
       updatePointsToOnCallApi(state, f, arguments);
     } else {
-      if(SymPtaSanityCheck) {
-          es = new ExecutionState(state);
-          es->getPTA()->clearPointsTo();
-          updatePointsToOnCallApi(*es, f, arguments);
-          es->getPTA()->analyzeFunction(*kmodule->module, f);
-          //TODO
-      }
       updatePointsToOnCall(state, f, arguments);
     }
 
@@ -4510,43 +4499,19 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
       clonedPTA = new AndersenDynamic(*state.getPTA().get());
       clonedPTA->initialize(*kmodule->module);
       clonedPTA->analyzeFunction(*kmodule->module, f);
-      if(SymPtaSanityCheck) {
-          auto abstractPTA = clonedPTA;
-          auto symbolicPTA = es->getPTA();
-          for(auto& idToType : *abstractPTA->getPAG()) {
-              auto nodeId = idToType.first;
-              if(nodeId == 0) continue;
-              PointsTo& abstractPts = abstractPTA->getPts(nodeId);
-              PointsTo& symbolicPts = symbolicPTA->getPts(nodeId);
-              symbolicPts.intersectWithComplement(abstractPts);
-              if(symbolicPts.count() > 0) {
-                //Check if they are FS version of FI objects
-                bool ok = true;
-                for( auto nid : symbolicPts ) {
-                  errs() << "checking " << abstractPTA->getFIObjNode(nid) << "\n";
-                  ok &= abstractPts.test(abstractPTA->getFIObjNode(nid));
-                      
-                }
-                if(ok) continue;
-                errs() << "PointsTo sets for " << nodeId << " don't match\nsymbolic pts: ";
-                dump(symbolicPts, errs());
-                errs() << "abstract pts: ";
-                dump(abstractPts, errs());
-                if(abstractPTA->getPAG()->getPAGNode(nodeId)->hasValue()) {
+      if (SymPtaSanityCheck) {
+        /* build the symbolic points-to from scratch */
+        ExecutionState *es = new ExecutionState(state);
+        es->getPTA()->clearPointsTo();
+        updatePointsToOnCallApi(*es, f, arguments);
+        es->getPTA()->analyzeFunction(*kmodule->module, f);
 
-//                  if(isa<GlobalValue>(abstractPTA->getPAG()->getPAGNode(nodeId)->getValue()))
-//                      continue; //globals can missmatch at this point
-                  abstractPTA->getPAG()->getPAGNode(nodeId)->getValue()->dump();
-                }
-                assert(0 && "Pts sets don't match");
-              }
-
-          }
-          delete es;
+        /* compare with the abstrac points-to */
+        comparePointsToStates(clonedPTA, es->getPTA().get());
+        delete es;
       }
     }
   }
-  
 
   if (NoAnalyze) {
     /* no statistics in this mode... */
@@ -4596,7 +4561,40 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
   if (!RunStaticPTA && !NoAnalyze) {
     delete clonedPTA;
   }
-  
+}
+
+void Executor::comparePointsToStates(AndersenDynamic *abstractPTA,
+                                     AndersenDynamic *symbolicPTA) {
+  for (auto &idToType : *abstractPTA->getPAG()) {
+    auto nodeId = idToType.first;
+    if (nodeId == 0) {
+      continue;
+    }
+    PointsTo& abstractPts = abstractPTA->getPts(nodeId);
+    PointsTo& symbolicPts = symbolicPTA->getPts(nodeId);
+    symbolicPts.intersectWithComplement(abstractPts);
+    if (symbolicPts.count() > 0) {
+      // Check if they are FS version of FI objects
+      bool ok = true;
+      for (auto nid : symbolicPts) {
+        errs() << "checking " << abstractPTA->getFIObjNode(nid) << "\n";
+        ok &= abstractPts.test(abstractPTA->getFIObjNode(nid));
+      }
+      if (ok) {
+        continue;
+      }
+      errs() << "PointsTo sets for " << nodeId << " don't match\nsymbolic pts: ";
+      dump(symbolicPts, errs());
+      errs() << "abstract pts: ";
+      dump(abstractPts, errs());
+      if (abstractPTA->getPAG()->getPAGNode(nodeId)->hasValue()) {
+        // if(isa<GlobalValue>(abstractPTA->getPAG()->getPAGNode(nodeId)->getValue()))
+        //   continue; //globals can missmatch at this point
+        abstractPTA->getPAG()->getPAGNode(nodeId)->getValue()->dump();
+      }
+      assert(0 && "Pts sets don't match");
+    }
+  }
 }
 
 void Executor::logCall(ExecutionState &state,

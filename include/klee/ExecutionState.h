@@ -206,11 +206,12 @@ public:
     }
   }
 
-  void updatePTS(NodeID from, NodeID to, bool isStrong = true) {
-    if(isStrong)
+  void updatePointsTo(NodeID from, NodeID to, bool isStrong = true) {
+    if (isStrong) {
       pta->strongUpdate(from, to);
-    else
+    } else {
       pta->weakUpdate(from, to);
+    }
   }
 
   bool isCalledRecursively(llvm::Function *f);
