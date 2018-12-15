@@ -39,29 +39,31 @@ public:
   }
  
   std::string print() {
-    return isFunctionPtr() ? 
-               ("fun:" + fun->getName().str()) : 
-               ("mo: " + pointerContainer->name + ":" + std::to_string(offset)) ; 
+    if (isFunctionPtr()) {
+      return "function:" + f->getName().str();
+    } else {
+      return "mo: " + pointerContainer->name + ":" + std::to_string(offset);
+    }
   }
 
 private:
 
-  Pointer(const MemoryObject* mo, ref<ConstantExpr> o) :
+  Pointer(const MemoryObject *mo, ref<ConstantExpr> o) :
     pointerContainer(mo), 
     offset(o->getZExtValue()), 
-    fun(nullptr) {
+    f(nullptr) {
 
   }
 
   Pointer(const llvm::Function *f) :
     pointerContainer(nullptr),
     offset(0),
-    fun(f) {
+    f(f) {
 
   }
 
   // chunck of memory where pointer can be read from
-  const MemoryObject* pointerContainer;
+  const MemoryObject *pointerContainer;
 
   // offset into the container where pointer is located
   uint64_t offset;
@@ -73,7 +75,7 @@ private:
   bool weakUpdate = false;
 
   /* TODO: add docs */
-  const llvm::Function* fun;
+  const llvm::Function *f;
 };
 
 template <class T>
@@ -85,32 +87,32 @@ class TypeVisitor {
 
 public:
 
-  T visit(llvm::Type* t);
+  T visit(llvm::Type *t);
 
   virtual void reset() = 0;
 
 protected:
 
-  virtual void visitStruct(llvm::StructType* st) = 0;
+  virtual void visitStruct(llvm::StructType *st) = 0;
 
-  virtual void visitArray(llvm::ArrayType* at) = 0;
+  virtual void visitArray(llvm::ArrayType *at) = 0;
 
-  virtual void visitPointer(llvm::PointerType* st) = 0;
+  virtual void visitPointer(llvm::PointerType *st) = 0;
 
-  virtual void visitInteger(llvm::IntegerType* st) = 0;
+  virtual void visitInteger(llvm::IntegerType *st) = 0;
 
   T results;
 };
 
 class OffsetFinder : public TypeVisitor<std::vector<std::pair<unsigned, bool>>> {
 
-  void visitStruct(llvm::StructType* st);
+  void visitStruct(llvm::StructType *st);
 
-  void visitArray(llvm::ArrayType* at);
+  void visitArray(llvm::ArrayType *at);
 
-  void visitPointer(llvm::PointerType* st);
+  void visitPointer(llvm::PointerType *st);
 
-  void visitInteger(llvm::IntegerType* st);
+  void visitInteger(llvm::IntegerType *st);
 
   int globalOffset = 0;
 
@@ -131,6 +133,8 @@ public:
 
 class SymbolicPTA {
 
+  typedef std::pair<Pointer *, Pointer *> PointsToPair;
+
   class TransitiveTraverser {
 
     /* TODO: add docs */
@@ -144,13 +148,13 @@ class SymbolicPTA {
       friend SymbolicPTA;
 
       /* TODO: add docs */
-      std::deque<std::pair<Pointer*, Pointer*>> ptrsToReturn;
+      std::deque<PointsToPair> ptrsToReturn;
       /* TODO: add docs */
-      std::unordered_set<Pointer*> seenPointers;
+      std::unordered_set<Pointer *> seenPointers;
       /* TODO: add docs */
       SymbolicPTA& symPTA;
 
-      void processNext(Pointer* p);
+      void processNext(Pointer *p);
 
       iterator(SymbolicPTA &s, Pointer *p); 
 
@@ -165,9 +169,9 @@ class SymbolicPTA {
 
       void operator++();
 
-      std::pair<Pointer*, Pointer*>& operator*();
+      PointsToPair& operator*();
 
-      std::pair<Pointer*, Pointer*>* operator->();
+      PointsToPair* operator->();
     };
 
     TransitiveTraverser(SymbolicPTA &s, Pointer *p) :
@@ -177,7 +181,7 @@ class SymbolicPTA {
     }
 
     iterator begin() const {
-      return iterator(s,p); 
+      return iterator(s, p);
     }
 
     iterator end() const {
@@ -203,19 +207,23 @@ public:
   ~SymbolicPTA();
 
   // Gets the pointer representation of the location
-  Pointer* getPointer(const MemoryObject* mo, ref<Expr> offset);
+  Pointer* getPointer(const MemoryObject *mo,
+                      ref<Expr> offset);
 
-  Pointer* getFunctionPointer(const llvm::Function* f);
+  Pointer* getFunctionPointer(const llvm::Function *f);
 
-  std::vector<Pointer*> getPointerTarget(Pointer &p);
+  std::vector<Pointer *> getPointerTarget(Pointer &p);
 
-  std::vector<Pointer*> getColocatedPointers(Pointer &p);
+  std::vector<Pointer *> getColocatedPointers(Pointer &p);
 
-  void giveMemoryObjectType(const MemoryObject* mo, llvm::Type*);
+  void setMemoryObjectType(const MemoryObject *mo,
+                           llvm::Type *type);
 
-  llvm::Type* getMemoryObjectType(const MemoryObject* mo);
+  llvm::Type* getMemoryObjectType(const MemoryObject *mo);
 
-  TransitiveTraverser traverse(Pointer *p) { return TransitiveTraverser(*this,p); }
+  TransitiveTraverser traverse(Pointer *p) {
+    return TransitiveTraverser(*this, p);
+  }
 
   //TODO: dtor
 
@@ -225,20 +233,20 @@ private:
 
   bool mayBeTrue(ref<Expr> e);
 
-  std::vector<Pointer*> handleFunctionPtr(ref<Expr> fp);
+  std::vector<Pointer *> handleFunctionPtr(ref<Expr> fp);
 
-  bool isPointerOffset(Pointer& p);
+  bool isPointerOffset(Pointer &p);
 
   /* TODO: add docs */
   TimingSolver &solver;
   /* TODO: add docs */
   ExecutionState &state;
   /* TODO: add docs */
-  std::unordered_map<const MemoryObject*, std::vector<Pointer*>> allPointers;
+  std::unordered_map<const MemoryObject *, std::vector<Pointer *>> allPointers;
   /* TODO: add docs */
-  std::unordered_map<const MemoryObject*, llvm::Type*> moTypes;
+  std::unordered_map<const MemoryObject *, llvm::Type *> moTypes;
   /* TODO: add docs */
-  std::set<uint64_t>& legalFunctions;
+  std::set<uint64_t> &legalFunctions;
   /* TODO: add docs */
   llvm::DataLayout &layout;
   /* TODO: add docs */

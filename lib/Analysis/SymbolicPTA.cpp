@@ -2,7 +2,7 @@
 
 using namespace klee;
 
-bool SymbolicPTA::isPointerOffset(Pointer& p) {
+bool SymbolicPTA::isPointerOffset(Pointer &p) {
   auto type = getMemoryObjectType(p.pointerContainer);
   auto pty = dyn_cast<llvm::PointerType>(type);
   assert(pty && "assumes input is a pointer type");
@@ -21,7 +21,7 @@ bool SymbolicPTA::isPointerOffset(Pointer& p) {
 
 // Pointers can also be the pointed to objects which are not neccesarly pointers
 // This currently ignores cases where offset can point to multiple pointers in a MemoryObject
-Pointer* SymbolicPTA::getPointer(const MemoryObject* mo,
+Pointer* SymbolicPTA::getPointer(const MemoryObject *mo,
                                  ref<Expr> offset) {
   Pointer *retPtr = nullptr;
   std::vector<Pointer*> &ptrs = allPointers[mo];
@@ -65,7 +65,7 @@ Pointer* SymbolicPTA::getPointer(const MemoryObject* mo,
   return retPtr;
 }
 
-Pointer* SymbolicPTA::getFunctionPointer(const llvm::Function* f) {
+Pointer* SymbolicPTA::getFunctionPointer(const llvm::Function *f) {
   // MemoryObject and llvm::Function addresses can't overlap so this is fine but hacky
   std::vector<Pointer*> &ptrs = allPointers[(const MemoryObject*)(f)];
   if (ptrs.size() > 0) {
@@ -156,7 +156,7 @@ std::vector<Pointer*> SymbolicPTA::getColocatedPointers(Pointer &p) {
   return ret;
 }
  
-llvm::Type* SymbolicPTA::getMemoryObjectType(const MemoryObject* mo) {
+llvm::Type* SymbolicPTA::getMemoryObjectType(const MemoryObject *mo) {
     llvm::Type* t = moTypes[mo];
     if (t != nullptr) {
       return t;
@@ -192,12 +192,12 @@ llvm::Type* SymbolicPTA::getMemoryObjectType(const MemoryObject* mo) {
       t = mo->allocSite->getType();
     }
 
-    giveMemoryObjectType(mo, t);
+    setMemoryObjectType(mo, t);
     return t;
 }
 
-void SymbolicPTA::giveMemoryObjectType(const MemoryObject* mo,
-                                       llvm::Type* type) {
+void SymbolicPTA::setMemoryObjectType(const MemoryObject *mo,
+                                      llvm::Type *type) {
   moTypes[mo] = type;
 }
 
@@ -241,10 +241,10 @@ void SymbolicPTA::TransitiveTraverser::iterator::processNext(Pointer *p) {
     return;
   }
   seenPointers.insert(p); // If p is not a pointer
-  for (Pointer* s: symPTA.getColocatedPointers(*p)) {
+  for (Pointer *s: symPTA.getColocatedPointers(*p)) {
     seenPointers.insert(s);
 
-    for (Pointer* t: symPTA.getPointerTarget(*s)) {
+    for (Pointer *t: symPTA.getPointerTarget(*s)) {
       ptrsToReturn.emplace_back(s, t);
     }
   }
@@ -255,12 +255,12 @@ SymbolicPTA::TransitiveTraverser::iterator::iterator(SymbolicPTA &s) :
 
 }
 
-bool SymbolicPTA::TransitiveTraverser::iterator::operator!=(const iterator& other) {
+bool SymbolicPTA::TransitiveTraverser::iterator::operator!=(const iterator &other) {
   // return (seenPointers != other.seenPointers) || (ptrsToReturn != other.ptrsToReturn);
   return (ptrsToReturn != other.ptrsToReturn);
 }
 
-bool SymbolicPTA::TransitiveTraverser::iterator::operator==(const iterator& other) {
+bool SymbolicPTA::TransitiveTraverser::iterator::operator==(const iterator &other) {
   if (this == &other) {
     return true;
   }
@@ -273,17 +273,18 @@ void SymbolicPTA::TransitiveTraverser::iterator::operator++() {
   ptrsToReturn.pop_front();
 }
 
-std::pair<Pointer*, Pointer*>& SymbolicPTA::TransitiveTraverser::iterator::operator*() {
+SymbolicPTA::PointsToPair& SymbolicPTA::TransitiveTraverser::iterator::operator*() {
   return ptrsToReturn[0];
 }
-std::pair<Pointer*, Pointer*>* SymbolicPTA::TransitiveTraverser::iterator::operator->() {
+
+SymbolicPTA::PointsToPair* SymbolicPTA::TransitiveTraverser::iterator::operator->() {
   return &ptrsToReturn[0];
 }
 
 /* Type Visitor */
 
 template <class T>
-T TypeVisitor<T>::visit(llvm::Type* t) {
+T TypeVisitor<T>::visit(llvm::Type *t) {
   if (visitCount == 0 && cache.count(t) == 1) {
     return cache.at(t);
   }
@@ -316,10 +317,10 @@ void OffsetFinder::reset() {
   globalOffset = 0;
 }
 
-void OffsetFinder::visitStruct(llvm::StructType* ST) {
-  const llvm::StructLayout* l = layout.getStructLayout(ST);
+void OffsetFinder::visitStruct(llvm::StructType *st) {
+  const llvm::StructLayout *l = layout.getStructLayout(st);
   int index = 0;
-  for (auto subType : ST->elements()) {
+  for (auto subType : st->elements()) {
     auto offset = l->getElementOffset(index);
     globalOffset += offset;
     visit(subType);
@@ -328,31 +329,31 @@ void OffsetFinder::visitStruct(llvm::StructType* ST) {
   }
 }
 
-void OffsetFinder::visitArray(llvm::ArrayType* AT) {
-  int numElements = AT->getNumElements();
-  auto len = layout.getTypeStoreSize(AT->getElementType());
+void OffsetFinder::visitArray(llvm::ArrayType *at) {
+  int numElements = at->getNumElements();
+  auto len = layout.getTypeStoreSize(at->getElementType());
   auto numResults = results.size();
   for (int i = 0; i < numElements; i++) {
     if (!weakUpdate) {
       weakUpdate = i != 0;
     }
     globalOffset += i * len;
-    visit(AT->getElementType());
-    globalOffset -= i*len;
+    visit(at->getElementType());
+    globalOffset -= i * len;
     if (numResults == results.size()) {
       break; // All elements are of the same type so nothing will change
     }
   }
 }
 
-void OffsetFinder::visitPointer(llvm::PointerType* st) {
+void OffsetFinder::visitPointer(llvm::PointerType *pt) {
   results.emplace_back(globalOffset, weakUpdate);
   // if (st->getElementType()->isFunctionTy()) {
   //   llvm::errs() << "FP at offetset: " << globalOffset << " !!!\n";
   // }
 }
 
-void OffsetFinder::visitInteger(llvm::IntegerType* st) {
+void OffsetFinder::visitInteger(llvm::IntegerType *it) {
   // Do nothing
 }
 

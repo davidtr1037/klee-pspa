@@ -4391,7 +4391,7 @@ NodeID Executor::ptrToAbstract(ExecutionState &state,
                                Pointer *p,
                                SymbolicPTA &sPTA) {
   if (p->isFunctionPtr()) {
-    DynamicMemoryLocation dl(p->fun, 0, false, 0, nullptr);
+    DynamicMemoryLocation dl(p->f, 0, false, 0, nullptr);
     return computeAbstractMO(state.getPTA().get(), dl, false);
   }
 
@@ -4416,10 +4416,10 @@ void Executor::updateGlobalsPts(ExecutionState &state, SymbolicPTA &sPTA) {
   for (const llvm::Value *v : state.modifiedGlobals) {
     const GlobalVariable *gv = dyn_cast<GlobalVariable>(v);
     if (gv && !gv->isConstant() && !gv->isDeclaration() && gv->getType()->isPointerTy()) {
-      auto mo = globalObjects[gv];
+      const MemoryObject *mo = globalObjects[gv];
       NodeID formalGlobalId = state.getPTA()->getPAG()->getValueNode(gv);
 
-      auto ptr = sPTA.getPointer(mo, ConstantExpr::create(0, 64));
+      Pointer *ptr = sPTA.getPointer(mo, ConstantExpr::create(0, 64));
       for (auto parentChild : sPTA.traverse(ptr)) {
         auto from = ptrToAbstract(state, parentChild.first, sPTA);
         auto to = ptrToAbstract(state, parentChild.second, sPTA);
