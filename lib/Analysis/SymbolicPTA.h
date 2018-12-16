@@ -49,8 +49,8 @@ public:
 private:
 
   Pointer(const MemoryObject *mo, ref<ConstantExpr> o) :
-    pointerContainer(mo), 
-    offset(o->getZExtValue()), 
+    pointerContainer(mo),
+    offset(o->getZExtValue()),
     f(nullptr) {
 
   }
