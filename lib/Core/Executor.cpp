@@ -4439,7 +4439,7 @@ void Executor::updateGlobalsPts(ExecutionState &state,
         // errs() << "Global Update " << from << " to: " << to << " isWeak " << pair.first->isWeak() << " " + pair.second->print() <<  "\n";
         state.updatePointsTo(from, to, !pair.first->isWeak() && !pair.second->isWeak());
       }
-      auto dst = ptrToAbstract(state, ptr, sPTA);
+      NodeID dst = ptrToAbstract(state, ptr, sPTA);
       // errs() << "Global Update " << formalGlobalId << " to " << dst << " mo: " << mo->name << " isWeak " << " " + ptr->isWeak() << "\n";
       state.updatePointsTo(formalGlobalId, dst, !ptr->isWeak());
     }
