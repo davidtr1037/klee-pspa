@@ -313,10 +313,12 @@ public:
   // The objects handling the klee_open_merge calls this state ran through
   std::vector<ref<MergeHandler> > openMergeStack;
 
+  std::set<const llvm::Value*> modifiedGlobals;
+
 private:
-  ExecutionState() : ptreeNode(0) {}
 
 public:
+  ExecutionState() : ptreeNode(0) {}
   ExecutionState(KFunction *kf);
 
   // XXX total hack, just used to make a state so solver can
@@ -355,6 +357,14 @@ public:
     for (const NodeID &n : sf.localPointers) {
       PointsTo &pts = getPTA()->getPts(n);
       pts.clear();
+    }
+  }
+
+  void updatePointsTo(NodeID from, NodeID to, bool isStrong = true) {
+    if (isStrong) {
+      pta->strongUpdate(from, to);
+    } else {
+      pta->weakUpdate(from, to);
     }
   }
 

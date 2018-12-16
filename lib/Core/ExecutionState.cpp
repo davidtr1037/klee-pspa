@@ -166,7 +166,8 @@ ExecutionState::ExecutionState(const ExecutionState& state):
     ptreeNode(state.ptreeNode),
     symbolics(state.symbolics),
     arrayNames(state.arrayNames),
-    openMergeStack(state.openMergeStack)
+    openMergeStack(state.openMergeStack),
+    modifiedGlobals(state.modifiedGlobals)
 {
   for (unsigned int i=0; i<symbolics.size(); i++)
     symbolics[i].first->refCount++;

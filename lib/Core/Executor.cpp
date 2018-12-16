@@ -23,6 +23,7 @@
 #include "UserSearcher.h"
 #include "ExecutorTimerInfo.h"
 #include "AbstractMO.h"
+#include "../Analysis/SymbolicPTA.h"
 
 
 #include "klee/ExecutionState.h"
@@ -311,10 +312,13 @@ namespace {
             cl::desc("Inhibit forking at memory cap (vs. random terminate) (default=on)"),
             cl::init(true));
 
-  cl::opt<bool>
-  RunStaticPTA("run-static-pta",
-               cl::init(false),
-               cl::desc("Run statis pointer analysis (before the execution)"));
+  cl::list<Executor::PTAMode>
+  UsePTAMode("use-pta-mode",
+             cl::desc("..."),
+             cl::values(clEnumValN(Executor::StaticMode, "static", "Use standard pointer analysis"),
+                        clEnumValN(Executor::DynamicAbstractMode, "abstract", "Use dynamic abstract pointer analysis"),
+                        clEnumValN(Executor::DynamicSymbolicMode, "symbolic", "Use dynamic symbolic pointer analysis"),
+                        clEnumValEnd));
 
   cl::opt<bool>
   UseStrongUpdates("use-strong-updates",
@@ -338,6 +342,11 @@ namespace {
   cl::opt<bool>
   CollectModRef("collect-modref", cl::init(false), cl::desc(""));
 
+  cl::opt<bool>
+  RunSymPtaSanityCheck("run-sym-pta-sanity",
+                       cl::init(false),
+                       cl::desc("Runs with abstract PTA and sanity checks symbolic PTA"));
+
   cl::opt<std::string>
   PTALog("pta-log", cl::init(""), cl::desc(""));
 
@@ -348,7 +357,7 @@ namespace {
   AnalyzeAll("analyze-all", cl::init(false), cl::desc(""));
 
   cl::opt<bool>
-  UseStaticModRef("use-static-modref", cl::init(true), cl::desc(""));
+  UseStaticModRef("use-static-modref", cl::init(false), cl::desc(""));
 
   cl::opt<bool>
   UseModularPTA("use-modular-pta", cl::init(false), cl::desc(""));
@@ -406,7 +415,7 @@ Executor::Executor(LLVMContext &ctx, const InterpreterOptions &opts,
                             ? std::min(MaxCoreSolverTime, MaxInstructionTime)
                             : std::max(MaxCoreSolverTime, MaxInstructionTime)),
       debugInstFile(0), debugLogBuffer(debugBufferString),
-      staticPTA(0), ptaStatsLogger(0),
+      ptaMode(NoneMode), staticPTA(0), ptaStatsLogger(0),
       saLog(0), ra(0), mra(0), modularPTA(0) {
 
   if (coreSolverTimeout) UseForkedCoreSolver = true;
@@ -492,13 +501,13 @@ const Module *Executor::setModule(llvm::Module *module,
 
   kmodule->prepare(opts, interpreterOpts, interpreterHandler);
 
-  if ((!interpreterOpts.skippedFunctions.empty() && UseStaticModRef) || RunStaticPTA) {
+  if ((!interpreterOpts.skippedFunctions.empty() && UseStaticModRef) || ptaMode == StaticMode) {
     klee_message("Running whole program pointer analysis...");
     staticPTA = new Andersen();
     staticPTA->analyze(*kmodule->module);
   }
 
-  if (RunStaticPTA) {
+  if (ptaMode == StaticMode) {
     evaluateWholeProgramPTA();
   }
 
@@ -510,7 +519,7 @@ const Module *Executor::setModule(llvm::Module *module,
   }
 
   if (!interpreterOpts.skippedFunctions.empty()) {
-    if (UseStaticModRef || RunStaticPTA) {
+    if (ptaMode == StaticMode || UseStaticModRef) {
       /* build target functions */
       std::vector<std::string> targets;
       for (auto i : interpreterOpts.skippedFunctions) {
@@ -783,6 +792,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
       MemoryObject *mo = memory->allocate(size, /*isLocal=*/false,
                                           /*isGlobal=*/true, /*allocSite=*/v,
                                           /*alignment=*/globalObjectAlignment);
+      mo->name = v->getName();
       ObjectState *os = bindObjectInState(state, mo, false);
       globalObjects.insert(std::make_pair(v, mo));
       globalAddresses.insert(std::make_pair(v, mo->getBaseExpr()));
@@ -811,6 +821,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
                                           /*alignment=*/globalObjectAlignment);
       if (!mo)
         llvm::report_fatal_error("out of memory");
+      mo->name = v->getName();
       ObjectState *os = bindObjectInState(state, mo, false);
       globalObjects.insert(std::make_pair(v, mo));
       globalAddresses.insert(std::make_pair(v, mo->getBaseExpr()));
@@ -1121,6 +1132,11 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
     ExecutionState *falseState, *trueState = &current;
 
     ++stats::forks;
+    if (ptaMode == DynamicSymbolicMode) {
+      TimerStatIncrementer timer(stats::staticAnalysisTime);
+      SymbolicPTA sPTA(*solver, current, legalFunctions, *kmodule->targetData);
+      updateGlobalsPts(current, sPTA);
+    }
 
     falseState = trueState->branch();
     addedStates.push_back(falseState);
@@ -1588,6 +1604,7 @@ void Executor::executeCall(ExecutionState &state,
       MemoryObject *mo = sf.varargs =
           memory->allocate(size, true, false, state.prevPC->inst,
                            (requires16ByteAlignment ? 16 : 8));
+      mo->name = "varrr args";
       if (!mo && size) {
         terminateStateOnExecError(state, "out of memory (varargs)");
         return;
@@ -3456,7 +3473,8 @@ void Executor::executeAlloc(ExecutionState &state,
                             bool isLocal,
                             KInstruction *target,
                             bool zeroMemory,
-                            const ObjectState *reallocFrom) {
+                            const ObjectState *reallocFrom,
+                            std::string name) {
   size = toUnique(state, size);
   if (ConstantExpr *CE = dyn_cast<ConstantExpr>(size)) {
     const llvm::Value *allocSite = state.prevPC->inst;
@@ -3472,6 +3490,7 @@ void Executor::executeAlloc(ExecutionState &state,
       mo = memory->allocate(CE->getZExtValue(), isLocal, /*isGlobal=*/false,
                             allocSite, allocationAlignment);
     }
+    mo->name = name;
     if (!mo) {
       bindLocal(target, state, 
                 ConstantExpr::alloc(0, Context::get().getPointerWidth()));
@@ -3688,8 +3707,11 @@ void Executor::executeMemoryOperation(ExecutionState &state,
         } else {
           ObjectState *wos = state.addressSpace.getWriteable(mo, os);
           wos->write(offset, value);
+          if (isDynamicMode() && mo->isGlobal && mo->allocSite != nullptr) {
+            state.modifiedGlobals.insert(mo->allocSite);
+          }
 
-          if (isDynamicMode() && shouldUpdatePoinstTo(state)) {
+          if (ptaMode == DynamicAbstractMode && shouldUpdatePoinstTo(state)) {
             updatePointsToOnStore(state, state.prevPC, mo, offset, value, UseStrongUpdates);
           }
 
@@ -3747,7 +3769,11 @@ void Executor::executeMemoryOperation(ExecutionState &state,
           ObjectState *wos = bound->addressSpace.getWriteable(mo, os);
           wos->write(offset, value);
 
-          if (isDynamicMode() && shouldUpdatePoinstTo(state)) {
+          if (isDynamicMode() && mo->isGlobal && mo->allocSite != nullptr) {
+            state.modifiedGlobals.insert(mo->allocSite);
+          }
+
+          if (ptaMode == DynamicAbstractMode && shouldUpdatePoinstTo(state)) {
             updatePointsToOnStore(state, state.prevPC, mo, offset, value, UseStrongUpdates);
           }
         }
@@ -3856,6 +3882,21 @@ void Executor::runFunctionAsMain(Function *f,
 				 char **envp) {
   std::vector<ref<Expr> > arguments;
 
+  if (UsePTAMode.size() > 1) {
+    klee_error("Only one PTA mode can be specified");
+  }
+  if (UsePTAMode.empty()) {
+    if (!interpreterOpts.targetFunctions.empty()) {
+      klee_error("PTA mode must be specified");
+    }
+  } else {
+    ptaMode = UsePTAMode[0];
+  }
+
+  if (ptaMode == StaticMode) {
+    evaluateWholeProgramPTA();
+  }
+
   // force deterministic initialization of memory objects
   srand(1);
   srandom(1);
@@ -3882,6 +3923,7 @@ void Executor::runFunctionAsMain(Function *f,
           memory->allocate((argc + 1 + envc + 1 + 1) * NumPtrBytes,
                            /*isLocal=*/false, /*isGlobal=*/true,
                            /*allocSite=*/first, /*alignment=*/8);
+      argvMO->name = "argv";
 
       if (!argvMO)
         klee_error("Could not allocate memory for function arguments");
@@ -3934,6 +3976,7 @@ void Executor::runFunctionAsMain(Function *f,
         MemoryObject *arg =
             memory->allocate(len + 1, /*isLocal=*/false, /*isGlobal=*/true,
                              /*allocSite=*/state->pc->inst, /*alignment=*/8);
+        arg->name = "__args";
         if (!arg)
           klee_error("Could not allocate memory for function arguments");
         ObjectState *os = bindObjectInState(*state, arg, false);
@@ -4177,7 +4220,7 @@ size_t Executor::getAllocationAlignment(const llvm::Value *allocSite) const {
 bool Executor::isTargetFunction(ExecutionState &state, Function *f) {
   if (AnalyzeAll) {
     /* don't analyze klee_* functons */
-    return f->getName().find("klee_") != 0;
+    return  f->getName().find("strncasecmp_l") != 0 && f->getName().find("tolower_l") != 0 && f->getName().find("klee_") != 0;
   }
 
   for (const FunctionOption &option : interpreterOpts.targetFunctions) {
@@ -4257,7 +4300,7 @@ const Value *Executor::addClonedObjNode(ExecutionState &state,
 
 const Value *Executor::getAllocSite(ExecutionState &state,
                                     const MemoryObject *mo) {
-  if (RunStaticPTA) {
+  if (ptaMode == StaticMode) {
     /* force non-unique allocation sites in this case... */
     return mo->allocSite;
   }
@@ -4452,12 +4495,17 @@ bool Executor::getDynamicMemoryLocations(ExecutionState &state,
 }
 
 bool Executor::isDynamicMode() {
-  return !RunStaticPTA && !interpreterOpts.skippedFunctions.empty();
+  return ptaMode == DynamicAbstractMode || ptaMode == DynamicSymbolicMode;
 }
 
 void Executor::handleBitCast(ExecutionState &state,
                              KInstruction *ki,
                              ref<Expr> value) {
+  if (ptaMode == DynamicSymbolicMode) {
+    /* we may do it also for the symbolic mode */
+    return;
+  }
+
   TimerStatIncrementer timer(stats::staticAnalysisTime);
 
   BitCastInst *castInst = dyn_cast<BitCastInst>(ki->inst);
@@ -4586,13 +4634,9 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
     if (useStrongUpdates && canStronglyUpdate && !isLocalObjectInRecursion) {
       /* if we have more than one object,
          then only the first update should be strong */
-      if (locations.size() > 1 && i > 0) {
-        state.getPTA()->weakUpdate(src, dst);
-      } else {
-        state.getPTA()->strongUpdate(src, dst);
-      }
+      state.updatePointsTo(src, dst, i == 0);
     } else {
-      state.getPTA()->weakUpdate(src, dst);
+      state.updatePointsTo(src, dst, false);
     }
   }
 }
@@ -4631,12 +4675,98 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
     for (unsigned int i = 0; i < locations.size(); i++) {
       DynamicMemoryLocation &location = locations[i];
       NodeID dst = computeAbstractMO(state.getPTA().get(), location, false);
-      if (i == 0) {
-        state.getPTA()->strongUpdate(formalParamId, dst);
-      } else {
-        state.getPTA()->weakUpdate(formalParamId, dst);
-      }
+      state.updatePointsTo(formalParamId,dst, i == 0);
     }
+  }
+}
+
+NodeID Executor::ptrToAbstract(ExecutionState &state,
+                               Pointer *p,
+                               SymbolicPTA &sPTA) {
+  if (p->isFunctionPtr()) {
+    DynamicMemoryLocation dl(p->f, 0, false, 0, nullptr);
+    return computeAbstractMO(state.getPTA().get(), dl, false);
+  }
+
+  const MemoryObject *m = p->pointerContainer;
+  uint64_t offset = p->offset;
+
+  /* TODO: why always true? */
+  if (true || !p->multiplePointers) {
+    if (p->multiplePointers) {
+      /* TODO: do we want to assert here? */
+    }
+
+    PointerType *pt = dyn_cast<PointerType>(sPTA.getMemoryObjectType(m));
+    DynamicMemoryLocation dl(getAllocSite(state,m), m->size, false, offset, pt);
+    return computeAbstractMO(state.getPTA().get(), dl, false);
+  } else {
+    assert(0 && "TODO symbolic offset");
+  }
+}
+
+void Executor::updateGlobalsPts(ExecutionState &state,
+                                SymbolicPTA &sPTA) {
+  for (const llvm::Value *v : state.modifiedGlobals) {
+    const GlobalVariable *gv = dyn_cast<GlobalVariable>(v);
+    if (gv && !gv->isConstant() && !gv->isDeclaration() && gv->getType()->isPointerTy()) {
+      const MemoryObject *mo = globalObjects[gv];
+      NodeID formalGlobalId = state.getPTA()->getPAG()->getValueNode(gv);
+
+      Pointer *ptr = sPTA.getPointer(mo, ConstantExpr::create(0, 64));
+      for (PointsToPair &pair : sPTA.traverse(ptr)) {
+        NodeID from = ptrToAbstract(state, pair.first, sPTA);
+        NodeID to = ptrToAbstract(state, pair.second, sPTA);
+        // errs() << "Global Update " << from << " to: " << to << " isWeak " << pair.first->isWeak() << " " + pair.second->print() <<  "\n";
+        state.updatePointsTo(from, to, !pair.first->isWeak() && !pair.second->isWeak());
+      }
+      NodeID dst = ptrToAbstract(state, ptr, sPTA);
+      // errs() << "Global Update " << formalGlobalId << " to " << dst << " mo: " << mo->name << " isWeak " << " " + ptr->isWeak() << "\n";
+      state.updatePointsTo(formalGlobalId, dst, !ptr->isWeak());
+    }
+  }
+  state.modifiedGlobals.clear();
+}
+
+void Executor::updatePointsToOnCallSymbolic(ExecutionState &state,
+                                            Function *f,
+                                            std::vector<ref<Expr>> &arguments) {
+  SymbolicPTA sPTA(*solver, state, legalFunctions, *kmodule->targetData);
+  updateGlobalsPts(state, sPTA);
+
+  unsigned int argIndex = 0;
+  for (Function::arg_iterator ai = f->arg_begin(); ai != f->arg_end(); ai++) {
+    Argument &arg = *ai;
+
+    /* try to concretize the argument expression */
+    ref<Expr> e = arguments[argIndex++];
+    if (!isa<ConstantExpr>(e)) {
+      e = state.constraints.simplifyExpr(e);
+    }
+
+    PointerType *paramType = dyn_cast<PointerType>(arg.getType());
+    if (!paramType) {
+      /* resolve only pointer values */
+      continue;
+    }
+
+    ResolutionList rl1;
+    state.addressSpace.resolve(state, solver, e, rl1);
+    NodeID formalParamId = state.getPTA()->getPAG()->getValueNode(&arg);
+    for (auto &op1 : rl1) {
+      const MemoryObject* mo = op1.first;
+      Pointer *ptr = sPTA.getPointer(mo, mo->getOffsetExpr(e));
+      for (PointsToPair &pair : sPTA.traverse(ptr)) {
+        NodeID from = ptrToAbstract(state, pair.first, sPTA);
+        NodeID to = ptrToAbstract(state, pair.second, sPTA);
+        // errs() << "Update " << from << " to: " << to << " isWeak " << pair.first->isWeak() << " " + pair.second->print() << "\n";
+        state.updatePointsTo(from, to, !pair.first->isWeak() && !pair.second->isWeak());
+      }
+      NodeID dst = ptrToAbstract(state, ptr, sPTA);
+      // errs() << "Update " << formalParamId << " to " << dst << " mo: " << mo->name << " isWeak " << " " + ptr->isWeak() << "\n";
+      /*  TODO: should we force weak update on non-first iterations? */
+      state.updatePointsTo(formalParamId, dst, !ptr->isWeak());
+  	}
   }
 }
 
@@ -4651,11 +4781,28 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
     TimerStatIncrementer timer(stats::staticAnalysisTime);
     ++stats::staticAnalysisUsage;
     /* run dynamic pointer analysis */
-    updatePointsToOnCall(state, f, arguments);
+    if (ptaMode == DynamicSymbolicMode) {
+      updatePointsToOnCallSymbolic(state, f, arguments);
+    }
+    if (ptaMode == DynamicAbstractMode) {
+      updatePointsToOnCall(state, f, arguments);
+    }
+
     if (!NoAnalyze) {
       clonedPTA = new AndersenDynamic(*state.getPTA().get());
       clonedPTA->initialize(*kmodule->module);
       clonedPTA->analyzeFunction(*kmodule->module, f);
+      if (RunSymPtaSanityCheck) {
+        /* build the symbolic points-to from scratch */
+        ExecutionState *es = new ExecutionState(state);
+        es->getPTA()->clearPointsTo();
+        updatePointsToOnCallSymbolic(*es, f, arguments);
+        es->getPTA()->analyzeFunction(*kmodule->module, f);
+
+        /* compare with the abstrac points-to */
+        comparePointsToStates(clonedPTA, es->getPTA().get());
+        delete es;
+      }
     }
   }
 
@@ -4665,7 +4812,7 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
   }
 
   /* get the appropriate analyzer */
-  PointerAnalysis *pta = RunStaticPTA ? staticPTA : clonedPTA;
+  PointerAnalysis *pta = (ptaMode == StaticMode) ? staticPTA : clonedPTA;
 
   if (CollectPTAStats) {
     StatsCollector collector(false);
@@ -4684,7 +4831,7 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
   }
 
   if (DumpPTAGraph) {
-    if (RunStaticPTA) {
+    if (ptaMode == StaticMode) {
       /* TODO: use getAllValidPtrs? */
       klee_error("Doesn't support static mode...");
     }
@@ -4704,8 +4851,42 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
     collector.dumpModSet(pta);
   }
 
-  if (!RunStaticPTA) {
+  if (isDynamicMode()) {
     delete clonedPTA;
+  }
+}
+
+void Executor::comparePointsToStates(AndersenDynamic *abstractPTA,
+                                     AndersenDynamic *symbolicPTA) {
+  for (auto &idToType : *abstractPTA->getPAG()) {
+    NodeID nodeId = idToType.first;
+    if (nodeId == 0) {
+      continue;
+    }
+    PointsTo& abstractPts = abstractPTA->getPts(nodeId);
+    PointsTo& symbolicPts = symbolicPTA->getPts(nodeId);
+    symbolicPts.intersectWithComplement(abstractPts);
+    if (symbolicPts.count() > 0) {
+      // Check if they are FS version of FI objects
+      bool ok = true;
+      for (auto nid : symbolicPts) {
+        errs() << "checking " << abstractPTA->getFIObjNode(nid) << "\n";
+        ok &= abstractPts.test(abstractPTA->getFIObjNode(nid));
+      }
+      if (ok) {
+        continue;
+      }
+      errs() << "PointsTo sets for " << nodeId << " don't match\nsymbolic pts: ";
+      dump(symbolicPts, errs());
+      errs() << "abstract pts: ";
+      dump(abstractPts, errs());
+      if (abstractPTA->getPAG()->getPAGNode(nodeId)->hasValue()) {
+        // if(isa<GlobalValue>(abstractPTA->getPAG()->getPAGNode(nodeId)->getValue()))
+        //   continue; //globals can missmatch at this point
+        abstractPTA->getPAG()->getPAGNode(nodeId)->getValue()->dump();
+      }
+      assert(0 && "Pts sets don't match");
+    }
   }
 }
 
@@ -5021,7 +5202,7 @@ bool Executor::getRequiredRecoveryInfoDynamic(ExecutionState &state,
   location.value = getAllocSite(state, loadInfo.mo);
   location.hint = getTypeHint(loadInfo.mo);
 
-  PointerAnalysis *pta = RunStaticPTA ? staticPTA : state.getPTA().get();
+  PointerAnalysis *pta = (ptaMode == StaticMode) ? staticPTA : state.getPTA().get();
   std::vector<NodeID> loads;
 
   NodeID nodeId = computeAbstractMO(pta, location, false, NULL);

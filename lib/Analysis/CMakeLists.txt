@@ -11,6 +11,7 @@ klee_add_component(kleeAnalysis
     PTAStats.cpp
     PTAUtils.cpp
     PTAGraph.cpp
+    SymbolicPTA.cpp
     Reachability.cpp
     ReachabilityAnalysis.cpp
     ModRefAnalysis.cpp

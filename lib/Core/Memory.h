@@ -39,9 +39,9 @@ class MemoryObject {
 
 private:
   static int counter;
-  mutable unsigned refCount;
 
 public:
+  mutable unsigned refCount;
   unsigned id;
   uint64_t address;
 

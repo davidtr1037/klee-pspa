@@ -376,6 +376,8 @@ static bool linkBCA(object::Archive* archive, Module* composite, std::string& er
           KLEE_DEBUG_WITH_TYPE("klee_linker", dbgs() << "Found " << GV->getName() <<
               " in " << M->getModuleIdentifier() << "\n");
 
+          //Makes sure the library datalayout matches the main module
+          M->setDataLayout(composite->getDataLayout());
 #if LLVM_VERSION_CODE >= LLVM_VERSION(3, 8)
           if (Linker::linkModules(*composite, std::unique_ptr<Module>(M)))
 #elif LLVM_VERSION_CODE >= LLVM_VERSION(3, 6)
@@ -485,6 +487,7 @@ Module *klee::linkWithLibrary(Module *module,
     }
 
 #if LLVM_VERSION_CODE >= LLVM_VERSION(3, 8)
+    ResultErr.get()->setDataLayout(module->getDataLayout());
     if (Linker::linkModules(*module, std::move(ResultErr.get()))) {
       ErrorMessage = "linking error";
 #else

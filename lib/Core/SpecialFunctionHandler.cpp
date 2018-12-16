@@ -111,6 +111,7 @@ static SpecialFunctionHandler::HandlerInfo handlerInfo[] = {
   add("klee_warning_once", handleWarningOnce, false),
   add("klee_alias_function", handleAliasFunction, false),
   add("malloc", handleMalloc, true),
+  add("mymalloc", handleMalloc, true),
   add("realloc", handleRealloc, true),
 
   // operator delete[](void*)
@@ -412,8 +413,8 @@ void SpecialFunctionHandler::handleMalloc(ExecutionState &state,
   // XXX should type check args
     if(arguments.size() == 2) {
        std::string name = readStringAtAddress(state, arguments[1]);
-      // executor.executeAlloc(state, arguments[0], false, target, false,  nullptr,name);
-       executor.executeAlloc(state, arguments[0], false, target);
+       executor.executeAlloc(state, arguments[0], false, target, false,  nullptr,name);
+      // executor.executeAlloc(state, arguments[0], false, target);
        return;
   }
   assert(arguments.size()==1 && "invalid number of arguments to malloc");

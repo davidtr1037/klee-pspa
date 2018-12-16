@@ -28,6 +28,7 @@
 #include "klee/Internal/Analysis/ReachabilityAnalysis.h"
 #include "klee/Internal/Analysis/ModRefAnalysis.h"
 #include "klee/Internal/Analysis/ModularAnalysis.h"
+#include "../Analysis/SymbolicPTA.h"
 
 #include "llvm/ADT/Twine.h"
 
@@ -147,6 +148,13 @@ public:
     Unhandled
   };
 
+  enum PTAMode {
+    StaticMode,
+    DynamicAbstractMode,
+    DynamicSymbolicMode,
+    NoneMode,
+  };
+
 private:
   static const char *TerminateReasonNames[];
 
@@ -247,6 +255,9 @@ private:
 
   // @brief buffer to store logs before flushing to file
   llvm::raw_string_ostream debugLogBuffer;
+
+  /* TODO: add docs */
+  PTAMode ptaMode;
 
   /* TODO: add docs */
   PointerAnalysis *staticPTA;
@@ -350,7 +361,8 @@ private:
                     bool isLocal,
                     KInstruction *target,
                     bool zeroMemory=false,
-                    const ObjectState *reallocFrom=0);
+                    const ObjectState *reallocFrom=0,
+                    std::string name = "unnamed");
 
   /// Free the given address with checking for errors. If target is
   /// given it will be bound to 0 in the resulting states (this is a
@@ -631,10 +643,24 @@ public:
                             llvm::Function *f,
                             std::vector<ref<Expr>> &arguments);
 
+  NodeID ptrToAbstract(ExecutionState &state,
+                       Pointer *p,
+                       SymbolicPTA &spta);
+
+  void updateGlobalsPts(ExecutionState &state,
+                        SymbolicPTA &sPTA);
+
+  void updatePointsToOnCallSymbolic(ExecutionState &state,
+                                    llvm::Function *f,
+                                    std::vector<ref<Expr>> &arguments);
+
   void analyzeTargetFunction(ExecutionState &state,
                              KInstruction *ki,
                              llvm::Function *f,
                              std::vector<ref<Expr>> &arguments);
+
+  void comparePointsToStates(AndersenDynamic *abstractPTA,
+                             AndersenDynamic *symbolicPTA);
 
   void logCall(ExecutionState &state,
                llvm::Function *f);

@@ -35,6 +35,8 @@ namespace klee {
     /// get - Return the global singleton instance of the Context.
     static const Context &get();
 
+    static bool isInit();
+
     bool isLittleEndian() const { return IsLittleEndian; }
 
     /// Returns width of the pointer in bits
