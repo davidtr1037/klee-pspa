@@ -133,6 +133,13 @@ public:
     Unhandled
   };
 
+  enum PTAMode {
+    StaticMode,
+    DynamicAbstractMode,
+    DynamicSymbolicMode,
+    NoneMode,
+  };
+
 private:
   static const char *TerminateReasonNames[];
 
@@ -233,6 +240,9 @@ private:
 
   // @brief buffer to store logs before flushing to file
   llvm::raw_string_ostream debugLogBuffer;
+
+  /* TODO: add docs */
+  PTAMode ptaMode;
 
   /* TODO: add docs */
   PointerAnalysis *staticPTA;

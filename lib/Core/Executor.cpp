@@ -308,10 +308,13 @@ namespace {
             cl::desc("Inhibit forking at memory cap (vs. random terminate) (default=on)"),
             cl::init(true));
 
-  cl::opt<bool>
-  RunStaticPTA("run-static-pta",
-               cl::init(false),
-               cl::desc("Run statis pointer analysis (before the execution)"));
+  cl::list<Executor::PTAMode>
+  UsePTAMode("use-pta-mode",
+             cl::desc("..."),
+             cl::values(clEnumValN(Executor::StaticMode, "static", "Use standard pointer analysis"),
+                        clEnumValN(Executor::DynamicAbstractMode, "abstract", "Use dynamic abstract pointer analysis"),
+                        clEnumValN(Executor::DynamicSymbolicMode, "symbolic", "Use dynamic symbolic pointer analysis"),
+                        clEnumValEnd));
 
   cl::opt<bool>
   UseStrongUpdates("use-strong-updates",
@@ -334,9 +337,6 @@ namespace {
 
   cl::opt<bool>
   CollectModRef("collect-modref", cl::init(false), cl::desc(""));
-
-  cl::opt<bool>
-  UseSymPta("use-sym-pta", cl::init(false), cl::desc("use symbolic pta"));
 
   cl::opt<bool>
   RunSymPtaSanityCheck("run-sym-pta-sanity",
@@ -402,7 +402,7 @@ Executor::Executor(LLVMContext &ctx, const InterpreterOptions &opts,
                             ? std::min(MaxCoreSolverTime, MaxInstructionTime)
                             : std::max(MaxCoreSolverTime, MaxInstructionTime)),
       debugInstFile(0), debugLogBuffer(debugBufferString),
-      staticPTA(0), ptaStatsLogger(0) {
+      ptaMode(NoneMode), staticPTA(0), ptaStatsLogger(0) {
 
   if (coreSolverTimeout) UseForkedCoreSolver = true;
   Solver *coreSolver = klee::createCoreSolver(CoreSolverToUse);
@@ -1469,11 +1469,6 @@ void Executor::executeCall(ExecutionState &state,
     unsigned numFormals = f->arg_size();
     for (unsigned i=0; i<numFormals; ++i) 
       bindArgument(kf, i, state, arguments[i]);
-
-    if(UseSymPta && f->getName() == "__user_main") {
-//      SymbolicPTA sPTA(*solver, state, legalFunctions, *kmodule->targetData);
-//      updateGlobalsPts(state, sPTA);
-    }
 
     if (isTargetFunction(state, f)) {
       analyzeTargetFunction(state, ki, f, arguments);
@@ -3441,7 +3436,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
             state.modifiedGlobals.insert(mo->allocSite);
           }
 
-          if (!UseSymPta && isDynamicMode() && shouldUpdatePoinstTo(state)) {
+          if (ptaMode == DynamicAbstractMode && shouldUpdatePoinstTo(state)) {
             updatePointsToOnStore(state, state.prevPC, mo, offset, value, UseStrongUpdates);
           }
         }
@@ -3493,7 +3488,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
             state.modifiedGlobals.insert(mo->allocSite);
           }
 
-          if (!UseSymPta &&isDynamicMode() && shouldUpdatePoinstTo(state)) {
+          if (ptaMode == DynamicAbstractMode && shouldUpdatePoinstTo(state)) {
             updatePointsToOnStore(state, state.prevPC, mo, offset, value, UseStrongUpdates);
           }
         }
@@ -3602,7 +3597,18 @@ void Executor::runFunctionAsMain(Function *f,
 				 char **envp) {
   std::vector<ref<Expr> > arguments;
 
-  if (RunStaticPTA) {
+  if (UsePTAMode.size() > 1) {
+    klee_error("Only one PTA mode can be specified");
+  }
+  if (UsePTAMode.empty()) {
+    if (!interpreterOpts.targetFunctions.empty()) {
+      klee_error("PTA mode must be specified");
+    }
+  } else {
+    ptaMode = UsePTAMode[0];
+  }
+
+  if (ptaMode == StaticMode) {
     evaluateWholeProgramPTA();
   }
 
@@ -4015,7 +4021,7 @@ const Value *Executor::addClonedObjNode(ExecutionState &state,
 
 const Value *Executor::getAllocSite(ExecutionState &state,
                                     const MemoryObject *mo) {
-  if (RunStaticPTA) {
+  if (ptaMode == StaticMode) {
     /* force non-unique allocation sites in this case... */
     return mo->allocSite;
   }
@@ -4210,13 +4216,17 @@ bool Executor::getDynamicMemoryLocations(ExecutionState &state,
 }
 
 bool Executor::isDynamicMode() {
-  return !RunStaticPTA && (!interpreterOpts.targetFunctions.empty() || AnalyzeAll);
+  return ptaMode == DynamicAbstractMode || ptaMode == DynamicSymbolicMode;
 }
 
 void Executor::handleBitCast(ExecutionState &state,
                              KInstruction *ki,
                              ref<Expr> value) {
-  if(UseSymPta) return;
+  if (ptaMode == DynamicSymbolicMode) {
+    /* we may do it also for the symbolic mode */
+    return;
+  }
+
   TimerStatIncrementer timer(stats::staticAnalysisTime);
 
   BitCastInst *castInst = dyn_cast<BitCastInst>(ki->inst);
@@ -4490,9 +4500,10 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
     TimerStatIncrementer timer(stats::staticAnalysisTime);
     ++stats::staticAnalysisUsage;
     /* run dynamic pointer analysis */
-    if (UseSymPta) {
+    if (ptaMode == DynamicSymbolicMode) {
       updatePointsToOnCallSymbolic(state, f, arguments);
-    } else {
+    }
+    if (ptaMode == DynamicAbstractMode) {
       updatePointsToOnCall(state, f, arguments);
     }
 
@@ -4520,7 +4531,7 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
   }
 
   /* get the appropriate analyzer */
-  PointerAnalysis *pta = RunStaticPTA ? staticPTA : clonedPTA;
+  PointerAnalysis *pta = (ptaMode == StaticMode) ? staticPTA : clonedPTA;
 
   if (CollectPTAStats) {
     StatsCollector collector(false);
@@ -4539,7 +4550,7 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
   }
 
   if (DumpPTAGraph) {
-    if (RunStaticPTA) {
+    if (ptaMode == StaticMode) {
       /* TODO: use getAllValidPtrs? */
       klee_error("Doesn't support static mode...");
     }
@@ -4559,7 +4570,7 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
     collector.dumpModSet(pta);
   }
 
-  if (!RunStaticPTA) {
+  if (isDynamicMode()) {
     delete clonedPTA;
   }
 }
