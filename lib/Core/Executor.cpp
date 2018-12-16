@@ -3432,7 +3432,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
         } else {
           ObjectState *wos = state.addressSpace.getWriteable(mo, os);
           wos->write(offset, value);
-          if(mo->isGlobal && mo->allocSite != nullptr) {
+          if (isDynamicMode() && mo->isGlobal && mo->allocSite != nullptr) {
             state.modifiedGlobals.insert(mo->allocSite);
           }
 
@@ -3484,7 +3484,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
           ObjectState *wos = bound->addressSpace.getWriteable(mo, os);
           wos->write(offset, value);
 
-          if(mo->isGlobal && mo->allocSite != nullptr) {
+          if (isDynamicMode() && mo->isGlobal && mo->allocSite != nullptr) {
             state.modifiedGlobals.insert(mo->allocSite);
           }
 
