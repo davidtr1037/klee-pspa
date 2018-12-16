@@ -1520,6 +1520,9 @@ void Executor::executeCall(ExecutionState &state,
     // from just an instruction (unlike LLVM).
 
     if (state.isNormalState() && !state.isRecoveryState() && isFunctionToSkip(state, f)) {
+      if (ptaMode == DynamicSymbolicMode) {
+        klee_error("Symbolic mode is not supported yet...");
+      }
       /* first, check if the skipped function has side effects */
       if (isDynamicMode() || mra->hasSideEffects(f)) {
         if (isDynamicMode()) {
