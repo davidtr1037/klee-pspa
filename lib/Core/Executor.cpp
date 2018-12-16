@@ -486,6 +486,28 @@ const Module *Executor::setModule(llvm::Module *module,
 
   specialFunctionHandler->prepare();
   kmodule->prepare(opts, interpreterHandler);
+
+  if (UsePTAMode.size() > 1) {
+    klee_error("Only one PTA mode can be specified");
+  }
+  if (UsePTAMode.empty()) {
+    if (!interpreterOpts.targetFunctions.empty()) {
+      klee_error("PTA mode must be specified");
+    }
+  } else {
+    ptaMode = UsePTAMode[0];
+  }
+
+  if (ptaMode == StaticMode) {
+    klee_message("Running whole program pointer analysis...");
+    staticPTA = new Andersen();
+    staticPTA->analyze(*kmodule->module);
+  }
+
+  if (ptaMode == StaticMode) {
+    evaluateWholeProgramPTA();
+  }
+
   specialFunctionHandler->bind();
 
   if (StatsTracker::useStatistics() || userSearcherRequiresMD2U()) {
@@ -3597,21 +3619,6 @@ void Executor::runFunctionAsMain(Function *f,
 				 char **envp) {
   std::vector<ref<Expr> > arguments;
 
-  if (UsePTAMode.size() > 1) {
-    klee_error("Only one PTA mode can be specified");
-  }
-  if (UsePTAMode.empty()) {
-    if (!interpreterOpts.targetFunctions.empty()) {
-      klee_error("PTA mode must be specified");
-    }
-  } else {
-    ptaMode = UsePTAMode[0];
-  }
-
-  if (ptaMode == StaticMode) {
-    evaluateWholeProgramPTA();
-  }
-
   // force deterministic initialization of memory objects
   srand(1);
   srandom(1);
@@ -3986,10 +3993,6 @@ void Executor::evaluateWholeProgramPTA() {
       }
     }
   }
-
-  klee_message("Running whole program pointer analysis...");
-  staticPTA = new Andersen();
-  staticPTA->analyze(*kmodule->module);
 
   if (CollectPTAStats) {
     for (Function *f : functions) {
