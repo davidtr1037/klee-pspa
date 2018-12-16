@@ -999,7 +999,7 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
     ExecutionState *falseState, *trueState = &current;
 
     ++stats::forks;
-    {
+    if (ptaMode == DynamicSymbolicMode) {
       TimerStatIncrementer timer(stats::staticAnalysisTime);
       SymbolicPTA sPTA(*solver, current, legalFunctions, *kmodule->targetData);
       updateGlobalsPts(current, sPTA);
