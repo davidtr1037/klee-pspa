@@ -240,8 +240,6 @@ public:
     return TransitiveTraverser(*this, p);
   }
 
-  //TODO: dtor
-
 private:
 
   bool mustBeTrue(ref<Expr> e);

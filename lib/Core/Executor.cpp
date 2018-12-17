@@ -4516,14 +4516,13 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
       clonedPTA->analyzeFunction(*kmodule->module, f);
       if (RunSymPtaSanityCheck) {
         /* build the symbolic points-to from scratch */
-        ExecutionState *es = new ExecutionState(state);
-        es->getPTA()->clearPointsTo();
-        updatePointsToOnCallSymbolic(*es, f, arguments);
-        es->getPTA()->analyzeFunction(*kmodule->module, f);
+        ExecutionState es(state);
+        es.getPTA()->clearPointsTo();
+        updatePointsToOnCallSymbolic(es, f, arguments);
+        es.getPTA()->analyzeFunction(*kmodule->module, f);
 
         /* compare with the abstrac points-to */
-        comparePointsToStates(clonedPTA, es->getPTA().get());
-        delete es;
+        comparePointsToStates(clonedPTA, es.getPTA().get());
       }
     }
   }
