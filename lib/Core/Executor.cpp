@@ -4413,17 +4413,12 @@ NodeID Executor::ptrToAbstract(ExecutionState &state,
   const MemoryObject *m = p->pointerContainer;
   uint64_t offset = p->offset;
 
-  /* TODO: why always true? */
-  if (true || !p->multiplePointers) {
-    if (p->multiplePointers) {
-      /* TODO: do we want to assert here? */
-    }
-
+  if (!p->multiplePointers) {
     PointerType *pt = dyn_cast<PointerType>(sPTA.getMemoryObjectType(m));
     DynamicMemoryLocation dl(getAllocSite(state,m), m->size, false, offset, pt);
     return computeAbstractMO(state.getPTA().get(), dl, false);
   } else {
-    assert(0 && "TODO symbolic offset");
+    assert(0 && "TODO a symbolic pointer that resolved to two or more fields in a struct");
   }
 }
 

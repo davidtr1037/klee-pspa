@@ -60,9 +60,12 @@ Pointer* SymbolicPTA::getPointer(const MemoryObject *mo,
   }
 
   ref<ConstantExpr> constant_offset;
-  solver.getValue(state, offset, constant_offset);
+  //Get a new state to add temporary constraints to
+  ExecutionState es(state); 
+  es.addConstraint(UltExpr::create(offset, mo->getSizeExpr()));
+  solver.getValue(es, offset, constant_offset);
   retPtr = new Pointer(mo, constant_offset);
-  if (mayBeTrue(NeExpr::create(offset, constant_offset))) {
+  if (mayBeTrue(NeExpr::create(offset, constant_offset), es)) {
     retPtr->multiplePointers = true;
   }
 
@@ -207,18 +210,18 @@ void SymbolicPTA::setMemoryObjectType(const MemoryObject *mo,
   moTypes[mo] = type;
 }
 
-bool SymbolicPTA::mustBeTrue(klee::ref<Expr> e) {
+bool SymbolicPTA::mustBeTrue(klee::ref<Expr> e, ExecutionState &s) {
   bool res;
-  if (solver.mustBeTrue(state, e, res)) {
+  if (solver.mustBeTrue(s, e, res)) {
     return res;
   } else {
     assert(0 && "Solver failure not handled in SymbolicPTA");
   }
 }
 
-bool SymbolicPTA::mayBeTrue(klee::ref<Expr> e) {
+bool SymbolicPTA::mayBeTrue(klee::ref<Expr> e, ExecutionState &s) {
   bool res;
-  if (solver.mayBeTrue(state, e, res)) {
+  if (solver.mayBeTrue(s, e, res)) {
     return res;
   } else {
     assert(0 && "Solver failure not handled in SymbolicPTA");

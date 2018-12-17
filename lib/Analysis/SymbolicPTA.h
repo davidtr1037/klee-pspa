@@ -242,9 +242,11 @@ public:
 
 private:
 
-  bool mustBeTrue(ref<Expr> e);
+  bool mustBeTrue(ref<Expr> e) { return mustBeTrue(e, state); }
+  bool mustBeTrue(ref<Expr> e, ExecutionState &s);
 
-  bool mayBeTrue(ref<Expr> e);
+  bool mayBeTrue(ref<Expr> e) { return mayBeTrue(e, state); }
+  bool mayBeTrue(ref<Expr> e, ExecutionState &s);
 
   std::vector<Pointer *> handleFunctionPtr(ref<Expr> fp);
 
