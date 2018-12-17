@@ -1,6 +1,6 @@
 // RUN: %llvmgcc -I../../../include -emit-llvm -g -c %s -o %t.bc
 // RUN: rm -rf %t.klee-outViaStruct
-// RUN: %klee -collect-pta-results -collect-pta-stats -collect-modref  -pta-target=useMatrix --output-dir=%t.klee-outViaStruct -sym-pta=1 %t.bc &> %tViaStruct.log 
+// RUN: %klee -collect-pta-results -collect-pta-stats -collect-modref  -pta-target=useMatrix --output-dir=%t.klee-outViaStruct -use-pta-mode=symbolic %t.bc &> %tViaStruct.log 
 // RUN: grep '<badref> = call' %tViaStruct.log | wc -l | grep 3
 // RUN: grep '<badref> = call' %tViaStruct.log | sed -n 's/.*i64 \([0-9]\).*/\1/p' | tr '\n' '-' | grep 6-7-9
 #include <stdio.h>

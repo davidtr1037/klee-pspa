@@ -1,15 +1,15 @@
 // RUN: %llvmgcc -I../../../include -emit-llvm -g -c %s -o %t.bc
 // RUN: rm -rf %t.klee-outViaStructSanity %t.klee-outViaStruct %t.klee-outuseM %t.klee-outuseMSanity
-// RUN: %klee -collect-pta-results -collect-modref  -pta-target=useMatrixViaStruct --output-dir=%t.klee-outViaStruct -sym-pta %t.bc &> %tViaStruct.log 
+// RUN: %klee -collect-pta-results -collect-modref  -pta-target=useMatrixViaStruct --output-dir=%t.klee-outViaStruct -use-pta-mode=symbolic %t.bc &> %tViaStruct.log 
 // RUN: grep '<badref> = call' %tViaStruct.log | wc -l | grep 3
 // RUN: grep '<badref> = call' %tViaStruct.log | sed -n 's/.*i64 \([0-9]\).*/\1/p' | tr '\n' '-' | grep 6-7-9
 
-// RUN: %klee -collect-pta-results -collect-modref  -pta-target=useM --output-dir=%t.klee-outuseM -sym-pta %t.bc &> %tuseM.log 
+// RUN: %klee -collect-pta-results -collect-modref  -pta-target=useM --output-dir=%t.klee-outuseM -use-pta-mode=symbolic %t.bc &> %tuseM.log 
 // RUN: grep '<badref> = call' %tuseM.log | wc -l | grep 5
 // RUN: grep '<badref> = call' %tuseM.log | sed -n 's/.*i64 \([0-9][0-9]\).*/\1/p' | tr '\n' '-' | grep 12-16-20-32-28
 
-// RUN: %klee -collect-pta-results -collect-modref  -pta-target=useM --output-dir=%t.klee-outuseMSanity -sym-pta-sanity %t.bc 
-// RUN: %klee -collect-pta-results -collect-modref  -pta-target=useMatrixViaStruct --output-dir=%t.klee-outViaStructSanity -sym-pta-sanity %t.bc
+// RUN: %klee -collect-pta-results -use-pta-mode=abstract -collect-modref  -pta-target=useM --output-dir=%t.klee-outuseMSanity -run-sym-pta-sanity %t.bc 
+// RUN: %klee -collect-pta-results -collect-modref -use-pta-mode=abstract -pta-target=useMatrixViaStruct --output-dir=%t.klee-outViaStructSanity -run-sym-pta-sanity %t.bc
 #include <stdio.h>
 
 void* malloc(size_t, char*);
