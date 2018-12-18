@@ -2,6 +2,7 @@
 #include <llvm/IR/DerivedTypes.h>
 
 #include "SymbolicPTA.h"
+#include "klee/Internal/Support/ErrorHandling.h"
 
 using namespace llvm;
 using namespace klee;
@@ -122,7 +123,11 @@ std::vector<Pointer *> SymbolicPTA::getPointerTarget(Pointer &p) {
     assert(isPointerOffset(*cp) && "Trying to resolve non pointer type field as pointer");
     ref<Expr> ptr = os->read(cp->offset, ptrWidth);
     ResolutionList rl;
-    state.addressSpace.resolve(state, &solver, ptr, rl);
+    bool timedout = state.addressSpace.resolve(state, &solver, ptr, rl, 0, 10);
+    if(timedout) {
+        klee_warning("Pointers %s resolution timed out in 10 second", cp->print().c_str());
+    }
+
     for (auto &op : rl) {
       const MemoryObject *mo = op.first;
       Pointer *p = getPointer(mo, mo->getOffsetExpr(ptr));
