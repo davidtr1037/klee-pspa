@@ -4319,17 +4319,15 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
     return;
   }
 
+  /* if the offset is symbolic, then we force the
+     source memory object to be field-insensitive */
   ConstantExpr *ce = dyn_cast<ConstantExpr>(offset);
-  if (!ce) {
-    /* TODO: handle... */
-    assert(false);
-  }
 
   /* TODO: it would be better to use the same API... */
   DynamicMemoryLocation storeLocation(getAllocSite(state, mo),
                                       mo->size,
-                                      false,
-                                      ce->getZExtValue(),
+                                      ce != NULL,
+                                      ce != NULL ? ce->getZExtValue() : 0,
                                       getTypeHint(mo));
 
   bool canStronglyUpdate;
