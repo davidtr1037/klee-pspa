@@ -58,8 +58,8 @@ TEST(SymbolicPTATest, BasicTarget) {
               
     SymbolicPTA sPTA(*solver, state, lf, dl);
     llvm::Type* shrtTy = llvm::IntegerType::getInt16Ty(ctx)->getPointerTo();
-    sPTA.giveMemoryObjectType(&pointerMo, shrtTy->getPointerTo());
-    sPTA.giveMemoryObjectType(&pointeeMo, shrtTy->getPointerTo());
+    sPTA.setMemoryObjectType(&pointerMo, shrtTy->getPointerTo());
+    sPTA.setMemoryObjectType(&pointeeMo, shrtTy->getPointerTo());
 
     Pointer* ptr = sPTA.getPointer(&pointerMo, zero);
     Pointer* ptr1 = sPTA.getPointer(&pointerMo, zero);
@@ -112,7 +112,7 @@ TEST(SymbolicPTATest, ColocatedArray) {
 
               
     SymbolicPTA sPTA(*solver, state, lf, dl);
-    sPTA.giveMemoryObjectType(&pointerMo, st->getPointerTo());
+    sPTA.setMemoryObjectType(&pointerMo, st->getPointerTo());
 
     Pointer* ptr0_0 = sPTA.getPointer(&pointerMo, ConstantExpr::create(0,64));
     Pointer* ptr8_0 = sPTA.getPointer(&pointerMo, ConstantExpr::create(8,64));

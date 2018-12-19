@@ -4590,21 +4590,19 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
   getDynamicMemoryLocations(state, value, valueType, locations);
   if (locations.empty()) {
     /* TODO: can it be external (concrete) address? */
-    klee_warning("address is probably out of bound...");
+    klee_warning("address is probably out of bound or external...");
     return;
   }
 
+  /* if the offset is symbolic, then we force the
+     source memory object to be field-insensitive */
   ConstantExpr *ce = dyn_cast<ConstantExpr>(offset);
-  if (!ce) {
-    /* TODO: handle... */
-    assert(false);
-  }
 
   /* TODO: it would be better to use the same API... */
   DynamicMemoryLocation storeLocation(getAllocSite(state, mo),
                                       mo->size,
-                                      false,
-                                      ce->getZExtValue(),
+                                      ce != NULL,
+                                      ce != NULL ? ce->getZExtValue() : 0,
                                       getTypeHint(mo));
 
   bool canStronglyUpdate;
@@ -4690,17 +4688,12 @@ NodeID Executor::ptrToAbstract(ExecutionState &state,
   const MemoryObject *m = p->pointerContainer;
   uint64_t offset = p->offset;
 
-  /* TODO: why always true? */
-  if (true || !p->multiplePointers) {
-    if (p->multiplePointers) {
-      /* TODO: do we want to assert here? */
-    }
-
+  if (!p->multiplePointers) {
     PointerType *pt = dyn_cast<PointerType>(sPTA.getMemoryObjectType(m));
     DynamicMemoryLocation dl(getAllocSite(state,m), m->size, false, offset, pt);
     return computeAbstractMO(state.getPTA().get(), dl, false);
   } else {
-    assert(0 && "TODO symbolic offset");
+    assert(0 && "TODO a symbolic pointer that resolved to two or more fields in a struct");
   }
 }
 
@@ -4793,14 +4786,13 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
       clonedPTA->analyzeFunction(*kmodule->module, f);
       if (RunSymPtaSanityCheck) {
         /* build the symbolic points-to from scratch */
-        ExecutionState *es = new ExecutionState(state);
-        es->getPTA()->clearPointsTo();
-        updatePointsToOnCallSymbolic(*es, f, arguments);
-        es->getPTA()->analyzeFunction(*kmodule->module, f);
+        ExecutionState es(state);
+        es.getPTA()->clearPointsTo();
+        updatePointsToOnCallSymbolic(es, f, arguments);
+        es.getPTA()->analyzeFunction(*kmodule->module, f);
 
         /* compare with the abstrac points-to */
-        comparePointsToStates(clonedPTA, es->getPTA().get());
-        delete es;
+        comparePointsToStates(clonedPTA, es.getPTA().get());
       }
     }
   }

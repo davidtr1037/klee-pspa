@@ -2,6 +2,7 @@
 #include <llvm/IR/DerivedTypes.h>
 
 #include "SymbolicPTA.h"
+#include "klee/Internal/Support/ErrorHandling.h"
 
 using namespace llvm;
 using namespace klee;
@@ -60,9 +61,12 @@ Pointer* SymbolicPTA::getPointer(const MemoryObject *mo,
   }
 
   ref<ConstantExpr> constant_offset;
-  solver.getValue(state, offset, constant_offset);
+  //Get a new state to add temporary constraints to
+  ExecutionState es(state); 
+  es.addConstraint(UltExpr::create(offset, mo->getSizeExpr()));
+  solver.getValue(es, offset, constant_offset);
   retPtr = new Pointer(mo, constant_offset);
-  if (mayBeTrue(NeExpr::create(offset, constant_offset))) {
+  if (mayBeTrue(NeExpr::create(offset, constant_offset), es)) {
     retPtr->multiplePointers = true;
   }
 
@@ -119,7 +123,11 @@ std::vector<Pointer *> SymbolicPTA::getPointerTarget(Pointer &p) {
     assert(isPointerOffset(*cp) && "Trying to resolve non pointer type field as pointer");
     ref<Expr> ptr = os->read(cp->offset, ptrWidth);
     ResolutionList rl;
-    state.addressSpace.resolve(state, &solver, ptr, rl);
+    bool timedout = state.addressSpace.resolve(state, &solver, ptr, rl, 0, 10);
+    if(timedout) {
+        klee_warning("Pointers %s resolution timed out in 10 second", cp->print().c_str());
+    }
+
     for (auto &op : rl) {
       const MemoryObject *mo = op.first;
       Pointer *p = getPointer(mo, mo->getOffsetExpr(ptr));
@@ -207,18 +215,18 @@ void SymbolicPTA::setMemoryObjectType(const MemoryObject *mo,
   moTypes[mo] = type;
 }
 
-bool SymbolicPTA::mustBeTrue(klee::ref<Expr> e) {
+bool SymbolicPTA::mustBeTrue(klee::ref<Expr> e, ExecutionState &s) {
   bool res;
-  if (solver.mustBeTrue(state, e, res)) {
+  if (solver.mustBeTrue(s, e, res)) {
     return res;
   } else {
     assert(0 && "Solver failure not handled in SymbolicPTA");
   }
 }
 
-bool SymbolicPTA::mayBeTrue(klee::ref<Expr> e) {
+bool SymbolicPTA::mayBeTrue(klee::ref<Expr> e, ExecutionState &s) {
   bool res;
-  if (solver.mayBeTrue(state, e, res)) {
+  if (solver.mayBeTrue(s, e, res)) {
     return res;
   } else {
     assert(0 && "Solver failure not handled in SymbolicPTA");

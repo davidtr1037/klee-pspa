@@ -19,15 +19,28 @@ bool UnusedValuesRemovalPass::runOnModule(Module &module) {
   keep.insert(entry);
 
   std::set<Function *> functions;
+  std::set<GlobalVariable *> globals;
+  std::set<GlobalAlias *> aliases;
 
-  for (Module::iterator i = module.begin(); i != module.end(); i++) {
-    Function *f = &*i;
-    if (keep.find(f->getName().str()) != keep.end()) {
+  for (Function &f : module) {
+    if (keep.find(f.getName().str()) != keep.end()) {
       continue;
     }
 
-    if (f->hasNUses(0)) {
-      functions.insert(f);
+    if (f.hasNUses(0)) {
+      functions.insert(&f);
+    }
+  }
+
+  for (GlobalVariable &g : module.globals()) {
+    if (g.hasNUses(0)) {
+      globals.insert(&g);
+    }
+  }
+
+  for (GlobalAlias &ga : module.aliases()) {
+    if (ga.hasNUses(0)) {
+      aliases.insert(&ga);
     }
   }
 
@@ -35,7 +48,15 @@ bool UnusedValuesRemovalPass::runOnModule(Module &module) {
     f->eraseFromParent();
   }
 
-  return !functions.empty();
+  for (GlobalVariable *g : globals) {
+    g->eraseFromParent();
+  }
+
+  for (GlobalAlias *ga : aliases) {
+    ga->eraseFromParent();
+  }
+
+  return !functions.empty() || !globals.empty() || !aliases.empty();
 }
 
 }
