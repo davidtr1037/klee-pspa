@@ -4281,7 +4281,7 @@ void Executor::handleBitCast(ExecutionState &state,
     mo->types.insert(dstType);
   } else {
     if (mo->types.find(dstType) == mo->types.end()) {
-      klee_warning("dropping type information...");
+      //klee_warning("dropping type information...");
     }
   }
 }
@@ -4314,8 +4314,7 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
   std::vector<DynamicMemoryLocation> locations;
   getDynamicMemoryLocations(state, value, valueType, locations);
   if (locations.empty()) {
-    /* TODO: can it be external (concrete) address? */
-    klee_warning("address is probably out of bound or external...");
+    //klee_warning("address is probably out of bound or external...");
     return;
   }
 
