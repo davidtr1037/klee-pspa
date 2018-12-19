@@ -4315,7 +4315,7 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
   getDynamicMemoryLocations(state, value, valueType, locations);
   if (locations.empty()) {
     /* TODO: can it be external (concrete) address? */
-    klee_warning("address is probably out of bound...");
+    klee_warning("address is probably out of bound or external...");
     return;
   }
 
