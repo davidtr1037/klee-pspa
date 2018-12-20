@@ -527,6 +527,7 @@ const Module *Executor::setModule(llvm::Module *module,
       klee_error("modular analysis must be used in dynamic mode");
     }
     modularPTA = new ModularPTA();
+    collectGlobalsUsage();
   }
 
   if (!interpreterOpts.skippedFunctions.empty()) {
@@ -6166,6 +6167,22 @@ void Executor::dumpClinetStats() {
   klee_message("Reuse ratio: %lu / %lu",
                (uint64_t)(stats::staticAnalysisReuse),
                (uint64_t)(stats::staticAnalysisUsage));
+}
+
+void Executor::collectGlobalsUsage() {
+  for (GlobalVariable &gv : kmodule->module->globals()) {
+    if (gv.isDeclaration() || gv.isConstant()) {
+      continue;
+    }
+
+    for (Value *v : gv.users()) {
+      if (isa<Instruction>(v)) {
+        Instruction *inst = dyn_cast<Instruction>(v);
+        Function *f = inst->getParent()->getParent();
+        globalsUsage[f].insert(&gv);
+      }
+    }
+  }
 }
 
 void Executor::prepareForEarlyExit() {

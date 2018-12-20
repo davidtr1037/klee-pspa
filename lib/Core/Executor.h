@@ -287,6 +287,9 @@ private:
   ModularPTA *modularPTA;
 
   /* TODO: add docs */
+  std::map<llvm::Function *, std::set<llvm::GlobalVariable *>> globalsUsage;
+
+  /* TODO: add docs */
   std::vector<ref<Snapshot>> cachedSnapshots;
 
   /* TODO: add docs */
@@ -785,6 +788,8 @@ public:
   ExecutionState *createSnapshotState(ExecutionState &state);
 
   void dumpClinetStats();
+
+  void collectGlobalsUsage();
 
 };
   
