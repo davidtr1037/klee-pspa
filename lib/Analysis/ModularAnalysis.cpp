@@ -55,18 +55,13 @@ bool ModularPTA::checkIsomorphism(EntryState &es1,
     }
   }
 
-  if (es1.globals.size() != es2.globals.size()) {
-    return false;
-  }
-
-  for (NodeID n : es1.globals) {
-    if (es2.globals.find(n) == es2.globals.end()) {
-      return false;
-    }
+  /* es1 is the cached one... */
+  for (NodeID n : es1.usedGlobals) {
     if (!checkIsomorphism(es1, n, es2, n, info)) {
       return false;
     }
   }
+
   return true;
 }
 

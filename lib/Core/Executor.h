@@ -765,11 +765,16 @@ public:
   bool isRelevantGlobal(const llvm::GlobalVariable *gv);
 
   std::set<NodeID> computeModSet(ExecutionState &state,
-                                 unsigned int index);
+                                 unsigned int index,
+                                 EntryState &entryState);
 
   void updateModInfo(ref<Snapshot> snapshot,
                      PointerAnalysis *pta,
                      std::set<NodeID> &mod);
+
+  void collectRelevantGlobals(PointerAnalysis *pta,
+                              llvm::Function *f,
+                              std::set<NodeID> &globals);
 
   void bindAll(ExecutionState *state,
                MemoryObject *mo,

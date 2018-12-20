@@ -55,7 +55,7 @@ public:
   /* assumed to be orderd by the index */
   std::vector<Parameter> parameters;
   /* globals */
-  std::set<NodeID> globals;
+  std::set<NodeID> usedGlobals;
 
 };
 

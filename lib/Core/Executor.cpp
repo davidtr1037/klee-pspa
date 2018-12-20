@@ -56,6 +56,7 @@
 #include "klee/Internal/Analysis/ReachabilityAnalysis.h"
 #include "klee/Internal/Analysis/ModRefAnalysis.h"
 #include "klee/Internal/Analysis/ModularAnalysis.h"
+#include "klee/Internal/Analysis/Reachability.h"
 #include "klee/Internal/Support/Debug.h"
 
 #include "WPA/AndersenDynamic.h"
@@ -3724,12 +3725,6 @@ void Executor::executeMemoryOperation(ExecutionState &state,
           wos->write(offset, value);
           if (isDynamicMode() && mo->isGlobal && mo->allocSite != nullptr) {
             state.modifiedGlobals.insert(mo->allocSite);
-            if (!interpreterOpts.skippedFunctions.empty()) {
-              const GlobalVariable *gv = dyn_cast<const GlobalVariable>(mo->allocSite);
-              if (gv) {
-                state.addRelevantGlobal(gv);
-              }
-            }
           }
 
           if (ptaMode == DynamicAbstractMode && shouldUpdatePoinstTo(state)) {
@@ -3792,12 +3787,6 @@ void Executor::executeMemoryOperation(ExecutionState &state,
 
           if (isDynamicMode() && mo->isGlobal && mo->allocSite != nullptr) {
             state.modifiedGlobals.insert(mo->allocSite);
-            if (!interpreterOpts.skippedFunctions.empty()) {
-              const GlobalVariable *gv = dyn_cast<const GlobalVariable>(mo->allocSite);
-              if (gv) {
-                state.addRelevantGlobal(gv);
-              }
-            }
           }
 
           if (ptaMode == DynamicAbstractMode && shouldUpdatePoinstTo(state)) {
@@ -5907,7 +5896,7 @@ void Executor::saveModSet(ExecutionState &state) {
           index
         );
       );
-      std::set<NodeID> mod = computeModSet(state, index);
+      std::set<NodeID> mod = computeModSet(state, index, entryState);
       updateModInfo(snapshot, snapshotPTA.get(), mod);
 
       if (UseModularPTA) {
@@ -5944,13 +5933,6 @@ void Executor::buildEntryState(ExecutionState &state,
     NodeID dst = *pts.begin();
     entryState.addParameter(dst, argIndex);
   }
-
-  for (const GlobalVariable *gv : state.getRelevantGlobals()) {
-    if (isRelevantGlobal(gv)) {
-      NodeID objectId = pta->getPAG()->getObjectNode(gv);
-      entryState.globals.insert(objectId);
-    }
-  }
 }
 
 bool Executor::isRelevantGlobal(const GlobalVariable *gv) {
@@ -5967,7 +5949,8 @@ bool Executor::isRelevantGlobal(const GlobalVariable *gv) {
 }
 
 std::set<NodeID> Executor::computeModSet(ExecutionState &state,
-                                         unsigned int index) {
+                                         unsigned int index,
+                                         EntryState &entryState) {
   /* get the current snapshot */
   ref<Snapshot> snapshot = state.getSnapshots()[index];
 
@@ -5986,6 +5969,8 @@ std::set<NodeID> Executor::computeModSet(ExecutionState &state,
 
   ModRefCollector collector(called, true, false);
   collector.visitReachable(pta.get(), snapshot->f);
+
+  collectRelevantGlobals(pta.get(), snapshot->f, entryState.usedGlobals);
 
   /* free memory... */
   pta->postAnalysisCleanup();
@@ -6015,6 +6000,21 @@ void Executor::updateModInfo(ref<Snapshot> snapshot,
     DEBUG_BASIC,
     klee_message("mod size for %s is %lu", snapshot->f->getName().data(), mod.size());
   );
+}
+
+void Executor::collectRelevantGlobals(PointerAnalysis *pta,
+                                      Function *entry,
+                                      std::set<NodeID> &globals) {
+  FunctionSet functions;
+  computeReachableFunctions(entry, pta, functions);
+
+  for (Function *f : functions) {
+    auto used = globalsUsage[f];
+    for (GlobalVariable *gv : used) {
+      NodeID nodeId = pta->getPAG()->getObjectNode(gv);
+      globals.insert(nodeId);
+    }
+  }
 }
 
 void Executor::bindAll(ExecutionState *state,
