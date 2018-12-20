@@ -4325,8 +4325,8 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
   /* TODO: it would be better to use the same API... */
   DynamicMemoryLocation storeLocation(getAllocSite(state, mo),
                                       mo->size,
-                                      ce != NULL,
-                                      ce != NULL ? ce->getZExtValue() : 0,
+                                      ce == NULL,
+                                      ce == NULL ? 0 : ce->getZExtValue(),
                                       getTypeHint(mo));
 
   bool canStronglyUpdate;
@@ -4351,7 +4351,7 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
 
   for (unsigned int i = 0; i < locations.size(); i++) {
     DynamicMemoryLocation &location = locations[i];
-    NodeID dst = computeAbstractMO(state.getPTA().get(), location, true);
+    NodeID dst = computeAbstractMO(state.getPTA().get(), location, false);
     if (useStrongUpdates && canStronglyUpdate && !isLocalObjectInRecursion) {
       /* if we have more than one object,
          then only the first update should be strong */
