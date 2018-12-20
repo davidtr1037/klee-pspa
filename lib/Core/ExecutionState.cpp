@@ -143,6 +143,7 @@ ExecutionState::ExecutionState(const ExecutionState& state):
     recoveryInfo(state.recoveryInfo),
     guidingAllocationRecord(state.guidingAllocationRecord),
     level(state.level),
+    relevantGlobals(state.relevantGlobals),
 
     pc(state.pc),
     prevPC(state.prevPC),

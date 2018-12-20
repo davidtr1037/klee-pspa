@@ -3723,6 +3723,12 @@ void Executor::executeMemoryOperation(ExecutionState &state,
           wos->write(offset, value);
           if (isDynamicMode() && mo->isGlobal && mo->allocSite != nullptr) {
             state.modifiedGlobals.insert(mo->allocSite);
+            if (!interpreterOpts.skippedFunctions.empty()) {
+              const GlobalVariable *gv = dyn_cast<const GlobalVariable>(mo->allocSite);
+              if (gv) {
+                state.addRelevantGlobal(gv);
+              }
+            }
           }
 
           if (ptaMode == DynamicAbstractMode && shouldUpdatePoinstTo(state)) {
@@ -3785,6 +3791,12 @@ void Executor::executeMemoryOperation(ExecutionState &state,
 
           if (isDynamicMode() && mo->isGlobal && mo->allocSite != nullptr) {
             state.modifiedGlobals.insert(mo->allocSite);
+            if (!interpreterOpts.skippedFunctions.empty()) {
+              const GlobalVariable *gv = dyn_cast<const GlobalVariable>(mo->allocSite);
+              if (gv) {
+                state.addRelevantGlobal(gv);
+              }
+            }
           }
 
           if (ptaMode == DynamicAbstractMode && shouldUpdatePoinstTo(state)) {
@@ -5861,7 +5873,7 @@ void Executor::saveModSet(ExecutionState &state) {
     bool canReuse = false;
     EntryState entryState;
     if (UseModularPTA) {
-      buildEntryState(snapshotPTA, f, entryState);
+      buildEntryState(*snapshot->state, snapshotPTA, f, entryState);
 
       /* TODO: should we check reusability without the call stack? */
       std::set<NodeID> mod;
@@ -5910,7 +5922,8 @@ void Executor::saveModSet(ExecutionState &state) {
   }
 }
 
-void Executor::buildEntryState(ref<AndersenDynamic> pta,
+void Executor::buildEntryState(ExecutionState &state,
+                               ref<AndersenDynamic> pta,
                                llvm::Function *f,
                                EntryState &entryState) {
   entryState.setPTA(pta);
@@ -5930,6 +5943,26 @@ void Executor::buildEntryState(ref<AndersenDynamic> pta,
     NodeID dst = *pts.begin();
     entryState.addParameter(dst, argIndex);
   }
+
+  for (const GlobalVariable *gv : state.getRelevantGlobals()) {
+    if (isRelevantGlobal(gv)) {
+      NodeID objectId = pta->getPAG()->getObjectNode(gv);
+      entryState.globals.insert(objectId);
+    }
+  }
+}
+
+bool Executor::isRelevantGlobal(const GlobalVariable *gv) {
+  if (gv->isConstant()) {
+    return false;
+  }
+  if (gv->isDeclaration()) {
+    return false;
+  }
+  if (!gv->getType()->isPointerTy()) {
+    return false;
+  }
+  return true;
 }
 
 std::set<NodeID> Executor::computeModSet(ExecutionState &state,

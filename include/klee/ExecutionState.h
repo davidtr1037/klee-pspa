@@ -236,6 +236,8 @@ private:
   unsigned int level;
   /* search priority */
   int priority;
+  /* globals which are relevant for pointer analysis reuse */
+  std::set<const llvm::GlobalVariable *> relevantGlobals;
 
 public:
   // Execution - Control Flow specific
@@ -664,6 +666,14 @@ public:
   void setPriority(int priority) {
     assert(isRecoveryState());
     this->priority = priority;
+  }
+
+  void addRelevantGlobal(const llvm::GlobalVariable *gv) {
+    relevantGlobals.insert(gv);
+  }
+
+  std::set<const llvm::GlobalVariable *> &getRelevantGlobals() {
+    return relevantGlobals;
   }
 
 };

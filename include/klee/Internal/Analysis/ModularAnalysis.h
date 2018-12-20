@@ -54,6 +54,8 @@ public:
   ref<AndersenDynamic> pta;
   /* assumed to be orderd by the index */
   std::vector<Parameter> parameters;
+  /* globals */
+  std::set<NodeID> globals;
 
 };
 

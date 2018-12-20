@@ -754,9 +754,12 @@ public:
 
   void saveModSet(ExecutionState &state);
 
-  void buildEntryState(ref<AndersenDynamic> pta,
+  void buildEntryState(ExecutionState &state,
+                       ref<AndersenDynamic> pta,
                        llvm::Function *f,
                        EntryState &entryState);
+
+  bool isRelevantGlobal(const llvm::GlobalVariable *gv);
 
   std::set<NodeID> computeModSet(ExecutionState &state,
                                  unsigned int index);
