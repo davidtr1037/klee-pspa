@@ -144,6 +144,33 @@ private:
   std::set<NodeID> ref;
 };
 
+class GlobalsUsageCollector : public InstructionVisitor {
+
+public:
+
+  GlobalsUsageCollector() {
+
+  }
+
+  virtual void visitFunction(PointerAnalysis *pta,
+                             llvm::Function *f);
+
+  virtual void visitStore(PointerAnalysis *pta,
+                          llvm::Function *f,
+                          llvm::StoreInst *inst) {
+
+  }
+
+  virtual void visitLoad(PointerAnalysis *pta,
+                         llvm::Function *f,
+                         llvm::LoadInst *inst) {
+
+  }
+
+private:
+
+};
+
 }
 
 #endif

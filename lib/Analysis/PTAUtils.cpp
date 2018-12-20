@@ -243,3 +243,8 @@ void ModRefCollector::dumpRefSet(PointerAnalysis *pta) {
     dumpNodeInfo(pta, nodeId);
   }
 }
+
+void GlobalsUsageCollector::visitFunction(PointerAnalysis *pta,
+                                          Function *f) {
+
+}
