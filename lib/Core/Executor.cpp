@@ -4980,6 +4980,8 @@ bool Executor::handleMayBlockingLoad(ExecutionState &state, KInstruction *ki,
     return false;
   }
 
+  clientStats.dependentLoads[state.prevPC->inst]++;
+
   /* TODO: move to another place? */
   state.pc = state.prevPC;
 
@@ -6162,6 +6164,18 @@ void Executor::dumpClinetStats() {
     Function *f = i.first;
     uint64_t count = i.second;
     klee_message("- %s: %lu", f->getName().data(), count);
+  }
+
+  klee_message("- dependent loads:");
+  for (auto i : clientStats.dependentLoads) {
+    Instruction *load = i.first;
+    const InstructionInfo &info = kmodule->infos->getInfo(load);
+    std::string str;
+    raw_string_ostream os(str);
+    os << "  --" << *load << " / " << load->getParent()->getParent()->getName();
+    klee_message("%s", os.str().data());
+    klee_message("     recoveries = %lu", i.second);
+    klee_message("     %s:%u", info.file.data(), info.line);
   }
 
   klee_message("Reuse ratio: %lu / %lu",
