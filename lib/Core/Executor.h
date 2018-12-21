@@ -110,6 +110,7 @@ struct LoadInfo {
 struct ClientStats {
   std::map<llvm::Function *, uint64_t> snapshots;
   std::map<llvm::Function *, uint64_t> recoveries;
+  std::map<llvm::Instruction *, uint64_t> dependentLoads;
 };
 
 class Executor : public Interpreter {
