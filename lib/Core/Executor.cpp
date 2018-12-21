@@ -1522,15 +1522,16 @@ void Executor::executeCall(ExecutionState &state,
     // from just an instruction (unlike LLVM).
 
     if (state.isNormalState() && !state.isRecoveryState() && isFunctionToSkip(state, f)) {
-      if (ptaMode == DynamicSymbolicMode) {
-        klee_error("Symbolic mode is not supported yet...");
-      }
       /* first, check if the skipped function has side effects */
       if (isDynamicMode() || mra->hasSideEffects(f)) {
         if (isDynamicMode()) {
           /* set the points-to information of the parameters before creating the snapshot */
           TimerStatIncrementer timer(stats::staticAnalysisTime);
-          updatePointsToOnCall(state, f, arguments);
+          if(ptaMode == DynamicSymbolicMode) {
+            updatePointsToOnCallSymbolic(state, f, arguments);
+          } else {
+            updatePointsToOnCall(state, f, arguments);
+          }
         }
 
         /* create snapshot, recovery state will be created on demand... */
