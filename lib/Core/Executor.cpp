@@ -1527,7 +1527,7 @@ void Executor::executeCall(ExecutionState &state,
         if (isDynamicMode()) {
           /* set the points-to information of the parameters before creating the snapshot */
           TimerStatIncrementer timer(stats::staticAnalysisTime);
-          if(ptaMode == DynamicSymbolicMode) {
+          if (ptaMode == DynamicSymbolicMode) {
             updatePointsToOnCallSymbolic(state, f, arguments);
           } else {
             updatePointsToOnCall(state, f, arguments);
