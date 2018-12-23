@@ -3165,10 +3165,6 @@ void Executor::terminateState(ExecutionState &state) {
                       "replay did not consume all objects in test input.");
   }
 
-  if (!state.isRecoveryState()) {
-    interpreterHandler->incPathsExplored();
-  }
-
   std::vector<ExecutionState *>::iterator it =
       std::find(addedStates.begin(), addedStates.end(), &state);
   if (it==addedStates.end()) {
@@ -3176,8 +3172,14 @@ void Executor::terminateState(ExecutionState &state) {
 
     if (std::find(removedStates.begin(), removedStates.end(), &state) == removedStates.end()) {
       removedStates.push_back(&state);
+      if (!state.isRecoveryState()) {
+        interpreterHandler->incPathsExplored();
+      }
     }
   } else {
+    if (!state.isRecoveryState()) {
+      interpreterHandler->incPathsExplored();
+    }
     // never reached searcher, just delete immediately
     std::map< ExecutionState*, std::vector<SeedInfo> >::iterator it3 = 
       seedMap.find(&state);
