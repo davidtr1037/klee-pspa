@@ -95,26 +95,41 @@ Function *klee::ReturnToVoidFunctionPass::createWrapperFunction(Function &f,
 void klee::ReturnToVoidFunctionPass::replaceCalls(Function *f,
                                                   Function *wrapper,
                                                   const vector<unsigned int> &lines) {
-  vector<CallInst*> to_remove;
-  for (User *user : f->users()) {
-    if (Instruction *inst = dyn_cast<Instruction>(user)) {
-      if (inst->getParent()->getParent() == wrapper) {
-        continue;
-      }
+  set<Instruction *> insts;
+  vector<CallInst *> to_remove;
 
-      if (!lines.empty()) {
-        if (MDNode *N = inst->getMetadata("dbg")) {
-          DILocation *Loc = cast<DILocation>(N);
-          if (find(lines.begin(), lines.end(), Loc->getLine()) == lines.end()) {
-            continue;
-          }
+  for (User *user : f->users()) {
+    Instruction *inst;
+    inst = dyn_cast<Instruction>(user);
+    if (inst) {
+      insts.insert(inst);
+    } else {
+      for (User *u: user->users()) {
+        inst = dyn_cast<Instruction>(u);
+        if (inst) {
+          insts.insert(inst);
         }
       }
+    }
+  }
 
-      if (CallInst *call = dyn_cast<CallInst>(inst)) {
-        replaceCall(call, f, wrapper);
-        to_remove.push_back(call);
+  for (Instruction *inst : insts) {
+    if (inst->getParent()->getParent() == wrapper) {
+      continue;
+    }
+
+    if (!lines.empty()) {
+      if (MDNode *N = inst->getMetadata("dbg")) {
+        DILocation *Loc = cast<DILocation>(N);
+        if (find(lines.begin(), lines.end(), Loc->getLine()) == lines.end()) {
+          continue;
+        }
       }
+    }
+
+    if (CallInst *call = dyn_cast<CallInst>(inst)) {
+      replaceCall(call, f, wrapper);
+      to_remove.push_back(call);
     }
   }
 
@@ -160,7 +175,14 @@ void klee::ReturnToVoidFunctionPass::replaceCall(CallInst *origCallInst,
   vector<Value *> argsForCall;
   argsForCall.push_back(allocaInst);
   for (unsigned int i = 0; i < origCallInst->getNumArgOperands(); i++) {
-    argsForCall.push_back(origCallInst->getArgOperand(i));
+    Value *arg = origCallInst->getArgOperand(i);
+    Type *argType = arg->getType();
+    Type *dstType = wrapper->getFunctionType()->getParamType(i + 1);
+    if (argType != dstType) {
+      arg = builder.CreateBitCast(arg, dstType);
+    }
+
+    argsForCall.push_back(arg);
   }
   CallInst *callInst = builder.CreateCall(wrapper, makeArrayRef(argsForCall));
   callInst->setDebugLoc(origCallInst->getDebugLoc());
