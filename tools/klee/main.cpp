@@ -37,6 +37,7 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/IR/DebugInfoMetadata.h"
 
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/Signals.h"
@@ -1201,6 +1202,52 @@ void parseFunctionListParameter(Module *module,
   }
 }
 
+bool canIgnoreReturnValue(Module *module, Interpreter::FunctionOption &option) {
+  Function *f = module->getFunction(option.name);
+  if (!f) {
+    assert(false);
+  }
+
+  std::set<Instruction *> insts;
+
+  for (User *user : f->users()) {
+    Instruction *inst;
+    inst = dyn_cast<Instruction>(user);
+    if (inst) {
+      insts.insert(inst);
+    } else {
+      for (User *u: user->users()) {
+        inst = dyn_cast<Instruction>(u);
+        if (inst) {
+          insts.insert(inst);
+        }
+      }
+    }
+  }
+
+  for (Instruction *inst : insts) {
+    if (!isa<CallInst>(inst)) {
+      continue;
+    }
+
+    if (!option.lines.empty()) {
+      if (MDNode *n = inst->getMetadata("dbg")) {
+        DILocation *loc = cast<DILocation>(n);
+        unsigned line = loc->getLine();
+        if (std::find(option.lines.begin(), option.lines.end(), line) == option.lines.end()) {
+          continue;
+        }
+      }
+    }
+
+    if (!inst->hasNUses(0)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 int main(int argc, char **argv, char **envp) {
   atexit(llvm_shutdown);  // Call llvm_shutdown() on exit.
 
@@ -1396,7 +1443,9 @@ int main(int argc, char **argv, char **envp) {
   for (Interpreter::FunctionOption &option : skippedFunctions) {
     Function *f = mainModule->getFunction(option.name);
     if (!f->getReturnType()->isVoidTy()) {
-      option.name = std::string("__wrap_") + option.name;
+      if (!canIgnoreReturnValue(mainModule, option)) {
+        option.name = std::string("__wrap_") + option.name;
+      }
     }
   }
 
