@@ -4505,11 +4505,6 @@ bool Executor::isDynamicMode() {
 void Executor::handleBitCast(ExecutionState &state,
                              KInstruction *ki,
                              ref<Expr> value) {
-  if (ptaMode == DynamicSymbolicMode) {
-    /* we may do it also for the symbolic mode */
-    return;
-  }
-
   TimerStatIncrementer timer(stats::staticAnalysisTime);
 
   BitCastInst *castInst = dyn_cast<BitCastInst>(ki->inst);
