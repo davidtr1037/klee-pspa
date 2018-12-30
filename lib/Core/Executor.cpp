@@ -4925,7 +4925,7 @@ bool Executor::isRecoveryRequired(ExecutionState &state, KInstruction *ki) {
   ref<Expr> addressExpr = eval(ki, 0, state).value;
   if (!isa<ConstantExpr>(addressExpr)) {
     addressExpr = state.constraints.simplifyExpr(addressExpr);
-    addressExpr = toConstant(state, addressExpr, "resolveOne failure");
+    addressExpr = toConstant(state, addressExpr, "symbolic address in dependent load");
   }
 
   uint64_t address = dyn_cast<ConstantExpr>(addressExpr)->getZExtValue();
@@ -5641,7 +5641,10 @@ void Executor::onNormalStateWrite(ExecutionState &state,
     return;
   }
 
-  assert(isa<ConstantExpr>(address));
+  if (!isa<ConstantExpr>(address)) {
+    address = state.constraints.simplifyExpr(address);
+    address = toConstant(state, address, "symbolic address in overriding store");
+  }
 
   uint64_t concreteAddress = dyn_cast<ConstantExpr>(address)->getZExtValue();
   size_t sizeInBytes = value->getWidth() / 8;
