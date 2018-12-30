@@ -4676,6 +4676,7 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
   }
 }
 
+/* TODO: should be a method of SymbolicPTA? */
 NodeID Executor::ptrToAbstract(ExecutionState &state,
                                Pointer *p,
                                SymbolicPTA &sPTA) {
@@ -4688,11 +4689,13 @@ NodeID Executor::ptrToAbstract(ExecutionState &state,
   uint64_t offset = p->offset;
 
   if (!p->multiplePointers) {
+    /* TODO: use dynamic type information? */
     PointerType *pt = dyn_cast<PointerType>(sPTA.getMemoryObjectType(m));
     DynamicMemoryLocation dl(getAllocSite(state,m), m->size, false, offset, pt);
     return computeAbstractMO(state.getPTA().get(), dl, false);
   } else {
-    assert(0 && "TODO a symbolic pointer that resolved to two or more fields in a struct");
+    /* TODO: a symbolic pointer that resolved to two or more fields in a struct */
+    assert(false);
   }
 }
 

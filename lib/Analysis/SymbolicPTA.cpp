@@ -9,6 +9,7 @@ using namespace klee;
 
 
 bool SymbolicPTA::isPointerOffset(Pointer &p) {
+  /* TODO: use dynamic type information? */
   Type *type = getMemoryObjectType(p.pointerContainer);
   PointerType *pty = dyn_cast<PointerType>(type);
   assert(pty && "assumes input is a pointer type");
