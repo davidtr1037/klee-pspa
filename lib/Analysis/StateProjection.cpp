@@ -47,12 +47,12 @@ void SideEffectsCollector::visitStore(PointerAnalysis *pta,
     }
 
     NodeID value = pta->getPAG()->getValueNode(inst->getValueOperand());
-    state.pointsToMap[nodeId] = pta->getPts(value);
+    projection.pointsToMap[nodeId] = pta->getPts(value);
   }
 }
 
 void SideEffectsCollector::dump(PointerAnalysis *pta) {
-  for (auto i : state.pointsToMap) {
+  for (auto i : projection.pointsToMap) {
     NodeID src = i.first;
     errs() << src << ": { ";
     PointsTo &pts = i.second;

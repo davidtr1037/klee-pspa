@@ -60,7 +60,15 @@ public:
 
 };
 
-struct ModResult {
+struct AnalysisResult {
+
+  AnalysisResult(EntryState &entryState,
+                 StateProjection &projection) :
+    entryState(entryState),
+    projection(projection) {
+
+  }
+
   EntryState entryState;
   StateProjection projection;
 };
@@ -83,7 +91,7 @@ public:
 
   bool computeModSet(llvm::Function *f,
                      EntryState &entryState,
-                     StateProjection &result);
+                     StateProjection &projection);
 
   bool checkIsomorphism(EntryState &es1,
                         EntryState &es2,
@@ -119,9 +127,8 @@ public:
 
 private:
 
-  /* TODO: rename */
-  typedef std::vector<ModResult> FunctionCache;
-  typedef std::map<llvm::Function *, FunctionCache> Cache;
+  typedef std::vector<AnalysisResult> AnalysisResults;
+  typedef std::map<llvm::Function *, AnalysisResults> Cache;
 
   Cache cache;
 };

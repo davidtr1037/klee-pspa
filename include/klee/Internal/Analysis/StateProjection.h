@@ -10,11 +10,6 @@
 
 
 struct StateProjection {
-
-  StateProjection() {
-
-  }
-
   /* TODO: add docs */
   std::map<NodeID, PointsTo> pointsToMap;
 };
@@ -24,9 +19,9 @@ class SideEffectsCollector : public klee::InstructionVisitor {
 public:
 
   SideEffectsCollector(std::set<llvm::Function *> &called,
-                       StateProjection &state) :
+                       StateProjection &projection) :
     called(called),
-    state(state) {
+    projection(projection) {
 
   }
 
@@ -40,10 +35,6 @@ public:
 
   }
 
-  StateProjection &getStateProjection() {
-    return state;
-  }
-
   void dump(PointerAnalysis *pta);
 
 private:
@@ -54,7 +45,7 @@ private:
   /* TODO: add docs */
   std::set<llvm::Function *> called;
   /* TODO: add docs */
-  StateProjection &state;
+  StateProjection &projection;
 };
 
 #endif

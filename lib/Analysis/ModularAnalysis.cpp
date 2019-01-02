@@ -13,26 +13,23 @@ using namespace std;
 void ModularPTA::update(Function *f,
                         EntryState &entryState,
                         StateProjection &projection) {
-  FunctionCache &fcache = cache[f];
-  ModResult modResult;
-  modResult.entryState = entryState;
-  modResult.projection = projection;
-
-  fcache.push_back(modResult);
+  AnalysisResults &results = cache[f];
+  AnalysisResult result(entryState, projection);
+  results.push_back(result);
 }
 
 bool ModularPTA::computeModSet(Function *f,
                                EntryState &entryState,
-                               StateProjection &result) {
+                               StateProjection &projection) {
   SubstitutionInfo info;
-  FunctionCache &fcache = cache[f];
-  for (ModResult &modResult : fcache) {
-    if (checkIsomorphism(modResult.entryState, entryState, info)) {
-      substitute(modResult.entryState,
+  AnalysisResults &results = cache[f];
+  for (AnalysisResult &result : results) {
+    if (checkIsomorphism(result.entryState, entryState, info)) {
+      substitute(result.entryState,
                  entryState,
                  info,
-                 modResult.projection,
-                 result);
+                 result.projection,
+                 projection);
       return true;
     }
   }
