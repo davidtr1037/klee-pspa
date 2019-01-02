@@ -4563,7 +4563,7 @@ void Executor::handleBitCast(ExecutionState &state,
 }
 
 bool Executor::shouldUpdatePoinstTo(ExecutionState &state) {
-  return state.prevPC->isRelevant;
+  return state.prevPC->isRelevant && !state.isRecoveryState();
 }
 
 void Executor::updatePointsToOnStore(ExecutionState &state,
@@ -5568,28 +5568,6 @@ void Executor::onRecoveryStateWrite(ExecutionState &state,
       dyn_cast<ConstantExpr>(offset)->getZExtValue()
     )
   );
-
-  if (isDynamicMode()) {
-    StoreInst *storeInst = dyn_cast<StoreInst>(state.prevPC->inst);
-    if (!storeInst) {
-      /* this should not happen... */
-      assert(false);
-    }
-
-    /* update only when the written value is a pointer */
-    PointerType *valueType = dyn_cast<PointerType>(storeInst->getValueOperand()->getType());
-    if (valueType) {
-      /* TODO: this query is probably expensive... */
-      if (state.getOriginatingState()->addressSpace.findObject(mo)) {
-        updatePointsToOnStore(*state.getOriginatingState(),
-                              state.prevPC,
-                              mo,
-                              offset,
-                              value,
-                              false);
-      }
-    }
-  }
 
   uint64_t storeAddr = dyn_cast<ConstantExpr>(address)->getZExtValue();
   ref<RecoveryInfo> recoveryInfo = state.getRecoveryInfo();
