@@ -6011,6 +6011,7 @@ void Executor::updateModInfo(ref<Snapshot> snapshot,
   snapshot->updateMod(mod);
   snapshot->updateFIMod(fiMod);
   snapshot->updateBaseMod(baseMod);
+  snapshot->projection = projection;
 
   DEBUG_WITH_TYPE(
     DEBUG_BASIC,

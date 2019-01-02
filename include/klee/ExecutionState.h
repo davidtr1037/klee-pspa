@@ -19,6 +19,7 @@
 // FIXME: We do not want to be exposing these? :(
 #include "../../lib/Core/AddressSpace.h"
 #include "klee/Internal/Module/KInstIterator.h"
+#include "klee/Internal/Analysis/StateProjection.h"
 
 #include "WPA/Andersen.h"
 #include "WPA/AndersenDynamic.h"
@@ -82,6 +83,8 @@ struct Snapshot {
   std::set<NodeID> fiMod;
   /* TODO: add docs */
   std::set<NodeID> baseMod;
+  /* TODO: add docs */
+  StateProjection projection;
 
   /* TODO: is it required? */
   Snapshot() :
