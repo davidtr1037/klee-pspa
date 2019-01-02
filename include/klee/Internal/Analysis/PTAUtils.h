@@ -177,8 +177,10 @@ class SideEffectsCollector : public InstructionVisitor {
 
 public:
 
-  SideEffectsCollector(std::set<llvm::Function *> called) :
-    called(called) {
+  SideEffectsCollector(std::set<llvm::Function *> &called,
+                       PointsToMap &mod) :
+    called(called),
+    mod(mod) {
 
   }
 
@@ -204,7 +206,7 @@ private:
                  NodeID nodeId);
 
   std::set<llvm::Function *> called;
-  PointsToMap mod;
+  PointsToMap &mod;
 };
 
 }

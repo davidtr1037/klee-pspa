@@ -5902,7 +5902,8 @@ void Executor::saveModSet(ExecutionState &state) {
           index
         );
       );
-      std::set<NodeID> mod = computeModSet(state, index, entryState);
+      std::set<NodeID> mod;
+      computeModSet(state, index, entryState, mod);
       updateModInfo(snapshot, snapshotPTA.get(), mod);
 
       if (UseModularPTA) {
@@ -5954,9 +5955,10 @@ bool Executor::isRelevantGlobal(const GlobalVariable *gv) {
   return true;
 }
 
-std::set<NodeID> Executor::computeModSet(ExecutionState &state,
-                                         unsigned int index,
-                                         EntryState &entryState) {
+void Executor::computeModSet(ExecutionState &state,
+                             unsigned int index,
+                             EntryState &entryState,
+                             std::set<NodeID> &result) {
   /* get the current snapshot */
   ref<Snapshot> snapshot = state.getSnapshots()[index];
 
