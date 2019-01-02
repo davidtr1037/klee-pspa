@@ -5832,6 +5832,8 @@ bool Executor::isFunctionToSkip(ExecutionState &state, Function *f) {
 }
 
 void Executor::saveModSet(ExecutionState &state) {
+  TimerStatIncrementer timer(stats::staticAnalysisTime);
+
   for (unsigned int index = 0; index < state.getSnapshots().size(); index++) {
     ref<Snapshot> snapshot = state.getSnapshots()[index];
     if (snapshot->modComputed) {
@@ -5839,7 +5841,6 @@ void Executor::saveModSet(ExecutionState &state) {
     }
 
     /* update statistics */
-    TimerStatIncrementer timer(stats::staticAnalysisTime);
     ++stats::staticAnalysisUsage;
 
     Function *f = snapshot->f;
