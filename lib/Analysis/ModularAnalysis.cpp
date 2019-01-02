@@ -28,7 +28,11 @@ bool ModularPTA::computeModSet(Function *f,
   FunctionCache &fcache = cache[f];
   for (ModResult &modResult : fcache) {
     if (checkIsomorphism(modResult.entryState, entryState, info)) {
-      substitute(modResult.entryState, entryState, modResult.mod, info, result);
+      substitute(modResult.entryState,
+                 entryState,
+                 info,
+                 modResult.mod,
+                 result);
       return true;
     }
   }
@@ -247,38 +251,49 @@ bool ModularPTA::getMatchedNodes(EntryState &es1,
 
 void ModularPTA::substitute(EntryState &es1,
                             EntryState &es2,
-                            std::set<NodeID> &cachedMod,
                             SubstitutionInfo &info,
+                            std::set<NodeID> &cachedMod,
                             std::set<NodeID> &result) {
   for (NodeID nodeId : cachedMod) {
     if (!es1.pta->getPAG()->findPAGNode(nodeId)) {
+      /* TODO: add docs */
       continue;
     }
-    NodeID base1 = es1.pta->getBaseObjNode(nodeId);
-    if (info.mapping.find(base1) == info.mapping.end()) {
-      /* TODO: is it always correct? */
-      result.insert(nodeId);
-      continue;
-    }
-
-    /* get corresponding node */
-    NodeID base2 = info.mapping[base1];
-
-    PAGNode *pagNode = es1.pta->getPAG()->getPAGNode(nodeId);
-    ObjPN *obj = dyn_cast<ObjPN>(pagNode);
-    if (!obj) {
-      assert(false);
-    }
-
-    if (isa<FIObjPN>(obj)) {
-      result.insert(es2.pta->getFIObjNode(base2));
-    }
-
-    if (isa<GepObjPN>(obj)) {
-      GepObjPN *gepObj = dyn_cast<GepObjPN>(obj);
-      result.insert(es2.pta->getGepObjNode(base2, gepObj->getLocationSet()));
-    }
+    NodeID n = substituteNode(es1, es2, info, nodeId);
+    result.insert(n);
   }
+}
+
+NodeID ModularPTA::substituteNode(EntryState &es1,
+                                  EntryState &es2,
+                                  SubstitutionInfo &info,
+                                  NodeID nodeId) {
+  NodeID base1 = es1.pta->getBaseObjNode(nodeId);
+  if (info.mapping.find(base1) == info.mapping.end()) {
+    /* TODO: is it always correct? */
+    return nodeId;
+  }
+
+  /* get corresponding node */
+  NodeID base2 = info.mapping[base1];
+
+  PAGNode *pagNode = es1.pta->getPAG()->getPAGNode(nodeId);
+  ObjPN *obj = dyn_cast<ObjPN>(pagNode);
+  if (!obj) {
+    assert(false);
+  }
+
+  if (isa<FIObjPN>(obj)) {
+    return es2.pta->getFIObjNode(base2);
+  }
+
+  if (isa<GepObjPN>(obj)) {
+    GepObjPN *gepObj = dyn_cast<GepObjPN>(obj);
+    return es2.pta->getGepObjNode(base2, gepObj->getLocationSet());
+  }
+
+  /* should be unreachable... */
+  assert(false);
 }
 
 void ModularPTA::dump(EntryState &es) {

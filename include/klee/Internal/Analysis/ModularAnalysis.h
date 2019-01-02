@@ -103,9 +103,14 @@ public:
 
   void substitute(EntryState &es1,
                   EntryState &es2,
-                  std::set<NodeID> &cachedMod,
                   SubstitutionInfo &info,
+                  std::set<NodeID> &cachedMod,
                   std::set<NodeID> &result);
+
+  NodeID substituteNode(EntryState &es1,
+                        EntryState &es2,
+                        SubstitutionInfo &info,
+                        NodeID nodeId);
 
   void dump(EntryState &es);
 
