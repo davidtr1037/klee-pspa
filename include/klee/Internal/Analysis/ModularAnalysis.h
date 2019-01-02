@@ -118,6 +118,7 @@ public:
 
 private:
 
+  /* TODO: rename */
   typedef std::vector<ModResult> FunctionCache;
   typedef std::map<llvm::Function *, FunctionCache> Cache;
 
