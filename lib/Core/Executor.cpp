@@ -5870,27 +5870,26 @@ void Executor::saveModSet(ExecutionState &state) {
     bool canReuse = false;
     EntryState entryState;
     if (UseModularPTA) {
-      assert(0);
-      //buildEntryState(*snapshot->state, snapshotPTA, f, entryState);
+      buildEntryState(*snapshot->state, snapshotPTA, f, entryState);
 
-      ///* TODO: should we check reusability without the call stack? */
-      //std::set<NodeID> mod;
-      //canReuse = modularPTA->computeModSet(f, entryState, mod);
-      //if (canReuse) {
-      //  DEBUG_WITH_TYPE(
-      //    DEBUG_BASIC,
-      //    klee_message(
-      //      "%p: reusing analysis %s (index = %u)",
-      //      &state,
-      //      f->getName().data(),
-      //      index
-      //    );
-      //  );
-      //  /* TODO: do we need to enforce field-insensitiveness
-      //     with respect to the cached analysis? */
-      //  updateModInfo(snapshot, snapshotPTA.get(), mod);
-      //  ++stats::staticAnalysisReuse;
-      //}
+      /* TODO: should we check reusability without the call stack? */
+      StateProjection projection;
+      canReuse = modularPTA->computeModSet(f, entryState, projection);
+      if (canReuse) {
+        DEBUG_WITH_TYPE(
+          DEBUG_BASIC,
+          klee_message(
+            "%p: reusing analysis %s (index = %u)",
+            &state,
+            f->getName().data(),
+            index
+          );
+        );
+        /* TODO: do we need to enforce field-insensitiveness
+           with respect to the cached analysis? */
+        updateModInfo(snapshot, snapshotPTA.get(), projection);
+        ++stats::staticAnalysisReuse;
+      }
     }
 
     if (!canReuse) {
@@ -5909,8 +5908,7 @@ void Executor::saveModSet(ExecutionState &state) {
       updateModInfo(snapshot, snapshotPTA.get(), projection);
 
       if (UseModularPTA) {
-        assert(0);
-        //modularPTA->update(f, entryState, mod);
+        modularPTA->update(f, entryState, projection);
       }
 
       /* we need to hold a reference for it,
@@ -6031,7 +6029,11 @@ void Executor::updateModInfo(ref<Snapshot> snapshot,
 
   DEBUG_WITH_TYPE(
     DEBUG_BASIC,
-    klee_message("mod size for %s is %lu", snapshot->f->getName().data(), mod.size());
+    klee_message(
+      "mod size for %s is %lu",
+      snapshot->f->getName().data(),
+      mod.size()
+    );
   );
 }
 

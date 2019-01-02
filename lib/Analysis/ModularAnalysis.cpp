@@ -12,18 +12,18 @@ using namespace std;
 
 void ModularPTA::update(Function *f,
                         EntryState &entryState,
-                        set<NodeID> &mod) {
+                        StateProjection &projection) {
   FunctionCache &fcache = cache[f];
   ModResult modResult;
   modResult.entryState = entryState;
-  modResult.mod = mod;
+  modResult.projection = projection;
 
   fcache.push_back(modResult);
 }
 
 bool ModularPTA::computeModSet(Function *f,
                                EntryState &entryState,
-                               set<NodeID> &result) {
+                               StateProjection &result) {
   SubstitutionInfo info;
   FunctionCache &fcache = cache[f];
   for (ModResult &modResult : fcache) {
@@ -31,7 +31,7 @@ bool ModularPTA::computeModSet(Function *f,
       substitute(modResult.entryState,
                  entryState,
                  info,
-                 modResult.mod,
+                 modResult.projection,
                  result);
       return true;
     }
@@ -252,15 +252,27 @@ bool ModularPTA::getMatchedNodes(EntryState &es1,
 void ModularPTA::substitute(EntryState &es1,
                             EntryState &es2,
                             SubstitutionInfo &info,
-                            std::set<NodeID> &cachedMod,
-                            std::set<NodeID> &result) {
-  for (NodeID nodeId : cachedMod) {
-    if (!es1.pta->getPAG()->findPAGNode(nodeId)) {
+                            StateProjection &cached,
+                            StateProjection &result) {
+  for (auto i : cached.pointsToMap) {
+    NodeID n1 = i.first;
+    PointsTo &pts1 = i.second;
+
+    if (!es1.pta->getPAG()->findPAGNode(n1)) {
       /* TODO: add docs */
       continue;
     }
-    NodeID n = substituteNode(es1, es2, info, nodeId);
-    result.insert(n);
+
+    NodeID n2 = substituteNode(es1, es2, info, n1);
+    PointsTo &pts2 = result.pointsToMap[n2];
+    for (NodeID v1 : pts1) {
+      if (!es1.pta->getPAG()->findPAGNode(v1)) {
+        /* TODO: add docs */
+        continue;
+      }
+      NodeID v2 = substituteNode(es1, es2, info, v1);
+      pts2.set(v2);
+    }
   }
 }
 

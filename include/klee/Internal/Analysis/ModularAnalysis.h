@@ -2,6 +2,7 @@
 #define KLEE_MODULARANALYSIS_H
 
 #include <klee/util/Ref.h>
+#include "klee/Internal/Analysis/StateProjection.h"
 
 #include <MemoryModel/PointerAnalysis.h>
 #include <WPA/AndersenDynamic.h>
@@ -61,7 +62,7 @@ public:
 
 struct ModResult {
   EntryState entryState;
-  std::set<NodeID> mod;
+  StateProjection projection;
 };
 
 class ModularPTA {
@@ -78,11 +79,11 @@ public:
 
   void update(llvm::Function *f,
               EntryState &entryState,
-              std::set<NodeID> &mod);
+              StateProjection &projection);
 
   bool computeModSet(llvm::Function *f,
                      EntryState &entryState,
-                     std::set<NodeID> &result);
+                     StateProjection &result);
 
   bool checkIsomorphism(EntryState &es1,
                         EntryState &es2,
@@ -104,8 +105,8 @@ public:
   void substitute(EntryState &es1,
                   EntryState &es2,
                   SubstitutionInfo &info,
-                  std::set<NodeID> &cachedMod,
-                  std::set<NodeID> &result);
+                  StateProjection &cached,
+                  StateProjection &result);
 
   NodeID substituteNode(EntryState &es1,
                         EntryState &es2,
