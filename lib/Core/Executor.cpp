@@ -5870,26 +5870,27 @@ void Executor::saveModSet(ExecutionState &state) {
     bool canReuse = false;
     EntryState entryState;
     if (UseModularPTA) {
-      buildEntryState(*snapshot->state, snapshotPTA, f, entryState);
+      assert(0);
+      //buildEntryState(*snapshot->state, snapshotPTA, f, entryState);
 
-      /* TODO: should we check reusability without the call stack? */
-      std::set<NodeID> mod;
-      canReuse = modularPTA->computeModSet(f, entryState, mod);
-      if (canReuse) {
-        DEBUG_WITH_TYPE(
-          DEBUG_BASIC,
-          klee_message(
-            "%p: reusing analysis %s (index = %u)",
-            &state,
-            f->getName().data(),
-            index
-          );
-        );
-        /* TODO: do we need to enforce field-insensitiveness
-           with respect to the cached analysis? */
-        updateModInfo(snapshot, snapshotPTA.get(), mod);
-        ++stats::staticAnalysisReuse;
-      }
+      ///* TODO: should we check reusability without the call stack? */
+      //std::set<NodeID> mod;
+      //canReuse = modularPTA->computeModSet(f, entryState, mod);
+      //if (canReuse) {
+      //  DEBUG_WITH_TYPE(
+      //    DEBUG_BASIC,
+      //    klee_message(
+      //      "%p: reusing analysis %s (index = %u)",
+      //      &state,
+      //      f->getName().data(),
+      //      index
+      //    );
+      //  );
+      //  /* TODO: do we need to enforce field-insensitiveness
+      //     with respect to the cached analysis? */
+      //  updateModInfo(snapshot, snapshotPTA.get(), mod);
+      //  ++stats::staticAnalysisReuse;
+      //}
     }
 
     if (!canReuse) {
@@ -5903,12 +5904,13 @@ void Executor::saveModSet(ExecutionState &state) {
           index
         );
       );
-      std::set<NodeID> mod;
-      computeModSet(state, index, entryState, mod);
-      updateModInfo(snapshot, snapshotPTA.get(), mod);
+      StateProjection projection;
+      computeModSet(state, index, entryState, projection);
+      updateModInfo(snapshot, snapshotPTA.get(), projection);
 
       if (UseModularPTA) {
-        modularPTA->update(f, entryState, mod);
+        assert(0);
+        //modularPTA->update(f, entryState, mod);
       }
 
       /* we need to hold a reference for it,
@@ -5959,7 +5961,7 @@ bool Executor::isRelevantGlobal(const GlobalVariable *gv) {
 void Executor::computeModSet(ExecutionState &state,
                              unsigned int index,
                              EntryState &entryState,
-                             std::set<NodeID> &result) {
+                             StateProjection &projection) {
   /* get the current snapshot */
   ref<Snapshot> snapshot = state.getSnapshots()[index];
 
@@ -5976,12 +5978,8 @@ void Executor::computeModSet(ExecutionState &state,
     called.insert(sf.kf->function);
   }
 
-  StateProjection projection;
   SideEffectsCollector collector(called, projection);
   collector.visitReachable(pta.get(), snapshot->f);
-  for (auto i : projection.pointsToMap) {
-    result.insert(i.first);
-  }
 
   collectRelevantGlobals(pta.get(), snapshot->f, entryState.usedGlobals);
 
@@ -5991,9 +5989,16 @@ void Executor::computeModSet(ExecutionState &state,
 
 void Executor::updateModInfo(ref<Snapshot> snapshot,
                              PointerAnalysis *pta,
-                             std::set<NodeID> &mod) {
+                             StateProjection &projection) {
+  std::set<NodeID> mod;
   std::set<NodeID> fiMod;
   std::set<NodeID> baseMod;
+
+  /* first, extract the mod set */
+  for (auto i : projection.pointsToMap) {
+    mod.insert(i.first);
+  }
+
   for (NodeID nodeId : mod) {
     NodeID base = pta->getFIObjNode(nodeId);
     baseMod.insert(base);

@@ -28,6 +28,7 @@
 #include "klee/Internal/Analysis/ReachabilityAnalysis.h"
 #include "klee/Internal/Analysis/ModRefAnalysis.h"
 #include "klee/Internal/Analysis/ModularAnalysis.h"
+#include "klee/Internal/Analysis/StateProjection.h"
 #include "../Analysis/SymbolicPTA.h"
 
 #include "llvm/ADT/Twine.h"
@@ -768,11 +769,11 @@ public:
   void computeModSet(ExecutionState &state,
                      unsigned int index,
                      EntryState &entryState,
-                     std::set<NodeID> &result);
+                     StateProjection &projection);
 
   void updateModInfo(ref<Snapshot> snapshot,
                      PointerAnalysis *pta,
-                     std::set<NodeID> &mod);
+                     StateProjection &state);
 
   void collectRelevantGlobals(PointerAnalysis *pta,
                               llvm::Function *f,
