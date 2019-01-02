@@ -771,6 +771,10 @@ public:
                      EntryState &entryState,
                      StateProjection &projection);
 
+  void mergePointsTo(ExecutionState &state,
+                     unsigned int index,
+                     AndersenDynamic *pta);
+
   void updateModInfo(ref<Snapshot> snapshot,
                      PointerAnalysis *pta,
                      StateProjection &state);

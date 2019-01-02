@@ -5971,6 +5971,7 @@ void Executor::computeModSet(ExecutionState &state,
   /* create a new instance for computing the mod-set */
   ref<AndersenDynamic> pta = new AndersenDynamic(*snapshotPTA);
   pta->initialize(*kmodule->module);
+  mergePointsTo(state, index, pta.get());
   pta->analyzeFunction(*kmodule->module, snapshot->f);
 
   set<Function *> called;
@@ -5985,6 +5986,21 @@ void Executor::computeModSet(ExecutionState &state,
 
   /* free memory... */
   pta->postAnalysisCleanup();
+}
+
+void Executor::mergePointsTo(ExecutionState &state,
+                             unsigned int index,
+                             AndersenDynamic *pta) {
+  for (unsigned int i = 0; i < index; i++) {
+    ref<Snapshot> snapshot = state.getSnapshots()[i];
+    for (auto i : snapshot->projection.pointsToMap) {
+      NodeID src = i.first;
+      PointsTo &pts = i.second;
+      for (NodeID n : pts) {
+        pta->weakUpdate(src, n);
+      }
+    }
+  }
 }
 
 void Executor::updateModInfo(ref<Snapshot> snapshot,
