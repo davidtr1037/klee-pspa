@@ -57,6 +57,7 @@
 #include "klee/Internal/Analysis/ModRefAnalysis.h"
 #include "klee/Internal/Analysis/ModularAnalysis.h"
 #include "klee/Internal/Analysis/Reachability.h"
+#include "klee/Internal/Analysis/StateProjection.h"
 #include "klee/Internal/Support/Debug.h"
 
 #include "WPA/AndersenDynamic.h"
@@ -5975,15 +5976,17 @@ void Executor::computeModSet(ExecutionState &state,
     called.insert(sf.kf->function);
   }
 
-  ModRefCollector collector(called, true, false);
+  StateProjection projection;
+  SideEffectsCollector collector(called, projection);
   collector.visitReachable(pta.get(), snapshot->f);
+  for (auto i : projection.pointsToMap) {
+    result.insert(i.first);
+  }
 
   collectRelevantGlobals(pta.get(), snapshot->f, entryState.usedGlobals);
 
   /* free memory... */
   pta->postAnalysisCleanup();
-
-  return collector.getModSet();
 }
 
 void Executor::updateModInfo(ref<Snapshot> snapshot,

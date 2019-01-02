@@ -171,44 +171,6 @@ private:
 
 };
 
-typedef std::map<NodeID, PointsTo> PointsToMap;
-
-class SideEffectsCollector : public InstructionVisitor {
-
-public:
-
-  SideEffectsCollector(std::set<llvm::Function *> &called,
-                       PointsToMap &mod) :
-    called(called),
-    mod(mod) {
-
-  }
-
-  virtual void visitStore(PointerAnalysis *pta,
-                          llvm::Function *f,
-                          llvm::StoreInst *inst);
-
-  virtual void visitLoad(PointerAnalysis *pta,
-                         llvm::Function *f,
-                         llvm::LoadInst *inst) {
-
-  }
-
-  PointsToMap &getMod() {
-    return mod;
-  }
-
-  void dump(PointerAnalysis *pta);
-
-private:
-
-  bool canEscape(PointerAnalysis *pta,
-                 NodeID nodeId);
-
-  std::set<llvm::Function *> called;
-  PointsToMap &mod;
-};
-
 }
 
 #endif
