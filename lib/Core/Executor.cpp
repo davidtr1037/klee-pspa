@@ -5848,30 +5848,34 @@ void Executor::saveModSet(ExecutionState &state) {
 
     bool canReuse = false;
     EntryState entryState;
+    StateProjection projection;
+
     if (UseModularPTA) {
-      buildEntryState(*snapshot->state, snapshotPTA, f, entryState);
+      ref<AndersenDynamic> clonedPTA = new AndersenDynamic(*snapshotPTA);
+      clonedPTA->initialize(*kmodule->module);
+      mergePointsTo(state, index, clonedPTA.get());
+
+      /* build the entry state for the given function */
+      buildEntryState(*snapshot->state, clonedPTA, f, entryState);
 
       /* TODO: should we check reusability without the call stack? */
-      StateProjection projection;
       canReuse = modularPTA->computeModSet(f, entryState, projection);
-      if (canReuse) {
-        DEBUG_WITH_TYPE(
-          DEBUG_BASIC,
-          klee_message(
-            "%p: reusing analysis %s (index = %u)",
-            &state,
-            f->getName().data(),
-            index
-          );
-        );
-        /* TODO: do we need to enforce field-insensitiveness
-           with respect to the cached analysis? */
-        updateModInfo(snapshot, snapshotPTA.get(), projection);
-        ++stats::staticAnalysisReuse;
-      }
     }
 
-    if (!canReuse) {
+    if (canReuse) {
+      DEBUG_WITH_TYPE(
+        DEBUG_BASIC,
+        klee_message(
+          "%p: reusing analysis %s (index = %u)",
+          &state,
+          f->getName().data(),
+          index
+        );
+      );
+      /* TODO: do we need to enforce field-insensitiveness
+         with respect to the cached analysis? */
+      ++stats::staticAnalysisReuse;
+    } else {
       /* run dynamic pointer analysis */
       DEBUG_WITH_TYPE(
         DEBUG_BASIC,
@@ -5882,9 +5886,7 @@ void Executor::saveModSet(ExecutionState &state) {
           index
         );
       );
-      StateProjection projection;
       computeModSet(state, index, entryState, projection);
-      updateModInfo(snapshot, snapshotPTA.get(), projection);
 
       if (UseModularPTA) {
         modularPTA->update(f, entryState, projection);
@@ -5895,6 +5897,7 @@ void Executor::saveModSet(ExecutionState &state) {
       cachedSnapshots.push_back(snapshot);
     }
 
+    updateModInfo(snapshot, snapshotPTA.get(), projection);
     snapshot->modComputed = true;
   }
 }
@@ -5980,6 +5983,7 @@ void Executor::mergePointsTo(ExecutionState &state,
   }
 }
 
+/* TODO: this function does not need the a PTA object */
 void Executor::updateModInfo(ref<Snapshot> snapshot,
                              PointerAnalysis *pta,
                              StateProjection &projection) {
