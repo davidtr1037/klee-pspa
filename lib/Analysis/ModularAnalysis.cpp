@@ -171,7 +171,15 @@ bool ModularPTA::checkIsomorphism(EntryState &es1,
     /* update the substitution mapping */
     NodeID base1 = es1.pta->getBaseObjNode(n1);
     NodeID base2 = es2.pta->getBaseObjNode(n2);
-    info.mapping[base1] = base2;
+    if (info.mapping.find(base1) != info.mapping.end()) {
+      NodeID prev = info.mapping[base1];
+      if (prev != base2) {
+        /* a base node can be translated only to one value */
+        return false;
+      }
+    } else {
+      info.mapping[base1] = base2;
+    }
 
     /* TODO: is it the right place? */
     /* update checked pairs */
