@@ -21,9 +21,9 @@ void ModularPTA::update(Function *f,
 bool ModularPTA::computeModSet(Function *f,
                                EntryState &entryState,
                                StateProjection &projection) {
-  SubstitutionInfo info;
   AnalysisResults &results = cache[f];
   for (AnalysisResult &result : results) {
+    SubstitutionInfo info;
     if (checkIsomorphism(result.entryState, entryState, info)) {
       substitute(result.entryState,
                  entryState,
