@@ -1,5 +1,4 @@
 import optparse
-import os
 import csv
 from collections import namedtuple
 
