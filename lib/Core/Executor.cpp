@@ -351,6 +351,9 @@ namespace {
 
   cl::opt<bool>
   AnalyzeAll("analyze-all", cl::init(false), cl::desc(""));
+
+  cl::opt<bool>
+  HaltAfterStaticAnalysis("halt-after-static-analysis", cl::init(false), cl::desc(""));
 }
 
 
@@ -4004,6 +4007,9 @@ void Executor::evaluateWholeProgramPTA() {
       context.entry = f;
       ptaStatsLogger->dump(context, collector.getStats());
     }
+  }
+  if (HaltAfterStaticAnalysis) {
+    haltExecution = true;
   }
 }
 
