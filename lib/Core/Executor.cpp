@@ -3943,13 +3943,25 @@ size_t Executor::getAllocationAlignment(const llvm::Value *allocSite) const {
 }
 
 bool Executor::isTargetFunction(ExecutionState &state, Function *f) {
+  std::vector<std::string> prefixes_to_ignore = {"strncasecmp_l", "tolower_l", "klee_"};
+  std::vector<std::string> names_to_ignore = {"__uClibc_main", "__user_main"};
   if (AnalyzeAll) {
-    /* don't analyze klee_* functons */
-    return  f->getName().find("strncasecmp_l") != 0 && f->getName().find("tolower_l") != 0 && f->getName().find("klee_") != 0;
+    for (auto prefix : prefixes_to_ignore) {
+      if (f->getName().find(prefix) == 0) {
+        return false;
+      }
+    }
+
+    for (auto name : names_to_ignore) {
+      if (f->getName() == name) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
-  for (const TargetFunctionOption &option :  interpreterOpts.targetFunctions) {
-
+  for (const TargetFunctionOption &option : interpreterOpts.targetFunctions) {
     auto n = f->getName();
     if (n == option.name) {
       const std::vector<unsigned int> &lines = option.lines;
