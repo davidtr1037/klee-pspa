@@ -354,6 +354,9 @@ namespace {
 
   cl::opt<bool>
   HaltAfterStaticAnalysis("halt-after-static-analysis", cl::init(false), cl::desc(""));
+
+  cl::opt<unsigned>
+  MaxInstructions("max-instructions", cl::init(0), cl::desc(""));
 }
 
 
@@ -2827,6 +2830,9 @@ void Executor::run(ExecutionState &initialState) {
   searcher->update(0, newStates, std::vector<ExecutionState *>());
 
   while (!states.empty() && !haltExecution) {
+    if (MaxInstructions != 0 && stats::instructions == MaxInstructions) {
+      break;
+    }
     ExecutionState &state = searcher->selectState();
     KInstruction *ki = state.pc;
     stepInstruction(state);
@@ -3946,6 +3952,12 @@ bool Executor::isTargetFunction(ExecutionState &state, Function *f) {
   std::vector<std::string> prefixes_to_ignore = {"strncasecmp_l", "tolower_l", "klee_"};
   std::vector<std::string> names_to_ignore = {"__uClibc_main", "__user_main"};
   if (AnalyzeAll) {
+    /* don't analyze internal libc functions */
+    const InstructionInfo &info = kmodule->infos->getInfo(state.prevPC->inst);
+    if (info.file.find("libc/") != std::string::npos) {
+      return false;
+    }
+
     for (auto prefix : prefixes_to_ignore) {
       if (f->getName().find(prefix) == 0) {
         return false;
