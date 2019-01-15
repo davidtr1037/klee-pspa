@@ -34,7 +34,7 @@ Pointer* SymbolicPTA::getPointer(const MemoryObject *mo,
   if (auto co = dyn_cast<ConstantExpr>(offset)) {
     uint64_t off = co->getZExtValue();
     for (Pointer *p : ptrs) {
-      if (p->offset == off) {
+      if (p->offset == off && !p->multiplePointers) {
         return p;
       }
     }
