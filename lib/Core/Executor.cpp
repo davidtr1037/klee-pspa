@@ -354,6 +354,9 @@ namespace {
 
   cl::opt<bool>
   HaltAfterStaticAnalysis("halt-after-static-analysis", cl::init(false), cl::desc(""));
+
+  cl::opt<unsigned>
+  MaxInstructions("max-instructions", cl::init(0), cl::desc(""));
 }
 
 
@@ -2827,6 +2830,9 @@ void Executor::run(ExecutionState &initialState) {
   searcher->update(0, newStates, std::vector<ExecutionState *>());
 
   while (!states.empty() && !haltExecution) {
+    if (MaxInstructions != 0 && stats::instructions == MaxInstructions) {
+      break;
+    }
     ExecutionState &state = searcher->selectState();
     KInstruction *ki = state.pc;
     stepInstruction(state);
