@@ -18,7 +18,17 @@ def generate(records, benchmark, mode, out_path):
             max_size = sum([r.max_size for r in records]) / len(records)
             mod_size = sum([r.mod_size for r in records]) / len(records)
             ref_size = sum([r.ref_size for r in records]) / len(records)
-            writer.writerow([benchmark, mode, function, avg_size, max_size, mod_size, ref_size])
+            writer.writerow(
+                [
+                    benchmark,
+                    mode,
+                    function,
+                    "%.02f" % avg_size,
+                    "%.02f" % max_size,
+                    "%.02f" % mod_size,
+                    "%.02f" % ref_size,
+                ]
+            )
 
 
 def main():
