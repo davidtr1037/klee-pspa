@@ -102,6 +102,8 @@ protected:
 
   virtual void visitInteger(llvm::IntegerType *st) = 0;
 
+  virtual void visitFloat(llvm::Type *ft) = 0;
+
   T results;
 };
 
@@ -128,6 +130,8 @@ class OffsetFinder : public TypeVisitor<std::vector<FieldDetails>> {
   void visitPointer(llvm::PointerType *st);
 
   void visitInteger(llvm::IntegerType *st);
+
+  void visitFloat(llvm::Type *ft);
 
   int globalOffset = 0;
 
