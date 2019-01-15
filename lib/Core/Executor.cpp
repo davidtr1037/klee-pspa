@@ -4435,13 +4435,13 @@ NodeID Executor::ptrToAbstract(ExecutionState &state,
   const MemoryObject *m = p->pointerContainer;
   uint64_t offset = p->offset;
 
-  if (!p->multiplePointers) {
-    PointerType *pt = dyn_cast<PointerType>(sPTA.getMemoryObjectType(m));
-    DynamicMemoryLocation dl(getAllocSite(state,m), m->size, false, offset, pt);
-    return computeAbstractMO(state.getPTA().get(), dl, false);
-  } else {
-    assert(0 && "TODO a symbolic pointer that resolved to two or more fields in a struct");
-  }
+  if (p->multiplePointers)
+    klee_warning("Ignoring multiple pointers!");
+  //TODO: if there are multiple pointers we need to get all colocated pointers and do weak updates
+
+  PointerType *pt = dyn_cast<PointerType>(sPTA.getMemoryObjectType(m));
+  DynamicMemoryLocation dl(getAllocSite(state,m), m->size, false, offset, pt);
+  return computeAbstractMO(state.getPTA().get(), dl, false);
 }
 
 void Executor::updateGlobalsPts(ExecutionState &state,
