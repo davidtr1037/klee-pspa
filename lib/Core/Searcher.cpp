@@ -481,8 +481,12 @@ void ExtendedSearcher::update(
     }
   }
 
-  baseSearcher->update(current, addedBaseStates, removedBaseStates);
-  saSearcher->update(current, addedDummyStates, removedDummyStates);
+  baseSearcher->update(current && !current->isDummy ? current : nullptr,
+                       addedBaseStates,
+                       removedBaseStates);
+  saSearcher->update(current && current->isDummy ? current : nullptr,
+                     addedDummyStates,
+                     removedDummyStates);
 }
 
 bool ExtendedSearcher::empty() {
