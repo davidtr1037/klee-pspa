@@ -359,6 +359,12 @@ namespace {
   AnalyzeAll("analyze-all", cl::init(false), cl::desc(""));
 
   cl::opt<bool>
+  HaltAfterStaticAnalysis("halt-after-static-analysis", cl::init(false), cl::desc(""));
+
+  cl::opt<unsigned>
+  MaxInstructions("max-instructions", cl::init(0), cl::desc(""));
+
+  cl::opt<bool>
   UseStaticModRef("use-static-modref", cl::init(false), cl::desc(""));
 
   cl::opt<bool>
@@ -366,6 +372,7 @@ namespace {
 
   cl::opt<bool>
   UseRecoveryCache("use-recovery-cache", cl::init(false), cl::desc(""));
+
 }
 
 
@@ -3063,6 +3070,9 @@ void Executor::run(ExecutionState &initialState) {
   searcher->update(0, newStates, std::vector<ExecutionState *>());
 
   while (!states.empty() && !haltExecution) {
+    if (MaxInstructions != 0 && stats::instructions == MaxInstructions) {
+      break;
+    }
     assert(!searcher->empty());
     ExecutionState &state = searcher->selectState();
     KInstruction *ki = state.pc;
@@ -4223,9 +4233,28 @@ size_t Executor::getAllocationAlignment(const llvm::Value *allocSite) const {
 }
 
 bool Executor::isTargetFunction(ExecutionState &state, Function *f) {
+  std::vector<std::string> prefixes_to_ignore = {"strncasecmp_l", "tolower_l", "klee_"};
+  std::vector<std::string> names_to_ignore = {"__uClibc_main", "__user_main"};
   if (AnalyzeAll) {
-    /* don't analyze klee_* functons */
-    return  f->getName().find("strncasecmp_l") != 0 && f->getName().find("tolower_l") != 0 && f->getName().find("klee_") != 0;
+    /* don't analyze internal libc functions */
+    const InstructionInfo &info = kmodule->infos->getInfo(state.prevPC->inst);
+    if (info.file.find("libc/") != std::string::npos) {
+      return false;
+    }
+
+    for (auto prefix : prefixes_to_ignore) {
+      if (f->getName().find(prefix) == 0) {
+        return false;
+      }
+    }
+
+    for (auto name : names_to_ignore) {
+      if (f->getName() == name) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   for (const FunctionOption &option : interpreterOpts.targetFunctions) {
@@ -4285,6 +4314,9 @@ void Executor::evaluateWholeProgramPTA() {
       context.entry = f;
       ptaStatsLogger->dump(context, collector.getStats());
     }
+  }
+  if (HaltAfterStaticAnalysis) {
+    haltExecution = true;
   }
 }
 
@@ -4689,15 +4721,13 @@ NodeID Executor::ptrToAbstract(ExecutionState &state,
   const MemoryObject *m = p->pointerContainer;
   uint64_t offset = p->offset;
 
-  if (!p->multiplePointers) {
-    /* TODO: use dynamic type information? */
-    PointerType *pt = dyn_cast<PointerType>(sPTA.getMemoryObjectType(m));
-    DynamicMemoryLocation dl(getAllocSite(state,m), m->size, false, offset, pt);
-    return computeAbstractMO(state.getPTA().get(), dl, false);
-  } else {
-    /* TODO: a symbolic pointer that resolved to two or more fields in a struct */
-    assert(false);
-  }
+  /* This method doesn't handle multiple pointers,
+     caller needs to use the traverse API or call getColocatedPointers manually */
+  assert(!p->multiplePointers);
+
+  PointerType *pt = dyn_cast<PointerType>(sPTA.getMemoryObjectType(m));
+  DynamicMemoryLocation dl(getAllocSite(state,m), m->size, false, offset, pt);
+  return computeAbstractMO(state.getPTA().get(), dl, false);
 }
 
 void Executor::updateGlobalsPts(ExecutionState &state,
@@ -4712,12 +4742,21 @@ void Executor::updateGlobalsPts(ExecutionState &state,
       for (PointsToPair &pair : sPTA.traverse(ptr)) {
         NodeID from = ptrToAbstract(state, pair.first, sPTA);
         NodeID to = ptrToAbstract(state, pair.second, sPTA);
-        // errs() << "Global Update " << from << " to: " << to << " isWeak " << pair.first->isWeak() << " " + pair.second->print() <<  "\n";
         state.updatePointsTo(from, to, !pair.first->isWeak() && !pair.second->isWeak());
       }
-      NodeID dst = ptrToAbstract(state, ptr, sPTA);
-      // errs() << "Global Update " << formalGlobalId << " to " << dst << " mo: " << mo->name << " isWeak " << " " + ptr->isWeak() << "\n";
-      state.updatePointsTo(formalGlobalId, dst, !ptr->isWeak());
+      if (!ptr->multiplePointers) {
+          NodeID dst = ptrToAbstract(state, ptr, sPTA);
+          state.updatePointsTo(formalGlobalId, dst, !ptr->isWeak());
+      } else {
+         // We are conservative here and consider all coolocated pointers
+         // if there is a symbolic pointer to multiple fields in a structs
+         bool first = true;
+         for (Pointer *p : sPTA.getColocatedPointers(*ptr)) {
+            NodeID dst = ptrToAbstract(state, p, sPTA);
+            state.updatePointsTo(formalGlobalId, dst, first);
+            first = false;
+         }
+      }
     }
   }
   state.modifiedGlobals.clear();
@@ -4751,17 +4790,26 @@ void Executor::updatePointsToOnCallSymbolic(ExecutionState &state,
     for (auto &op1 : rl1) {
       const MemoryObject* mo = op1.first;
       Pointer *ptr = sPTA.getPointer(mo, mo->getOffsetExpr(e));
+        errs() << "ptr is multiple: " << ptr->multiplePointers << "\n";
       for (PointsToPair &pair : sPTA.traverse(ptr)) {
         NodeID from = ptrToAbstract(state, pair.first, sPTA);
         NodeID to = ptrToAbstract(state, pair.second, sPTA);
-        // errs() << "Update " << from << " to: " << to << " isWeak " << pair.first->isWeak() << " " + pair.second->print() << "\n";
         state.updatePointsTo(from, to, !pair.first->isWeak() && !pair.second->isWeak());
       }
-      NodeID dst = ptrToAbstract(state, ptr, sPTA);
-      // errs() << "Update " << formalParamId << " to " << dst << " mo: " << mo->name << " isWeak " << " " + ptr->isWeak() << "\n";
-      /*  TODO: should we force weak update on non-first iterations? */
-      state.updatePointsTo(formalParamId, dst, !ptr->isWeak());
-  	}
+      if (!ptr->multiplePointers) {
+          NodeID dst = ptrToAbstract(state, ptr, sPTA);
+          state.updatePointsTo(formalParamId, dst, !ptr->isWeak());
+      } else {
+        // We are conservative here and consider all coolocated pointers
+        // if there is a symbolic pointer to multiple fields in a structs
+        bool first = true;
+        for (Pointer *p : sPTA.getColocatedPointers(*ptr)) {
+           NodeID dst = ptrToAbstract(state, p, sPTA);
+           state.updatePointsTo(formalParamId, dst, first);
+           first = false;
+        }
+      }
+    }
   }
 }
 

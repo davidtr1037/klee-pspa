@@ -35,7 +35,7 @@ Pointer* SymbolicPTA::getPointer(const MemoryObject *mo,
   if (auto co = dyn_cast<ConstantExpr>(offset)) {
     uint64_t off = co->getZExtValue();
     for (Pointer *p : ptrs) {
-      if (p->offset == off) {
+      if (p->offset == off && !p->multiplePointers) {
         return p;
       }
     }
@@ -185,6 +185,25 @@ Type* SymbolicPTA::getMemoryObjectType(const MemoryObject *mo) {
     t = Type::getInt8Ty(mo->allocSite->getContext())->getPointerTo();
   } else if (mo->name == "argv") { // For argvMO
     t = Type::getInt8Ty(mo->allocSite->getContext())->getPointerTo()->getPointerTo();
+  } else if(mo->name == "varrr args") { //for varargs
+    const CallInst *ci = dyn_cast<CallInst>(mo->allocSite);
+    assert(ci && "var args MO wasn't allocated at a call site");
+
+    FunctionType *ft = ci->getFunctionType();
+    assert(ft->isVarArg() && "vararg allocated at non vararg function");
+
+    unsigned nonVarArgParamNumber = ft->getNumParams();
+    std::vector<Type*> varArgTypes;
+
+    for(const Use& u : ci->arg_operands()) {
+        if(nonVarArgParamNumber > 0) {
+          nonVarArgParamNumber--;
+        } else {
+          varArgTypes.push_back(u.get()->getType());
+        } 
+    }
+    //Might not handle allignment correctly
+    t = StructType::create(varArgTypes, "", true)->getPointerTo();
     // End special cases
   } else if (auto GV = dyn_cast<GlobalVariable>(mo->allocSite)) {
     assert(GV->getType()->isPointerTy() && "GV has non pointer type");
@@ -312,6 +331,9 @@ T TypeVisitor<T>::visit(Type *t) {
     visitPointer(dyn_cast<PointerType>(t));
   } else if (t->isIntegerTy()) {
     visitInteger(dyn_cast<IntegerType>(t));
+  } else if (t->isFloatingPointTy()) {
+    //Can't cast here as there are 6 float types
+    visitFloat(t);
   } else {
     errs() << "Unhandled type\n";
     t->dump();
@@ -372,4 +394,7 @@ void OffsetFinder::visitInteger(IntegerType *it) {
   // Do nothing
 }
 
+void OffsetFinder::visitFloat(Type *ft) {
+  // Do nothing
+}
 template class TypeVisitor<std::vector<FieldDetails>>;
