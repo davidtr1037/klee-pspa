@@ -4435,7 +4435,9 @@ NodeID Executor::ptrToAbstract(ExecutionState &state,
   const MemoryObject *m = p->pointerContainer;
   uint64_t offset = p->offset;
 
-  assert(!p->multiplePointers && "This method doesn't handle multiple pointers, caller needs to use the traverse API or call getColocatedPointers manually");
+  /* This method doesn't handle multiple pointers,
+     caller needs to use the traverse API or call getColocatedPointers manually */
+  assert(!p->multiplePointers);
 
   PointerType *pt = dyn_cast<PointerType>(sPTA.getMemoryObjectType(m));
   DynamicMemoryLocation dl(getAllocSite(state,m), m->size, false, offset, pt);
@@ -4454,17 +4456,16 @@ void Executor::updateGlobalsPts(ExecutionState &state,
       for (PointsToPair &pair : sPTA.traverse(ptr)) {
         NodeID from = ptrToAbstract(state, pair.first, sPTA);
         NodeID to = ptrToAbstract(state, pair.second, sPTA);
-        // errs() << "Global Update " << from << " to: " << to << " isWeak " << pair.first->isWeak() << " " + pair.second->print() <<  "\n";
         state.updatePointsTo(from, to, !pair.first->isWeak() && !pair.second->isWeak());
       }
-      if(!ptr->multiplePointers) {
+      if (!ptr->multiplePointers) {
           NodeID dst = ptrToAbstract(state, ptr, sPTA);
           state.updatePointsTo(formalGlobalId, dst, !ptr->isWeak());
       } else {
-         //We are conservative here and consider all coolocated pointers i
-         //if there is a symbolic pointer to multiple fields in a structs
+         // We are conservative here and consider all coolocated pointers
+         // if there is a symbolic pointer to multiple fields in a structs
          bool first = true;
-         for(Pointer* p : sPTA.getColocatedPointers(*ptr)) {
+         for (Pointer *p : sPTA.getColocatedPointers(*ptr)) {
             NodeID dst = ptrToAbstract(state, p, sPTA);
             state.updatePointsTo(formalGlobalId, dst, first);
             first = false;
@@ -4506,25 +4507,22 @@ void Executor::updatePointsToOnCallSymbolic(ExecutionState &state,
       for (PointsToPair &pair : sPTA.traverse(ptr)) {
         NodeID from = ptrToAbstract(state, pair.first, sPTA);
         NodeID to = ptrToAbstract(state, pair.second, sPTA);
-        // errs() << "Update " << from << " to: " << to << " isWeak " << pair.first->isWeak() << " " + pair.second->print() << "\n";
         state.updatePointsTo(from, to, !pair.first->isWeak() && !pair.second->isWeak());
       }
-      // errs() << "Update " << formalParamId << " to " << dst << " mo: " << mo->name << " isWeak " << " " + ptr->isWeak() << "\n";
-      /*  TODO: should we force weak update on non-first iterations? */
-      if(!ptr->multiplePointers) {
+      if (!ptr->multiplePointers) {
           NodeID dst = ptrToAbstract(state, ptr, sPTA);
           state.updatePointsTo(formalParamId, dst, !ptr->isWeak());
       } else {
-         //We are conservative here and consider all coolocated pointers i
-         //if there is a symbolic pointer to multiple fields in a structs
-         bool first = true;
-         for(Pointer* p : sPTA.getColocatedPointers(*ptr)) {
-            NodeID dst = ptrToAbstract(state, p, sPTA);
-            state.updatePointsTo(formalParamId, dst, first);
-            first = false;
-         }
+        // We are conservative here and consider all coolocated pointers
+        // if there is a symbolic pointer to multiple fields in a structs
+        bool first = true;
+        for (Pointer *p : sPTA.getColocatedPointers(*ptr)) {
+           NodeID dst = ptrToAbstract(state, p, sPTA);
+           state.updatePointsTo(formalParamId, dst, first);
+           first = false;
+        }
       }
-  	}
+    }
   }
 }
 
