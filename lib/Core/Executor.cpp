@@ -3506,7 +3506,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
             state.modifiedGlobals.insert(mo->allocSite);
           }
 
-          if (ptaMode == DynamicAbstractMode && shouldUpdatePoinstTo(state)) {
+          if (shouldUpdatePoinstTo(state)) {
             updatePointsToOnStore(state, state.prevPC, mo, offset, value, UseStrongUpdates);
           }
         }
@@ -3558,7 +3558,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
             state.modifiedGlobals.insert(mo->allocSite);
           }
 
-          if (ptaMode == DynamicAbstractMode && shouldUpdatePoinstTo(state)) {
+          if (shouldUpdatePoinstTo(state)) {
             updatePointsToOnStore(state, state.prevPC, mo, offset, value, UseStrongUpdates);
           }
         }
@@ -4351,7 +4351,7 @@ void Executor::handleBitCast(ExecutionState &state,
 }
 
 bool Executor::shouldUpdatePoinstTo(ExecutionState &state) {
-  return state.prevPC->isRelevant;
+  return ptaMode == DynamicAbstractMode && state.prevPC->isRelevant;
 }
 
 void Executor::updatePointsToOnStore(ExecutionState &state,
