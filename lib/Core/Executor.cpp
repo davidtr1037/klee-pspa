@@ -4973,7 +4973,6 @@ bool Executor::isRecoveryRequired(ExecutionState &state, KInstruction *ki) {
   /* resolve address expression */
   ref<Expr> addressExpr = eval(ki, 0, state).value;
   if (!isa<ConstantExpr>(addressExpr)) {
-    addressExpr = state.constraints.simplifyExpr(addressExpr);
     addressExpr = toConstant(state, addressExpr, "symbolic address in dependent load");
   }
 
@@ -5669,7 +5668,6 @@ void Executor::onNormalStateWrite(ExecutionState &state,
   }
 
   if (!isa<ConstantExpr>(address)) {
-    address = state.constraints.simplifyExpr(address);
     address = toConstant(state, address, "symbolic address in overriding store");
   }
 
