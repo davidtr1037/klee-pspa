@@ -97,6 +97,14 @@ private:
     const llvm::Value *allocSite;
 };
 
+struct AIInfo {
+  AIInfo() : pendingState(nullptr) {
+
+  }
+
+  ExecutionState *pendingState;
+};
+
 class Executor : public Interpreter {
   friend class RandomPathSearcher;
   friend class OwningSearcher;
@@ -139,6 +147,12 @@ public:
     DynamicSymbolicMode,
     AIMode,
     NoneMode,
+  };
+
+  enum ExecutionMode {
+    ExecutionModeSymbolic,
+    ExecutionModeAI,
+    ExecutionModeNone,
   };
 
 private:
@@ -253,6 +267,12 @@ private:
 
   /* TODO: add docs */
   llvm::raw_ostream *ptaGraphLog;
+
+  /* TODO: add docs */
+  ExecutionMode executionMode;
+
+  /* TODO: add docs */
+  AIInfo aiinfo;
 
   llvm::Function* getTargetFunction(llvm::Value *calledVal,
                                     ExecutionState &state);
@@ -630,6 +650,18 @@ public:
 
   void logCall(ExecutionState &state,
                llvm::Function *f);
+
+  ExecutionMode getExecutionMode() {
+    return executionMode;
+  }
+
+  void setExecutionMode(ExecutionMode mode) {
+    executionMode = mode;
+  }
+
+  ExecutionState *getPendingState() {
+    return aiinfo.pendingState;
+  }
 
 };
   

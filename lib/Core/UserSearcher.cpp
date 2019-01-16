@@ -126,7 +126,9 @@ Searcher *klee::constructUserSearcher(Executor &executor) {
   }
 
   if (executor.getPTAMode() == Executor::AIMode) {
-    searcher = new ExtendedSearcher(searcher, new DFSSearcher());
+    searcher = new ExtendedSearcher(searcher,
+                                    new DFSSearcher(),
+                                    executor);
   }
 
   llvm::raw_ostream &os = executor.getHandler().getInfoStream();

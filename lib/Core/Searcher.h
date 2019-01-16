@@ -258,7 +258,8 @@ namespace klee {
   public:
 
     ExtendedSearcher(Searcher *baseSearcher,
-                     Searcher *saSearcher);
+                     Searcher *saSearcher,
+                     Executor &executor);
 
     ~ExtendedSearcher();
 
@@ -281,6 +282,7 @@ namespace klee {
 
     Searcher *baseSearcher;
     Searcher *saSearcher;
+    Executor &executor;
   };
 
 }

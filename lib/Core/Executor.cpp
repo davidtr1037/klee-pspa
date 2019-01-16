@@ -409,7 +409,8 @@ Executor::Executor(LLVMContext &ctx, const InterpreterOptions &opts,
                             ? std::min(MaxCoreSolverTime, MaxInstructionTime)
                             : std::max(MaxCoreSolverTime, MaxInstructionTime)),
       debugInstFile(0), debugLogBuffer(debugBufferString),
-      ptaMode(NoneMode), staticPTA(0), ptaStatsLogger(0) {
+      ptaMode(NoneMode), staticPTA(0), ptaStatsLogger(0),
+      executionMode(ExecutionModeSymbolic) {
 
   if (coreSolverTimeout) UseForkedCoreSolver = true;
   Solver *coreSolver = klee::createCoreSolver(CoreSolverToUse);
@@ -1387,6 +1388,36 @@ void Executor::executeCall(ExecutionState &state,
     // guess. This just done to avoid having to pass KInstIterator everywhere
     // instead of the actual instruction, since we can't make a KInstIterator
     // from just an instruction (unlike LLVM).
+
+    if (isTargetFunction(state, f) && ptaMode == AIMode && executionMode == ExecutionModeSymbolic) {
+      if (!aiinfo.pendingState) {
+        /* initialize the state */
+        ExecutionState *dummyState = state.branch();
+        dummyState->isDummy = true;
+        dummyState->setCallDepth(dummyState->stack.size() + 1);
+        dummyState->pc = dummyState->prevPC;
+
+        errs() << dummyState << " set call depth: " << dummyState->getCallDepth() << "\n";
+
+        /* update the searcher */
+        addedStates.push_back(dummyState);
+        state.ptreeNode->data = 0;
+        auto res = processTree->split(state.ptreeNode, dummyState, &state);
+        dummyState->ptreeNode = res.first;
+        state.ptreeNode = res.second;
+
+        /* update execution mode */
+        executionMode = ExecutionModeAI;
+        state.pc = state.prevPC;
+        aiinfo.pendingState = &state;
+        return;
+      } else {
+        /* we are after the AI phase */
+        aiinfo.pendingState = nullptr;
+        errs() << "AFTER AI PHASE\n";
+      }
+    }
+
     KFunction *kf = kmodule->functionMap[f];
     state.pushFrame(state.prevPC, kf);
     state.pc = kf->instructions;
@@ -1606,7 +1637,13 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     if (!isVoidReturn) {
       result = eval(ki, 0, state).value;
     }
-    
+
+    if (state.isDummy && state.shouldTerminate()) {
+      //errs() << &state << " terminating at call depth: " << state.getCallDepth() << "\n";
+      terminateState(state);
+      break;
+    }
+
     if (state.stack.size() <= 1) {
       assert(!caller && "caller set on initial stack frame");
       terminateStateOnExit(state);
@@ -2932,7 +2969,9 @@ void Executor::terminateState(ExecutionState &state) {
                       "replay did not consume all objects in test input.");
   }
 
-  interpreterHandler->incPathsExplored();
+  if (!state.isDummy) {
+    interpreterHandler->incPathsExplored();
+  }
 
   std::vector<ExecutionState *>::iterator it =
       std::find(addedStates.begin(), addedStates.end(), &state);

@@ -429,9 +429,11 @@ void InterleavedSearcher::update(
 }
 
 ExtendedSearcher::ExtendedSearcher(Searcher *baseSearcher,
-                                   Searcher *saSearcher) :
+                                   Searcher *saSearcher,
+                                   Executor &executor) :
   baseSearcher(baseSearcher),
-  saSearcher(saSearcher) {
+  saSearcher(saSearcher),
+  executor(executor) {
 
 }
 
@@ -443,6 +445,11 @@ ExtendedSearcher::~ExtendedSearcher() {
 ExecutionState &ExtendedSearcher::selectState() {
   if (!saSearcher->empty()) {
     return saSearcher->selectState();
+  } else {
+    if (executor.getExecutionMode() == Executor::ExecutionModeAI) {
+      executor.setExecutionMode(Executor::ExecutionModeSymbolic);
+      return *executor.getPendingState();
+    }
   }
 
   return baseSearcher->selectState();
@@ -453,7 +460,29 @@ void ExtendedSearcher::update(
   const std::vector<ExecutionState *> &addedStates,
   const std::vector<ExecutionState *> &removedStates
 ) {
-  baseSearcher->update(current, addedStates, removedStates);
+  std::vector<ExecutionState *> addedBaseStates;
+  std::vector<ExecutionState *> addedDummyStates;
+  std::vector<ExecutionState *> removedBaseStates;
+  std::vector<ExecutionState *> removedDummyStates;
+
+  for (ExecutionState *es : addedStates) {
+    if (es->isDummy) {
+      addedDummyStates.push_back(es);
+    } else {
+      addedBaseStates.push_back(es);
+    }
+  }
+
+  for (ExecutionState *es : removedStates) {
+    if (es->isDummy) {
+      removedDummyStates.push_back(es);
+    } else {
+      removedBaseStates.push_back(es);
+    }
+  }
+
+  baseSearcher->update(current, addedBaseStates, removedBaseStates);
+  saSearcher->update(current, addedDummyStates, removedDummyStates);
 }
 
 bool ExtendedSearcher::empty() {

@@ -226,8 +226,8 @@ public:
     return initialCallDepth;
   }
 
-  void setCallDepth() {
-    initialCallDepth = stack.size();
+  void setCallDepth(unsigned int depth) {
+    initialCallDepth = depth;
   }
 
   bool shouldTerminate() {
