@@ -1620,6 +1620,11 @@ static inline const llvm::fltSemantics * fpWidthToSemantics(unsigned width) {
 }
 
 void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
+  std::shared_ptr<TimerStatIncrementer> timer;
+  if (state.isDummy) {
+    timer.reset(new TimerStatIncrementer(stats::staticAnalysisTime));
+  }
+
   Instruction *i = ki->inst;
   switch (i->getOpcode()) {
     // Control flow
