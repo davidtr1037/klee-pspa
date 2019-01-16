@@ -1394,8 +1394,6 @@ void Executor::executeCall(ExecutionState &state,
         /* initialize the state */
         ExecutionState *dummyState = state.createDummyState();
 
-        errs() << dummyState << " set call depth: " << dummyState->getCallDepth() << "\n";
-
         /* update the searcher */
         addedStates.push_back(dummyState);
         state.ptreeNode->data = 0;
@@ -1412,8 +1410,7 @@ void Executor::executeCall(ExecutionState &state,
         return;
       } else {
         /* we are after the AI phase */
-        aiphase.setInitialState(nullptr);
-        errs() << "AFTER AI PHASE\n";
+        aiphase.reset();
       }
     }
 
@@ -2249,7 +2246,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   case Instruction::BitCast: {
     ref<Expr> result = eval(ki, 0, state).value;
     bindLocal(ki, state, result);
-    if (isDynamicMode()) {
+    if (isDynamicMode() || ptaMode == AIMode) {
       handleBitCast(state, ki, result);
     }
     break;
@@ -3509,6 +3506,9 @@ void Executor::executeMemoryOperation(ExecutionState &state,
           if (shouldUpdatePoinstTo(state)) {
             updatePointsToOnStore(state, state.prevPC, mo, offset, value, UseStrongUpdates);
           }
+          if (ptaMode == AIMode && state.isDummy) {
+            updateAIPhase(state, state.prevPC, mo, offset, value);
+          }
         }
       } else {
         ref<Expr> result = os->read(offset, type);
@@ -3560,6 +3560,9 @@ void Executor::executeMemoryOperation(ExecutionState &state,
 
           if (shouldUpdatePoinstTo(state)) {
             updatePointsToOnStore(state, state.prevPC, mo, offset, value, UseStrongUpdates);
+          }
+          if (ptaMode == AIMode && state.isDummy) {
+            updateAIPhase(state, state.prevPC, mo, offset, value);
           }
         }
       } else {
@@ -3712,7 +3715,7 @@ void Executor::runFunctionAsMain(Function *f,
 
   ExecutionState *state = new ExecutionState(kmodule->functionMap[f]);
 
-  if (isDynamicMode()) {
+  if (isDynamicMode() || ptaMode == AIMode) {
     TimerStatIncrementer timer(stats::staticAnalysisTime);
     AndersenDynamic *pta = new AndersenDynamic();
     pta->initialize(*kmodule->module);
@@ -4351,7 +4354,8 @@ void Executor::handleBitCast(ExecutionState &state,
 }
 
 bool Executor::shouldUpdatePoinstTo(ExecutionState &state) {
-  return ptaMode == DynamicAbstractMode && state.prevPC->isRelevant;
+  return (ptaMode == DynamicAbstractMode || (ptaMode == AIMode && !state.isDummy)) && \
+         state.prevPC->isRelevant;
 }
 
 void Executor::updatePointsToOnStore(ExecutionState &state,
@@ -4564,6 +4568,61 @@ void Executor::updatePointsToOnCallSymbolic(ExecutionState &state,
       }
     }
   }
+}
+
+void Executor::updateAIPhase(ExecutionState &state,
+                             KInstruction *ki,
+                             const MemoryObject *mo,
+                             ref<Expr> offset,
+                             ref<Expr> value) {
+  TimerStatIncrementer timer(stats::staticAnalysisTime);
+
+  StoreInst *storeInst = dyn_cast<StoreInst>(ki->inst);
+  if (!storeInst) {
+    /* TODO: check other cases... */
+    return;
+  }
+
+  std::vector<DynamicMemoryLocation> locations;
+  PointerType *valueType = dyn_cast<PointerType>(storeInst->getValueOperand()->getType());
+  if (valueType) {
+    /* TODO: check return value */
+    getDynamicMemoryLocations(state, value, valueType, locations);
+  }
+
+  /* if the offset is symbolic, then we force the
+     source memory object to be field-insensitive */
+  ConstantExpr *ce = dyn_cast<ConstantExpr>(offset);
+
+  /* TODO: it would be better to use the same API... */
+  DynamicMemoryLocation storeLocation(getAllocSite(state, mo),
+                                      mo->size,
+                                      ce == NULL,
+                                      ce == NULL ? 0 : ce->getZExtValue(),
+                                      getTypeHint(mo));
+
+  bool canStronglyUpdate;
+  NodeID src = computeAbstractMO(state.getPTA().get(),
+                                 storeLocation,
+                                 true,
+                                 &canStronglyUpdate);
+
+  /* if the updated memory object is on the stack and inside a recursion,
+     then we must perform weak update */
+  const AllocaInst *alloca = dyn_cast<AllocaInst>(mo->allocSite);
+  bool isLocalObjectInRecursion = false;
+  if (alloca) {
+    Function *allocatingFunction = (Function *)(alloca->getParent()->getParent());
+    isLocalObjectInRecursion = state.isCalledRecursively(allocatingFunction);
+  }
+
+  PointsTo targets;
+  for (unsigned int i = 0; i < locations.size(); i++) {
+    DynamicMemoryLocation &location = locations[i];
+    NodeID dst = computeAbstractMO(state.getPTA().get(), location, false);
+    targets.set(dst);
+  }
+  aiphase.updateMod(src, targets, canStronglyUpdate && !isLocalObjectInRecursion);
 }
 
 void Executor::analyzeTargetFunction(ExecutionState &state,

@@ -633,6 +633,12 @@ public:
                                     llvm::Function *f,
                                     std::vector<ref<Expr>> &arguments);
 
+  void updateAIPhase(ExecutionState &state,
+                     KInstruction *ki,
+                     const MemoryObject *mo,
+                     ref<Expr> offset,
+                     ref<Expr> value);
+
   void analyzeTargetFunction(ExecutionState &state,
                              KInstruction *ki,
                              llvm::Function *f,
