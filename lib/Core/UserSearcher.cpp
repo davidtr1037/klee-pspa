@@ -125,6 +125,10 @@ Searcher *klee::constructUserSearcher(Executor &executor) {
     searcher = new IterativeDeepeningTimeSearcher(searcher);
   }
 
+  if (executor.getPTAMode() == Executor::AIMode) {
+    searcher = new ExtendedSearcher(searcher, new DFSSearcher());
+  }
+
   llvm::raw_ostream &os = executor.getHandler().getInfoStream();
 
   os << "BEGIN searcher description\n";

@@ -137,6 +137,7 @@ public:
     StaticMode,
     DynamicAbstractMode,
     DynamicSymbolicMode,
+    AIMode,
     NoneMode,
   };
 
@@ -564,6 +565,10 @@ public:
 
   Expr::Width getWidthForLLVMType(llvm::Type *type) const;
   size_t getAllocationAlignment(const llvm::Value *allocSite) const;
+
+  PTAMode getPTAMode() {
+    return ptaMode;
+  }
 
   bool isTargetFunction(ExecutionState &state, llvm::Function *f);
 

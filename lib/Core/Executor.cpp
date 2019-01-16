@@ -314,6 +314,7 @@ namespace {
              cl::values(clEnumValN(Executor::StaticMode, "static", "Use standard pointer analysis"),
                         clEnumValN(Executor::DynamicAbstractMode, "abstract", "Use dynamic abstract pointer analysis"),
                         clEnumValN(Executor::DynamicSymbolicMode, "symbolic", "Use dynamic symbolic pointer analysis"),
+                        clEnumValN(Executor::AIMode, "ai", "..."),
                         clEnumValEnd));
 
   cl::opt<bool>
