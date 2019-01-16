@@ -1641,6 +1641,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
     if (state.isDummy && state.shouldTerminate()) {
       //errs() << &state << " terminating at call depth: " << state.getCallDepth() << "\n";
+      aiphase.exploredPaths++;
       terminateState(state);
       break;
     }
