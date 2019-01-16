@@ -309,6 +309,14 @@ NodeID ModularPTA::substituteNode(EntryState &es1,
     return es2.pta->getGepObjNode(base2, gepObj->getLocationSet());
   }
 
+  if (obj->getMemObj()->isConstantObj()) {
+    return nodeId;
+  }
+
+  if (obj->getMemObj()->isBlackHoleObj()) {
+    return nodeId;
+  }
+
   /* should be unreachable... */
   assert(false);
 }
