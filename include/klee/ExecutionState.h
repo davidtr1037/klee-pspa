@@ -234,6 +234,14 @@ public:
     return stack.size() == initialCallDepth;
   }
 
+  ExecutionState *createDummyState() {
+    ExecutionState *state = branch();
+    state->isDummy = true;
+    state->setCallDepth(stack.size() + 1);
+    state->pc = state->prevPC;
+    return state;
+  }
+
 };
 }
 

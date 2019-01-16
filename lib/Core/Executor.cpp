@@ -1392,10 +1392,7 @@ void Executor::executeCall(ExecutionState &state,
     if (isTargetFunction(state, f) && ptaMode == AIMode && executionMode == ExecutionModeSymbolic) {
       if (!aiinfo.pendingState) {
         /* initialize the state */
-        ExecutionState *dummyState = state.branch();
-        dummyState->isDummy = true;
-        dummyState->setCallDepth(dummyState->stack.size() + 1);
-        dummyState->pc = dummyState->prevPC;
+        ExecutionState *dummyState = state.createDummyState();
 
         errs() << dummyState << " set call depth: " << dummyState->getCallDepth() << "\n";
 
@@ -1406,9 +1403,11 @@ void Executor::executeCall(ExecutionState &state,
         dummyState->ptreeNode = res.first;
         state.ptreeNode = res.second;
 
+        /* the current state should re-execute the call instruction */
+        state.pc = state.prevPC;
         /* update execution mode */
         executionMode = ExecutionModeAI;
-        state.pc = state.prevPC;
+        /* when the AI phase is completed, we should resume the current state */
         aiinfo.pendingState = &state;
         return;
       } else {
