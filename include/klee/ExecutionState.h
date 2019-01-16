@@ -83,6 +83,9 @@ private:
   /* TODO: add docs */
   std::map<llvm::Function *, uint32_t> callingFunctions;
 
+  /* TODO: add docs */
+  unsigned int initialCallDepth;
+
 public:
   // Execution - Control Flow specific
 
@@ -161,6 +164,9 @@ public:
 
   std::set<const llvm::Value *> modifiedGlobals;
 
+  /* TODO: add docs and rename */
+  bool isDummy;
+
 private:
 
 public:
@@ -215,6 +221,18 @@ public:
   }
 
   bool isCalledRecursively(llvm::Function *f);
+
+  unsigned int getCallDepth() {
+    return initialCallDepth;
+  }
+
+  void setCallDepth() {
+    initialCallDepth = stack.size();
+  }
+
+  bool shouldTerminate() {
+    return stack.size() == initialCallDepth;
+  }
 
 };
 }

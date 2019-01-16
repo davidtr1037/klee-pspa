@@ -67,6 +67,7 @@ StackFrame::~StackFrame() {
 
 ExecutionState::ExecutionState(KFunction *kf) :
     pta(0),
+    initialCallDepth(0),
 
     pc(kf->instructions),
     prevPC(pc),
@@ -78,12 +79,13 @@ ExecutionState::ExecutionState(KFunction *kf) :
     instsSinceCovNew(0),
     coveredNew(false),
     forkDisabled(false),
-    ptreeNode(0) {
+    ptreeNode(0),
+    isDummy(false) {
   pushFrame(0, kf);
 }
 
 ExecutionState::ExecutionState(const std::vector<ref<Expr> > &assumptions)
-    : pta(0), constraints(assumptions), queryCost(0.), ptreeNode(0) {}
+    : pta(0), initialCallDepth(0), constraints(assumptions), queryCost(0.), ptreeNode(0), isDummy(false) {}
 
 ExecutionState::~ExecutionState() {
   for (unsigned int i=0; i<symbolics.size(); i++)
@@ -101,6 +103,7 @@ ExecutionState::~ExecutionState() {
 ExecutionState::ExecutionState(const ExecutionState& state):
     fnAliases(state.fnAliases),
     callingFunctions(state.callingFunctions),
+    initialCallDepth(state.initialCallDepth),
     pc(state.pc),
     prevPC(state.prevPC),
     stack(state.stack),
@@ -124,7 +127,8 @@ ExecutionState::ExecutionState(const ExecutionState& state):
     symbolics(state.symbolics),
     arrayNames(state.arrayNames),
     openMergeStack(state.openMergeStack),
-    modifiedGlobals(state.modifiedGlobals)
+    modifiedGlobals(state.modifiedGlobals),
+    isDummy(state.isDummy)
 {
   for (unsigned int i=0; i<symbolics.size(); i++)
     symbolics[i].first->refCount++;
