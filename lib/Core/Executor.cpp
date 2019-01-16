@@ -4503,7 +4503,6 @@ void Executor::updatePointsToOnCallSymbolic(ExecutionState &state,
     for (auto &op1 : rl1) {
       const MemoryObject* mo = op1.first;
       Pointer *ptr = sPTA.getPointer(mo, mo->getOffsetExpr(e));
-        errs() << "ptr is multiple: " << ptr->multiplePointers << "\n";
       for (PointsToPair &pair : sPTA.traverse(ptr)) {
         NodeID from = ptrToAbstract(state, pair.first, sPTA);
         NodeID to = ptrToAbstract(state, pair.second, sPTA);
