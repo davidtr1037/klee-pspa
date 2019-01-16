@@ -427,3 +427,35 @@ void InterleavedSearcher::update(
          ie = searchers.end(); it != ie; ++it)
     (*it)->update(current, addedStates, removedStates);
 }
+
+ExtendedSearcher::ExtendedSearcher(Searcher *baseSearcher,
+                                   Searcher *saSearcher) :
+  baseSearcher(baseSearcher),
+  saSearcher(saSearcher) {
+
+}
+
+ExtendedSearcher::~ExtendedSearcher() {
+  delete baseSearcher;
+  delete saSearcher;
+}
+
+ExecutionState &ExtendedSearcher::selectState() {
+  if (!saSearcher->empty()) {
+    return saSearcher->selectState();
+  }
+
+  return baseSearcher->selectState();
+}
+
+void ExtendedSearcher::update(
+  ExecutionState *current,
+  const std::vector<ExecutionState *> &addedStates,
+  const std::vector<ExecutionState *> &removedStates
+) {
+  baseSearcher->update(current, addedStates, removedStates);
+}
+
+bool ExtendedSearcher::empty() {
+  return baseSearcher->empty() && saSearcher->empty();
+}
