@@ -9,6 +9,7 @@
 klee_add_component(kleeCore
   AbstractMO.cpp
   AddressSpace.cpp
+  AIPhase.cpp
   MergeHandler.cpp
   CallPathManager.cpp
   Context.cpp

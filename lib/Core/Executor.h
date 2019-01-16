@@ -26,6 +26,7 @@
 #include "AttachedInfo.h"
 #include "klee/Internal/Analysis/PTAStats.h"
 #include "../Analysis/SymbolicPTA.h"
+#include "AIPhase.h"
 
 #include "llvm/ADT/Twine.h"
 
@@ -95,14 +96,6 @@ public:
 private:
 
     const llvm::Value *allocSite;
-};
-
-struct AIInfo {
-  AIInfo() : pendingState(nullptr) {
-
-  }
-
-  ExecutionState *pendingState;
 };
 
 class Executor : public Interpreter {
@@ -272,7 +265,7 @@ private:
   ExecutionMode executionMode;
 
   /* TODO: add docs */
-  AIInfo aiinfo;
+  AIPhase aiphase;
 
   llvm::Function* getTargetFunction(llvm::Value *calledVal,
                                     ExecutionState &state);
@@ -660,7 +653,7 @@ public:
   }
 
   ExecutionState *getPendingState() {
-    return aiinfo.pendingState;
+    return aiphase.getInitialState();
   }
 
 };

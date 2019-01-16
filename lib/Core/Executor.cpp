@@ -1390,7 +1390,7 @@ void Executor::executeCall(ExecutionState &state,
     // from just an instruction (unlike LLVM).
 
     if (isTargetFunction(state, f) && ptaMode == AIMode && executionMode == ExecutionModeSymbolic) {
-      if (!aiinfo.pendingState) {
+      if (!aiphase.getInitialState()) {
         /* initialize the state */
         ExecutionState *dummyState = state.createDummyState();
 
@@ -1408,11 +1408,11 @@ void Executor::executeCall(ExecutionState &state,
         /* update execution mode */
         executionMode = ExecutionModeAI;
         /* when the AI phase is completed, we should resume the current state */
-        aiinfo.pendingState = &state;
+        aiphase.setInitialState(&state);
         return;
       } else {
         /* we are after the AI phase */
-        aiinfo.pendingState = nullptr;
+        aiphase.setInitialState(nullptr);
         errs() << "AFTER AI PHASE\n";
       }
     }
