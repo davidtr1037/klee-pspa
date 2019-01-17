@@ -1625,6 +1625,8 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     timer.reset(new TimerStatIncrementer(stats::staticAnalysisTime));
   }
 
+  trackLoopExecution(state);
+
   Instruction *i = ki->inst;
   switch (i->getOpcode()) {
     // Control flow
@@ -2648,6 +2650,20 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   default:
     terminateStateOnExecError(state, "illegal instruction");
     break;
+  }
+}
+
+void Executor::trackLoopExecution(ExecutionState &state) {
+  StackFrame &sf = state.stack.back();
+  KFunction *kf = sf.kf;
+  Instruction *inst = state.prevPC->inst;
+  if (kf->loops.find(inst) != kf->loops.end()) {
+    auto headers = kf->loops[inst];
+    for (Instruction *i : headers) {
+      sf.loopTrackingInfo[i] = 0;
+    }
+    uint64_t &count = sf.loopTrackingInfo[inst];
+    count++;
   }
 }
 

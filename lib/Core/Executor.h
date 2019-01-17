@@ -272,6 +272,8 @@ private:
   
   void executeInstruction(ExecutionState &state, KInstruction *ki);
 
+  void trackLoopExecution(ExecutionState &state);
+
   void printFileLine(ExecutionState &state, KInstruction *ki,
                      llvm::raw_ostream &file);
 

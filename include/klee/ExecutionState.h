@@ -61,6 +61,9 @@ struct StackFrame {
   // of intrinsic lowering.
   MemoryObject *varargs;
 
+  /* TODO: add docs */
+  std::map<llvm::Instruction *, uint64_t> loopTrackingInfo;
+
   StackFrame(KInstIterator caller, KFunction *kf);
   StackFrame(const StackFrame &s);
   ~StackFrame();

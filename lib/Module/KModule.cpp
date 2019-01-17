@@ -613,13 +613,20 @@ void KFunction::collectLoopInfo(Function *f,
   DominatorTree dtree(*f);
   LoopInfo loopInfo(dtree);
 
+  std::vector<Loop *> allLoops;
   for (Loop *loop : loopInfo) {
-    BasicBlock *header = loop->getHeader();
-    Instruction *inst = &*header->begin();
+    allLoops.push_back(loop);
     for (Loop *subLoop : loop->getSubLoops()) {
-      BasicBlock *subHeader = subLoop->getHeader();
-      Instruction *subInst = &*subHeader->begin();
-      loops[inst].insert(subInst);
+      allLoops.push_back(subLoop);
+    }
+  }
+
+  for (Loop *loop : allLoops) {
+    Instruction *inst = &*loop->getHeader()->begin();
+    std::set<Instruction *> &subHeaders = loops[inst];
+    for (Loop *subLoop : loop->getSubLoops()) {
+      Instruction *subInst = &*subLoop->getHeader()->begin();
+      subHeaders.insert(subInst);
     }
   }
 }
