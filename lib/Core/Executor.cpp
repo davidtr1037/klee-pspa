@@ -895,10 +895,31 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
     seedMap.find(&current);
   bool isSeeding = it != seedMap.end();
 
-  if (current.isDummy && !isa<ConstantExpr>(condition)) {
+  if (current.isDummy) {
     if (shouldLimitUnrolling(current, condition)) {
       terminateState(current);
       return StatePair(0, 0);
+    }
+    if (isa<ConstantExpr>(condition)) {
+      ConstantExpr *ce = dyn_cast<ConstantExpr>(condition);
+      if (ce->isTrue()) {
+        return StatePair(&current, 0);
+      } else {
+        return StatePair(0, &current);
+      }
+    } else {
+      ExecutionState *falseState, *trueState = &current;
+      falseState = trueState->branch();
+
+      addedStates.push_back(falseState);
+      current.ptreeNode->data = 0;
+      auto res = processTree->split(current.ptreeNode, falseState, trueState);
+      falseState->ptreeNode = res.first;
+      trueState->ptreeNode = res.second;
+
+      aiphase.forks++;
+
+      return StatePair(trueState, falseState);
     }
   }
 
@@ -1662,8 +1683,6 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     }
 
     if (state.isDummy && state.shouldTerminate()) {
-      //errs() << &state << " terminating at call depth: " << state.getCallDepth() << "\n";
-      aiphase.exploredPaths++;
       terminateState(state);
       break;
     }
@@ -3009,6 +3028,8 @@ void Executor::terminateState(ExecutionState &state) {
 
   if (!state.isDummy) {
     interpreterHandler->incPathsExplored();
+  } else {
+    aiphase.exploredPaths++;
   }
 
   std::vector<ExecutionState *>::iterator it =
