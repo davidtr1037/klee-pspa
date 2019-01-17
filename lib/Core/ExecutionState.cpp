@@ -53,7 +53,8 @@ StackFrame::StackFrame(const StackFrame &s)
     allocas(s.allocas),
     localPointers(s.localPointers),
     minDistToUncoveredOnReturn(s.minDistToUncoveredOnReturn),
-    varargs(s.varargs) {
+    varargs(s.varargs),
+    loopTrackingInfo(s.loopTrackingInfo) {
   locals = new Cell[s.kf->numRegisters];
   for (unsigned i=0; i<s.kf->numRegisters; i++)
     locals[i] = s.locals[i];

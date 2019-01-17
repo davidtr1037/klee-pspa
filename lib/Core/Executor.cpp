@@ -358,6 +358,12 @@ namespace {
 
   cl::opt<unsigned>
   MaxInstructions("max-instructions", cl::init(0), cl::desc(""));
+
+  cl::opt<bool>
+  UseKUnrolling("use-k-unrolling", cl::init(false), cl::desc(""));
+
+  cl::opt<unsigned>
+  UnrollingLimit("unrolling-limit", cl::init(0), cl::desc(""));
 }
 
 
@@ -881,6 +887,18 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
   std::map< ExecutionState*, std::vector<SeedInfo> >::iterator it = 
     seedMap.find(&current);
   bool isSeeding = it != seedMap.end();
+
+  if (current.isDummy) {
+    StackFrame &sf = current.stack.back();
+    Instruction *inst = current.prevPC->inst;
+    if (sf.loopTrackingInfo.find(inst) != sf.loopTrackingInfo.end()) {
+      uint64_t count = sf.loopTrackingInfo[inst];
+      if (UseKUnrolling && count > UnrollingLimit) {
+        terminateState(current);
+        return StatePair(0, 0);
+      }
+    }
+  }
 
   if (!isSeeding && !isa<ConstantExpr>(condition) && 
       (MaxStaticForkPct!=1. || MaxStaticSolvePct != 1. ||
