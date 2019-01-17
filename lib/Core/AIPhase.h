@@ -15,7 +15,7 @@ class AIPhase {
 public:
 
     AIPhase() :
-      exploredPaths(0), initialState(nullptr) {
+      exploredPaths(0), forks(0), initialState(nullptr) {
 
     }
 
@@ -33,6 +33,7 @@ public:
 
     /* statistics */
     uint64_t exploredPaths;
+    uint64_t forks;
 
 private:
 

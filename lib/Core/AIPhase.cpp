@@ -31,6 +31,7 @@ void AIPhase::reset() {
   setInitialState(nullptr);
   clearAll();
   exploredPaths = 0;
+  forks = 0;
 }
 
 void AIPhase::dump() {
