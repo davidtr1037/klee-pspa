@@ -802,6 +802,13 @@ void Executor::branch(ExecutionState &state,
   unsigned N = conditions.size();
   assert(N);
 
+  if (state.isDummy) {
+    if (shouldLimitUnrolling(state, conditions[0])) {
+      /* TODO: handle... */
+    }
+    assert(0);
+  }
+
   if (MaxForks!=~0u && stats::forks >= MaxForks) {
     unsigned next = theRNG.getInt32() % N;
     for (unsigned i=0; i<N; ++i) {
