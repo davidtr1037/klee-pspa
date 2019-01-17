@@ -19,6 +19,8 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Pass.h"
 
+#include <set>
+
 namespace llvm {
   class Function;
   class Instruction;
@@ -193,6 +195,25 @@ public:
 
   // TODO: Add `override` when we switch to C++11
   bool runOnModule(llvm::Module &M);
+};
+
+class LoopInfoCollector : public llvm::FunctionPass {
+
+public:
+
+  static char ID;
+
+  LoopInfoCollector() :
+    llvm::FunctionPass(ID) {
+
+  }
+
+  bool runOnFunction(llvm::Function &f);
+
+private:
+
+    /* TODO: add docs */
+    std::map<llvm::Function *, std::set<llvm::Instruction *>> loopHeaders;
 };
 
 }

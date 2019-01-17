@@ -333,6 +333,7 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
 
   LegacyLLVMPassManagerTy passManager;
   passManager.add(new UnusedValuesRemovalPass(opts.EntryPoint));
+  passManager.add(new LoopInfoCollector());
   passManager.run(*module);
 
   if (OutputModule) {
