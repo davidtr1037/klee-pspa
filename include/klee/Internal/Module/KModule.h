@@ -54,6 +54,8 @@ namespace klee {
   private:
     KFunction(const KFunction&);
     KFunction &operator=(const KFunction&);
+    void collectLoopInfo(llvm::Function *f,
+                         std::set<llvm::Instruction *> &result);
 
   public:
     explicit KFunction(llvm::Function*, KModule *);

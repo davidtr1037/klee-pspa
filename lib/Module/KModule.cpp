@@ -29,6 +29,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/ValueSymbolTable.h"
 #include "llvm/IR/DataLayout.h"
+#include <llvm/IR/Dominators.h>
 #include "llvm/Transforms/Utils/UnifyFunctionExitNodes.h"
 
 #if LLVM_VERSION_CODE < LLVM_VERSION(3, 5)
@@ -45,6 +46,7 @@
 #include "llvm/Transforms/Scalar.h"
 
 #include <llvm/Transforms/Utils/Cloning.h>
+#include <llvm/Analysis/LoopInfo.h>
 
 #include <sstream>
 #include <stack>
@@ -333,7 +335,6 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
 
   LegacyLLVMPassManagerTy passManager;
   passManager.add(new UnusedValuesRemovalPass(opts.EntryPoint));
-  passManager.add(new LoopInfoCollector());
   passManager.run(*module);
 
   if (OutputModule) {
@@ -600,6 +601,24 @@ KFunction::KFunction(llvm::Function *_function,
       }
 
       instructions[i++] = ki;
+    }
+  }
+
+  std::set<Instruction *> result;
+  collectLoopInfo(function, result);
+}
+
+void KFunction::collectLoopInfo(Function *f,
+                                std::set<Instruction *> &result) {
+  DominatorTree dtree(*f);
+  LoopInfo loopInfo(dtree);
+
+  for (Loop *loop : loopInfo) {
+    BasicBlock *header = loop->getHeader();
+    header->dump();
+    for (Loop *subLoop : loop->getSubLoops()) {
+      BasicBlock *subHeader = subLoop->getHeader();
+      subHeader->dump();
     }
   }
 }

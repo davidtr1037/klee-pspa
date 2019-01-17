@@ -197,25 +197,6 @@ public:
   bool runOnModule(llvm::Module &M);
 };
 
-class LoopInfoCollector : public llvm::FunctionPass {
-
-public:
-
-  static char ID;
-
-  LoopInfoCollector() :
-    llvm::FunctionPass(ID) {
-
-  }
-
-  bool runOnFunction(llvm::Function &f);
-
-private:
-
-    /* TODO: add docs */
-    std::map<llvm::Function *, std::set<llvm::Instruction *>> loopHeaders;
-};
-
 }
 
 #endif
