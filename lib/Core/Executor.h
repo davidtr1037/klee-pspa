@@ -664,6 +664,9 @@ public:
     return aiphase.getInitialState();
   }
 
+  bool shouldLimitUnrolling(ExecutionState &state,
+                            ref<Expr> condition);
+
 };
   
 } // End klee namespace

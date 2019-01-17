@@ -888,15 +888,10 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
     seedMap.find(&current);
   bool isSeeding = it != seedMap.end();
 
-  if (current.isDummy) {
-    StackFrame &sf = current.stack.back();
-    Instruction *inst = current.prevPC->inst;
-    if (sf.loopTrackingInfo.find(inst) != sf.loopTrackingInfo.end()) {
-      uint64_t count = sf.loopTrackingInfo[inst];
-      if (UseKUnrolling && count > UnrollingLimit) {
-        terminateState(current);
-        return StatePair(0, 0);
-      }
+  if (current.isDummy && !isa<ConstantExpr>(condition)) {
+    if (shouldLimitUnrolling(current, condition)) {
+      terminateState(current);
+      return StatePair(0, 0);
     }
   }
 
@@ -4801,6 +4796,26 @@ void Executor::logCall(ExecutionState &state,
       errs() << callee_info.file;
   }
   errs() << "\n";
+}
+
+bool Executor::shouldLimitUnrolling(ExecutionState &state,
+                                    ref<Expr> condition) {
+  if (isa<ConstantExpr>(condition)) {
+    /* no restrictions in this case */
+    return false;
+  }
+
+  /* the condition may be symbolic */
+  StackFrame &sf = state.stack.back();
+  Instruction *inst = state.prevPC->inst;
+  if (sf.loopTrackingInfo.find(inst) != sf.loopTrackingInfo.end()) {
+    /* this branch is the terminator of a loop header block */
+    uint64_t count = sf.loopTrackingInfo[inst];
+    if (UseKUnrolling && count > UnrollingLimit) {
+      return true;
+    }
+  }
+  return false;
 }
 
 void Executor::prepareForEarlyExit() {
