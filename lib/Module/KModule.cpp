@@ -622,10 +622,10 @@ void KFunction::collectLoopInfo(Function *f,
   }
 
   for (Loop *loop : allLoops) {
-    Instruction *inst = &*loop->getHeader()->begin();
+    Instruction *inst = loop->getHeader()->getTerminator();
     std::set<Instruction *> &subHeaders = loops[inst];
     for (Loop *subLoop : loop->getSubLoops()) {
-      Instruction *subInst = &*subLoop->getHeader()->begin();
+      Instruction *subInst = subLoop->getHeader()->getTerminator();
       subHeaders.insert(subInst);
     }
   }
