@@ -51,6 +51,9 @@ namespace klee {
     /// "coverable" for statistics and search heuristics.
     bool trackCoverage;
 
+    /* TODO: add docs */
+    std::map<llvm::Instruction *, std::set<llvm::Instruction *>> loops;
+
   private:
     KFunction(const KFunction&);
     KFunction &operator=(const KFunction&);

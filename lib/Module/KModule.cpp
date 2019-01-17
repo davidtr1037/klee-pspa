@@ -615,10 +615,11 @@ void KFunction::collectLoopInfo(Function *f,
 
   for (Loop *loop : loopInfo) {
     BasicBlock *header = loop->getHeader();
-    header->dump();
+    Instruction *inst = &*header->begin();
     for (Loop *subLoop : loop->getSubLoops()) {
       BasicBlock *subHeader = subLoop->getHeader();
-      subHeader->dump();
+      Instruction *subInst = &*subHeader->begin();
+      loops[inst].insert(subInst);
     }
   }
 }
