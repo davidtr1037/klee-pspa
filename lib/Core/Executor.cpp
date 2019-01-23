@@ -4829,7 +4829,8 @@ void Executor::logCall(ExecutionState &state,
 
 bool Executor::shouldLimitUnrolling(ExecutionState &state,
                                     ref<Expr> condition) {
-  if (isa<ConstantExpr>(condition)) {
+  ref<Expr> simplified = state.constraints.simplifyExpr(condition);
+  if (isa<ConstantExpr>(simplified)) {
     /* no restrictions in this case */
     return false;
   }
