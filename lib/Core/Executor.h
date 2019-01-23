@@ -664,6 +664,8 @@ public:
     return aiphase.getInitialState();
   }
 
+  bool startAIPhase(ExecutionState &state);
+
 };
   
 } // End klee namespace

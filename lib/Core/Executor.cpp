@@ -1423,31 +1423,12 @@ void Executor::executeCall(ExecutionState &state,
     // from just an instruction (unlike LLVM).
 
     if (isTargetFunction(state, f) && ptaMode == AIMode && executionMode == ExecutionModeSymbolic) {
-      if (!aiphase.getInitialState()) {
-        /* initialize the state */
-        ExecutionState *dummyState = state.createDummyState();
-
-        //errs() << "analyzing: " << f->getName() << "\n";
-        ++stats::staticAnalysisUsage;
-
-        /* update the searcher */
-        addedStates.push_back(dummyState);
-        state.ptreeNode->data = 0;
-        auto res = processTree->split(state.ptreeNode, dummyState, &state);
-        dummyState->ptreeNode = res.first;
-        state.ptreeNode = res.second;
-
-        /* the current state should re-execute the call instruction */
-        state.pc = state.prevPC;
-        /* update execution mode */
-        executionMode = ExecutionModeAI;
-        /* when the AI phase is completed,
-           we should resume the current state */
-        aiphase.setInitialState(&state);
+      bool isReady = startAIPhase(state);
+      if (!isReady) {
         return;
       } else {
-        /* we are after the AI phase */
-        //aiphase.dump();
+        /* we are after the AI phase,
+           so we can examine now the results */
         aiphase.reset();
       }
     }
@@ -4822,6 +4803,34 @@ void Executor::logCall(ExecutionState &state,
       errs() << callee_info.file;
   }
   errs() << "\n";
+}
+
+bool Executor::startAIPhase(ExecutionState &state) {
+  if (!aiphase.getInitialState()) {
+    /* initialize the state */
+    ExecutionState *dummyState = state.createDummyState();
+
+    ++stats::staticAnalysisUsage;
+
+    /* update the searcher */
+    addedStates.push_back(dummyState);
+    state.ptreeNode->data = 0;
+    auto res = processTree->split(state.ptreeNode, dummyState, &state);
+    dummyState->ptreeNode = res.first;
+    state.ptreeNode = res.second;
+
+    /* the current state should re-execute the call instruction */
+    state.pc = state.prevPC;
+    /* update execution mode */
+    executionMode = ExecutionModeAI;
+    /* when the AI phase is completed,
+       we should resume the current state */
+    aiphase.setInitialState(&state);
+    return false;
+  }
+
+  /* we are after the AI phase */
+  return true;
 }
 
 void Executor::prepareForEarlyExit() {
