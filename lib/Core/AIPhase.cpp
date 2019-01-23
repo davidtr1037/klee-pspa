@@ -14,6 +14,9 @@ UseKUnrolling("use-k-unrolling", cl::init(false), cl::desc(""));
 cl::opt<unsigned>
 UnrollingLimit("unrolling-limit", cl::init(0), cl::desc(""));
 
+cl::opt<unsigned>
+ForksLimit("forks-limit", cl::init(0), cl::desc(""));
+
 ExecutionState *AIPhase::getInitialState() {
   return initialState;
 }
@@ -38,6 +41,10 @@ void AIPhase::clearAll() {
 
 bool AIPhase::shouldDiscardState(ExecutionState &state,
                                  ref<Expr> condition) {
+  if (ForksLimit && stats.forks > ForksLimit) {
+    return true;
+  }
+
   ref<Expr> simplified = state.constraints.simplifyExpr(condition);
   if (isa<ConstantExpr>(simplified)) {
     /* no restrictions in this case */
