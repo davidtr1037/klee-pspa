@@ -898,6 +898,7 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
   if (current.isDummy) {
     if (shouldLimitUnrolling(current, condition)) {
       terminateState(current);
+      aiphase.stats.discarded++;
       return StatePair(0, 0);
     }
     if (isa<ConstantExpr>(condition)) {
@@ -917,7 +918,7 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
       falseState->ptreeNode = res.first;
       trueState->ptreeNode = res.second;
 
-      aiphase.forks++;
+      aiphase.stats.forks++;
 
       return StatePair(trueState, falseState);
     }
@@ -3029,7 +3030,7 @@ void Executor::terminateState(ExecutionState &state) {
   if (!state.isDummy) {
     interpreterHandler->incPathsExplored();
   } else {
-    aiphase.exploredPaths++;
+    aiphase.stats.exploredPaths++;
   }
 
   std::vector<ExecutionState *>::iterator it =

@@ -12,10 +12,29 @@ namespace klee {
 
 class AIPhase {
 
+  struct Stats {
+    uint64_t exploredPaths;
+    uint64_t forks;
+    uint64_t discarded;
+
+    Stats() :
+      exploredPaths(0),
+      forks(0),
+      discarded(0) {
+
+    }
+
+    void reset() {
+      exploredPaths = 0;
+      forks = 0;
+      discarded = 0;
+    }
+  };
+
 public:
 
     AIPhase() :
-      exploredPaths(0), forks(0), initialState(nullptr) {
+      initialState(nullptr) {
 
     }
 
@@ -32,8 +51,7 @@ public:
     void dump();
 
     /* statistics */
-    uint64_t exploredPaths;
-    uint64_t forks;
+    Stats stats;
 
 private:
 

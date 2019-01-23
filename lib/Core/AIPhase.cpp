@@ -30,13 +30,14 @@ void AIPhase::clearAll() {
 void AIPhase::reset() {
   setInitialState(nullptr);
   clearAll();
-  exploredPaths = 0;
-  forks = 0;
+  stats.reset();
 }
 
 void AIPhase::dump() {
   errs() << "### AI Phase Summary ###\n";
-  errs() << "explored path: " << exploredPaths << "\n";
+  errs() << "explored path: " << stats.exploredPaths << "\n";
+  errs() << "forks: " << stats.forks << "\n";
+  errs() << "discarded states: " << stats.discarded << "\n";
   for (auto i : pointsToMap) {
     NodeID src = i.first;
     PointsTo &pts = i.second;
