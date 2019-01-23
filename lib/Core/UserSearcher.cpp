@@ -10,6 +10,7 @@
 #include "UserSearcher.h"
 
 #include "Searcher.h"
+#include "ExtendedSearcher.h"
 #include "Executor.h"
 
 #include "klee/Internal/Support/ErrorHandling.h"
@@ -147,6 +148,12 @@ Searcher *klee::constructUserSearcher(Executor &executor) {
                                              new DFSSearcher(),
                                              new DFSSearcher(),
                                              SplitRatio);
+  }
+
+  if (executor.getPTAMode() == Executor::AIMode) {
+    searcher = new ExtendedSearcher(searcher,
+                                    new DFSSearcher(),
+                                    executor);
   }
 
   llvm::raw_ostream &os = executor.getHandler().getInfoStream();

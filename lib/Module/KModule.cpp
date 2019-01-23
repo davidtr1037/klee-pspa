@@ -29,6 +29,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/ValueSymbolTable.h"
 #include "llvm/IR/DataLayout.h"
+#include <llvm/IR/Dominators.h>
 #include "llvm/Transforms/Utils/UnifyFunctionExitNodes.h"
 
 #if LLVM_VERSION_CODE < LLVM_VERSION(3, 5)
@@ -45,6 +46,7 @@
 #include "llvm/Transforms/Scalar.h"
 
 #include <llvm/Transforms/Utils/Cloning.h>
+#include <llvm/Analysis/LoopInfo.h>
 
 #include <sstream>
 #include <stack>
@@ -601,6 +603,32 @@ KFunction::KFunction(llvm::Function *_function,
       }
 
       instructions[i++] = ki;
+    }
+  }
+
+  std::set<Instruction *> result;
+  collectLoopInfo(function, result);
+}
+
+void KFunction::collectLoopInfo(Function *f,
+                                std::set<Instruction *> &result) {
+  DominatorTree dtree(*f);
+  LoopInfo loopInfo(dtree);
+
+  std::vector<Loop *> allLoops;
+  for (Loop *loop : loopInfo) {
+    allLoops.push_back(loop);
+    for (Loop *subLoop : loop->getSubLoops()) {
+      allLoops.push_back(subLoop);
+    }
+  }
+
+  for (Loop *loop : allLoops) {
+    Instruction *inst = loop->getHeader()->getTerminator();
+    std::set<Instruction *> &subHeaders = loops[inst];
+    for (Loop *subLoop : loop->getSubLoops()) {
+      Instruction *subInst = subLoop->getHeader()->getTerminator();
+      subHeaders.insert(subInst);
     }
   }
 }

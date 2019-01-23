@@ -11,6 +11,7 @@ klee_add_component(kleeCore
   AddressSpace.cpp
   AllocationRecord.cpp
   ASContext.cpp
+  AIPhase.cpp
   MergeHandler.cpp
   CallPathManager.cpp
   Context.cpp
@@ -19,6 +20,7 @@ klee_add_component(kleeCore
   Executor.cpp
   ExecutorTimers.cpp
   ExecutorUtil.cpp
+  ExtendedSearcher.cpp
   ExternalDispatcher.cpp
   ImpliedValue.cpp
   Memory.cpp

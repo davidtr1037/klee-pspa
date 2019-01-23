@@ -320,6 +320,7 @@ namespace {
              cl::values(clEnumValN(Executor::StaticMode, "static", "Use standard pointer analysis"),
                         clEnumValN(Executor::DynamicAbstractMode, "abstract", "Use dynamic abstract pointer analysis"),
                         clEnumValN(Executor::DynamicSymbolicMode, "symbolic", "Use dynamic symbolic pointer analysis"),
+                        clEnumValN(Executor::AIMode, "ai", "..."),
                         clEnumValEnd));
 
   cl::opt<bool>
@@ -425,6 +426,7 @@ Executor::Executor(LLVMContext &ctx, const InterpreterOptions &opts,
                             : std::max(MaxCoreSolverTime, MaxInstructionTime)),
       debugInstFile(0), debugLogBuffer(debugBufferString),
       ptaMode(NoneMode), staticPTA(0), ptaStatsLogger(0),
+      executionMode(ExecutionModeSymbolic),
       saLog(0), ra(0), mra(0), modularPTA(0) {
 
   if (coreSolverTimeout) UseForkedCoreSolver = true;
@@ -884,6 +886,10 @@ void Executor::branch(ExecutionState &state,
   unsigned N = conditions.size();
   assert(N);
 
+  if (state.isDummy) {
+    assert(0);
+  }
+
   if (MaxForks!=~0u && stats::forks >= MaxForks) {
     unsigned next = theRNG.getInt32() % N;
     for (unsigned i=0; i<N; ++i) {
@@ -997,6 +1003,35 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
     seedMap.find(&current);
   bool isSeeding = it != seedMap.end();
   ref<Expr> negatedCondition = Expr::createIsZero(condition);
+
+  if (current.isDummy) {
+    if (aiphase.shouldDiscardState(current, condition)) {
+      terminateState(current);
+      aiphase.stats.discarded++;
+      return StatePair(0, 0);
+    }
+    if (isa<ConstantExpr>(condition)) {
+      ConstantExpr *ce = dyn_cast<ConstantExpr>(condition);
+      if (ce->isTrue()) {
+        return StatePair(&current, 0);
+      } else {
+        return StatePair(0, &current);
+      }
+    } else {
+      ExecutionState *falseState, *trueState = &current;
+      falseState = trueState->branch();
+
+      addedStates.push_back(falseState);
+      current.ptreeNode->data = 0;
+      auto res = processTree->split(current.ptreeNode, falseState, trueState);
+      falseState->ptreeNode = res.first;
+      trueState->ptreeNode = res.second;
+
+      aiphase.stats.forks++;
+
+      return StatePair(trueState, falseState);
+    }
+  }
 
   if (!isSeeding && !isa<ConstantExpr>(condition) && 
       (MaxStaticForkPct!=1. || MaxStaticSolvePct != 1. ||
@@ -1529,6 +1564,36 @@ void Executor::executeCall(ExecutionState &state,
     // instead of the actual instruction, since we can't make a KInstIterator
     // from just an instruction (unlike LLVM).
 
+    if (isTargetFunction(state, f) && ptaMode == AIMode && executionMode == ExecutionModeSymbolic) {
+      if (!aiphase.getInitialState()) {
+        /* initialize the state */
+        ExecutionState *dummyState = state.createDummyState();
+
+        //errs() << "analyzing: " << f->getName() << "\n";
+        ++stats::staticAnalysisUsage;
+
+        /* update the searcher */
+        addedStates.push_back(dummyState);
+        state.ptreeNode->data = 0;
+        auto res = processTree->split(state.ptreeNode, dummyState, &state);
+        dummyState->ptreeNode = res.first;
+        state.ptreeNode = res.second;
+
+        /* the current state should re-execute the call instruction */
+        state.pc = state.prevPC;
+        /* update execution mode */
+        executionMode = ExecutionModeAI;
+        /* when the AI phase is completed,
+           we should resume the current state */
+        aiphase.setInitialState(&state);
+        return;
+      } else {
+        /* we are after the AI phase */
+        //aiphase.dump();
+        aiphase.reset();
+      }
+    }
+
     if (state.isNormalState() && !state.isRecoveryState() && isFunctionToSkip(state, f)) {
       /* first, check if the skipped function has side effects */
       if (isDynamicMode() || mra->hasSideEffects(f)) {
@@ -1771,6 +1836,13 @@ static inline const llvm::fltSemantics * fpWidthToSemantics(unsigned width) {
 }
 
 void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
+  std::shared_ptr<TimerStatIncrementer> timer;
+  if (state.isDummy) {
+    timer.reset(new TimerStatIncrementer(stats::staticAnalysisTime));
+  }
+
+  trackLoopExecution(state);
+
   Instruction *i = ki->inst;
   if (state.isRecoveryState() && state.isRecoveryDone()) {
     onRecoveryStateExit(state);
@@ -1788,7 +1860,12 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     if (!isVoidReturn) {
       result = eval(ki, 0, state).value;
     }
-    
+
+    if (state.isDummy && state.shouldTerminate()) {
+      terminateState(state);
+      break;
+    }
+
     if (state.stack.size() <= 1) {
       assert(!caller && "caller set on initial stack frame");
       terminateStateOnExit(state);
@@ -2414,7 +2491,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   case Instruction::BitCast: {
     ref<Expr> result = eval(ki, 0, state).value;
     bindLocal(ki, state, result);
-    if (isDynamicMode()) {
+    if (isDynamicMode() || ptaMode == AIMode) {
       handleBitCast(state, ki, result);
     }
     break;
@@ -2813,6 +2890,20 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   }
 }
 
+void Executor::trackLoopExecution(ExecutionState &state) {
+  StackFrame &sf = state.stack.back();
+  KFunction *kf = sf.kf;
+  Instruction *inst = state.prevPC->inst;
+  if (kf->loops.find(inst) != kf->loops.end()) {
+    auto headers = kf->loops[inst];
+    for (Instruction *i : headers) {
+      sf.loopTrackingInfo[i] = 0;
+    }
+    uint64_t &count = sf.loopTrackingInfo[inst];
+    count++;
+  }
+}
+
 void Executor::updateStates(ExecutionState *current) {
   if (searcher) {
     if (!removedStates.empty()) {
@@ -3174,6 +3265,12 @@ void Executor::terminateState(ExecutionState &state) {
   if (replayKTest && replayPosition!=replayKTest->numObjects) {
     klee_warning_once(replayKTest,
                       "replay did not consume all objects in test input.");
+  }
+
+  if (!state.isDummy) {
+    interpreterHandler->incPathsExplored();
+  } else {
+    aiphase.stats.exploredPaths++;
   }
 
   std::vector<ExecutionState *>::iterator it =
@@ -3737,17 +3834,22 @@ void Executor::executeMemoryOperation(ExecutionState &state,
         } else {
           ObjectState *wos = state.addressSpace.getWriteable(mo, os);
           wos->write(offset, value);
-          if (isDynamicMode() && mo->isGlobal && mo->allocSite != nullptr) {
+          if (ptaMode == DynamicSymbolicMode && mo->isGlobal && mo->allocSite != nullptr) {
             state.modifiedGlobals.insert(mo->allocSite);
           }
 
-          if (ptaMode == DynamicAbstractMode && shouldUpdatePoinstTo(state)) {
+          if (shouldUpdatePoinstTo(state)) {
             updatePointsToOnStore(state, state.prevPC, mo, offset, value, UseStrongUpdates);
+          }
+
+          if (ptaMode == AIMode && state.isDummy) {
+            updateAIPhase(state, state.prevPC, mo, offset, value);
           }
 
           if (state.isRecoveryState()) {
             onRecoveryStateWrite(state, address, mo, offset, value);
           }
+
           if (state.isNormalState()) {
             onNormalStateWrite(state, address, value);
           }
@@ -3799,12 +3901,15 @@ void Executor::executeMemoryOperation(ExecutionState &state,
           ObjectState *wos = bound->addressSpace.getWriteable(mo, os);
           wos->write(offset, value);
 
-          if (isDynamicMode() && mo->isGlobal && mo->allocSite != nullptr) {
+          if (ptaMode == DynamicSymbolicMode && mo->isGlobal && mo->allocSite != nullptr) {
             state.modifiedGlobals.insert(mo->allocSite);
           }
 
-          if (ptaMode == DynamicAbstractMode && shouldUpdatePoinstTo(state)) {
+          if (shouldUpdatePoinstTo(state)) {
             updatePointsToOnStore(state, state.prevPC, mo, offset, value, UseStrongUpdates);
+          }
+          if (ptaMode == AIMode && state.isDummy) {
+            updateAIPhase(state, state.prevPC, mo, offset, value);
           }
         }
       } else {
@@ -3957,7 +4062,7 @@ void Executor::runFunctionAsMain(Function *f,
 
   ExecutionState *state = new ExecutionState(kmodule->functionMap[f]);
 
-  if (isDynamicMode()) {
+  if (isDynamicMode() || ptaMode == AIMode) {
     TimerStatIncrementer timer(stats::staticAnalysisTime);
     AndersenDynamic *pta = new AndersenDynamic();
     pta->initialize(*kmodule->module);
@@ -4595,7 +4700,8 @@ void Executor::handleBitCast(ExecutionState &state,
 }
 
 bool Executor::shouldUpdatePoinstTo(ExecutionState &state) {
-  return state.prevPC->isRelevant && !state.isRecoveryState();
+  return (ptaMode == DynamicAbstractMode || (ptaMode == AIMode && !state.isDummy)) && \
+         state.prevPC->isRelevant && !state.isRecoveryState();
 }
 
 void Executor::updatePointsToOnStore(ExecutionState &state,
@@ -4790,7 +4896,6 @@ void Executor::updatePointsToOnCallSymbolic(ExecutionState &state,
     for (auto &op1 : rl1) {
       const MemoryObject* mo = op1.first;
       Pointer *ptr = sPTA.getPointer(mo, mo->getOffsetExpr(e));
-        errs() << "ptr is multiple: " << ptr->multiplePointers << "\n";
       for (PointsToPair &pair : sPTA.traverse(ptr)) {
         NodeID from = ptrToAbstract(state, pair.first, sPTA);
         NodeID to = ptrToAbstract(state, pair.second, sPTA);
@@ -4811,6 +4916,63 @@ void Executor::updatePointsToOnCallSymbolic(ExecutionState &state,
       }
     }
   }
+}
+
+void Executor::updateAIPhase(ExecutionState &state,
+                             KInstruction *ki,
+                             const MemoryObject *mo,
+                             ref<Expr> offset,
+                             ref<Expr> value) {
+  TimerStatIncrementer timer(stats::staticAnalysisTime);
+
+  StoreInst *storeInst = dyn_cast<StoreInst>(ki->inst);
+  if (!storeInst) {
+    /* TODO: check other cases... */
+    return;
+  }
+
+  std::vector<DynamicMemoryLocation> locations;
+  PointerType *valueType = dyn_cast<PointerType>(storeInst->getValueOperand()->getType());
+  if (valueType) {
+    /* TODO: check return value */
+    getDynamicMemoryLocations(state, value, valueType, locations);
+  }
+
+  /* if the offset is symbolic, then we force the
+     source memory object to be field-insensitive */
+  ConstantExpr *ce = dyn_cast<ConstantExpr>(offset);
+
+  /* TODO: it would be better to use the same API... */
+  DynamicMemoryLocation storeLocation(getAllocSite(state, mo),
+                                      mo->size,
+                                      ce == NULL,
+                                      ce == NULL ? 0 : ce->getZExtValue(),
+                                      getTypeHint(mo));
+
+  bool canStronglyUpdate;
+  NodeID src = computeAbstractMO(state.getPTA().get(),
+                                 storeLocation,
+                                 true,
+                                 &canStronglyUpdate);
+
+  /* if the updated memory object is on the stack and inside a recursion,
+     then we must perform weak update */
+  const AllocaInst *alloca = dyn_cast<AllocaInst>(mo->allocSite);
+  bool isLocalObjectInRecursion = false;
+  if (alloca) {
+    Function *allocatingFunction = (Function *)(alloca->getParent()->getParent());
+    isLocalObjectInRecursion = state.isCalledRecursively(allocatingFunction);
+  }
+
+  PointsTo targets;
+  for (unsigned int i = 0; i < locations.size(); i++) {
+    DynamicMemoryLocation &location = locations[i];
+    NodeID dst = computeAbstractMO(state.getPTA().get(), location, false);
+    targets.set(dst);
+  }
+  aiphase.updateMod(src,
+                    targets,
+                    canStronglyUpdate && !isLocalObjectInRecursion);
 }
 
 void Executor::analyzeTargetFunction(ExecutionState &state,

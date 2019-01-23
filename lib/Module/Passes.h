@@ -20,6 +20,8 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Pass.h"
 
+#include <set>
+
 namespace llvm {
   class Function;
   class Instruction;

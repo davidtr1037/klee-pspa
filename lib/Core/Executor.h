@@ -30,6 +30,7 @@
 #include "klee/Internal/Analysis/ModularAnalysis.h"
 #include "klee/Internal/Analysis/StateProjection.h"
 #include "../Analysis/SymbolicPTA.h"
+#include "AIPhase.h"
 
 #include "llvm/ADT/Twine.h"
 
@@ -154,7 +155,14 @@ public:
     StaticMode,
     DynamicAbstractMode,
     DynamicSymbolicMode,
+    AIMode,
     NoneMode,
+  };
+
+  enum ExecutionMode {
+    ExecutionModeSymbolic,
+    ExecutionModeAI,
+    ExecutionModeNone,
   };
 
 private:
@@ -271,6 +279,12 @@ private:
   llvm::raw_ostream *ptaGraphLog;
 
   /* TODO: add docs */
+  ExecutionMode executionMode;
+
+  /* TODO: add docs */
+  AIPhase aiphase;
+
+  /* TODO: add docs */
   std::vector<ExecutionState *> suspendedStates;
 
   /* TODO: add docs */
@@ -301,6 +315,8 @@ private:
                                     ExecutionState &state);
   
   void executeInstruction(ExecutionState &state, KInstruction *ki);
+
+  void trackLoopExecution(ExecutionState &state);
 
   void printFileLine(ExecutionState &state, KInstruction *ki,
                      llvm::raw_ostream &file);
@@ -609,6 +625,10 @@ public:
   Expr::Width getWidthForLLVMType(llvm::Type *type) const;
   size_t getAllocationAlignment(const llvm::Value *allocSite) const;
 
+  PTAMode getPTAMode() {
+    return ptaMode;
+  }
+
   bool isTargetFunction(ExecutionState &state, llvm::Function *f);
 
   void evaluateWholeProgramPTA();
@@ -659,6 +679,12 @@ public:
                                     llvm::Function *f,
                                     std::vector<ref<Expr>> &arguments);
 
+  void updateAIPhase(ExecutionState &state,
+                     KInstruction *ki,
+                     const MemoryObject *mo,
+                     ref<Expr> offset,
+                     ref<Expr> value);
+
   void analyzeTargetFunction(ExecutionState &state,
                              KInstruction *ki,
                              llvm::Function *f,
@@ -669,6 +695,18 @@ public:
 
   void logCall(ExecutionState &state,
                llvm::Function *f);
+
+  ExecutionMode getExecutionMode() {
+    return executionMode;
+  }
+
+  void setExecutionMode(ExecutionMode mode) {
+    executionMode = mode;
+  }
+
+  ExecutionState *getPendingState() {
+    return aiphase.getInitialState();
+  }
 
   bool isMayBlockingLoad(ExecutionState &state,
                          KInstruction *ki);

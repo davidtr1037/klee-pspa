@@ -63,6 +63,9 @@ struct StackFrame {
   // of intrinsic lowering.
   MemoryObject *varargs;
 
+  /* TODO: add docs */
+  std::map<llvm::Instruction *, uint64_t> loopTrackingInfo;
+
   StackFrame(KInstIterator caller, KFunction *kf);
   StackFrame(const StackFrame &s);
   ~StackFrame();
@@ -188,6 +191,9 @@ private:
 
   /* TODO: add docs */
   std::map<llvm::Function *, uint32_t> callingFunctions;
+
+  /* TODO: add docs */
+  unsigned int initialCallDepth;
 
   unsigned int type;
 
@@ -316,6 +322,9 @@ public:
 
   std::set<const llvm::Value *> modifiedGlobals;
 
+  /* TODO: add docs and rename */
+  bool isDummy;
+
 private:
 
 public:
@@ -370,6 +379,34 @@ public:
   }
 
   bool isCalledRecursively(llvm::Function *f);
+
+  void addRelevantGlobal(const llvm::GlobalVariable *gv) {
+    relevantGlobals.insert(gv);
+  }
+
+  std::set<const llvm::GlobalVariable *> &getRelevantGlobals() {
+    return relevantGlobals;
+  }
+
+  unsigned int getCallDepth() {
+    return initialCallDepth;
+  }
+
+  void setCallDepth(unsigned int depth) {
+    initialCallDepth = depth;
+  }
+
+  bool shouldTerminate() {
+    return stack.size() == initialCallDepth;
+  }
+
+  ExecutionState *createDummyState() {
+    ExecutionState *state = branch();
+    state->isDummy = true;
+    state->setCallDepth(stack.size() + 1);
+    state->pc = state->prevPC;
+    return state;
+  }
 
   void setType(int type) {
     this->type = type;
@@ -665,14 +702,6 @@ public:
   void setPriority(int priority) {
     assert(isRecoveryState());
     this->priority = priority;
-  }
-
-  void addRelevantGlobal(const llvm::GlobalVariable *gv) {
-    relevantGlobals.insert(gv);
-  }
-
-  std::set<const llvm::GlobalVariable *> &getRelevantGlobals() {
-    return relevantGlobals;
   }
 
 };

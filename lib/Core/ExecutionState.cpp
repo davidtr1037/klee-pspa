@@ -53,7 +53,8 @@ StackFrame::StackFrame(const StackFrame &s)
     allocas(s.allocas),
     localPointers(s.localPointers),
     minDistToUncoveredOnReturn(s.minDistToUncoveredOnReturn),
-    varargs(s.varargs) {
+    varargs(s.varargs),
+    loopTrackingInfo(s.loopTrackingInfo) {
   locals = new Cell[s.kf->numRegisters];
   for (unsigned i=0; i<s.kf->numRegisters; i++)
     locals[i] = s.locals[i];
@@ -69,6 +70,7 @@ ExecutionState::ExecutionState(KFunction *kf) :
     refCount(0),
 
     pta(0),
+    initialCallDepth(0),
 
     type(NORMAL_STATE),
 
@@ -95,12 +97,13 @@ ExecutionState::ExecutionState(KFunction *kf) :
     instsSinceCovNew(0),
     coveredNew(false),
     forkDisabled(false),
-    ptreeNode(0) {
+    ptreeNode(0),
+    isDummy(false) {
   pushFrame(0, kf);
 }
 
 ExecutionState::ExecutionState(const std::vector<ref<Expr> > &assumptions)
-    : pta(0), constraints(assumptions), queryCost(0.), ptreeNode(0) {}
+    : pta(0), initialCallDepth(0), constraints(assumptions), queryCost(0.), ptreeNode(0), isDummy(false) {}
 
 ExecutionState::~ExecutionState() {
   for (unsigned int i=0; i<symbolics.size(); i++)
@@ -119,6 +122,7 @@ ExecutionState::ExecutionState(const ExecutionState& state):
     refCount(0),
     fnAliases(state.fnAliases),
     callingFunctions(state.callingFunctions),
+    initialCallDepth(state.initialCallDepth),
 
     type(state.type),
 
@@ -168,7 +172,8 @@ ExecutionState::ExecutionState(const ExecutionState& state):
     symbolics(state.symbolics),
     arrayNames(state.arrayNames),
     openMergeStack(state.openMergeStack),
-    modifiedGlobals(state.modifiedGlobals)
+    modifiedGlobals(state.modifiedGlobals),
+    isDummy(state.isDummy)
 {
   for (unsigned int i=0; i<symbolics.size(); i++)
     symbolics[i].first->refCount++;
