@@ -10,6 +10,7 @@
 #include "UserSearcher.h"
 
 #include "Searcher.h"
+#include "ExtendedSearcher.h"
 #include "Executor.h"
 
 #include "klee/Internal/Support/ErrorHandling.h"
