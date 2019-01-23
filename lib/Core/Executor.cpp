@@ -803,9 +803,6 @@ void Executor::branch(ExecutionState &state,
   assert(N);
 
   if (state.isDummy) {
-    if (shouldLimitUnrolling(state, conditions[0])) {
-      /* TODO: handle... */
-    }
     assert(0);
   }
 
