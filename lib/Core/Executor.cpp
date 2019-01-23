@@ -1427,6 +1427,9 @@ void Executor::executeCall(ExecutionState &state,
         /* initialize the state */
         ExecutionState *dummyState = state.createDummyState();
 
+        //errs() << "analyzing: " << f->getName() << "\n";
+        ++stats::staticAnalysisUsage;
+
         /* update the searcher */
         addedStates.push_back(dummyState);
         state.ptreeNode->data = 0;
@@ -1438,11 +1441,13 @@ void Executor::executeCall(ExecutionState &state,
         state.pc = state.prevPC;
         /* update execution mode */
         executionMode = ExecutionModeAI;
-        /* when the AI phase is completed, we should resume the current state */
+        /* when the AI phase is completed,
+           we should resume the current state */
         aiphase.setInitialState(&state);
         return;
       } else {
         /* we are after the AI phase */
+        //aiphase.dump();
         aiphase.reset();
       }
     }
