@@ -184,7 +184,7 @@ Type* SymbolicPTA::getMemoryObjectType(const MemoryObject *mo) {
     t = Type::getInt8Ty(mo->allocSite->getContext())->getPointerTo();
   } else if (mo->name == "argv") { // For argvMO
     t = Type::getInt8Ty(mo->allocSite->getContext())->getPointerTo()->getPointerTo();
-  } else if(mo->name == "varrr args") { //for varargs
+  } else if (mo->name == "varrr args") { //for varargs
     const CallInst *ci = dyn_cast<CallInst>(mo->allocSite);
     assert(ci && "var args MO wasn't allocated at a call site");
 
@@ -194,15 +194,18 @@ Type* SymbolicPTA::getMemoryObjectType(const MemoryObject *mo) {
     unsigned nonVarArgParamNumber = ft->getNumParams();
     std::vector<Type*> varArgTypes;
 
-    for(const Use& u : ci->arg_operands()) {
-        if(nonVarArgParamNumber > 0) {
+    for (const Use& u : ci->arg_operands()) {
+        if (nonVarArgParamNumber > 0) {
           nonVarArgParamNumber--;
         } else {
           varArgTypes.push_back(u.get()->getType());
         } 
     }
-    //Might not handle allignment correctly
-    t = StructType::create(varArgTypes, "", true)->getPointerTo();
+    if (mo->size == 0) //means that there were no varargs, so do whatever
+      t = Type::getInt8Ty(mo->allocSite->getContext())->getPointerTo();
+    else
+      //Might not handle allignment correctly
+      t = StructType::create(varArgTypes, "", true)->getPointerTo();
     // End special cases
   } else if (auto GV = dyn_cast<GlobalVariable>(mo->allocSite)) {
     assert(GV->getType()->isPointerTy() && "GV has non pointer type");
