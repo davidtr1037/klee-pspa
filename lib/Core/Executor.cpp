@@ -358,12 +358,6 @@ namespace {
 
   cl::opt<unsigned>
   MaxInstructions("max-instructions", cl::init(0), cl::desc(""));
-
-  cl::opt<bool>
-  UseKUnrolling("use-k-unrolling", cl::init(false), cl::desc(""));
-
-  cl::opt<unsigned>
-  UnrollingLimit("unrolling-limit", cl::init(0), cl::desc(""));
 }
 
 
@@ -893,7 +887,7 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
   bool isSeeding = it != seedMap.end();
 
   if (current.isDummy) {
-    if (shouldLimitUnrolling(current, condition)) {
+    if (aiphase.shouldDiscardState(current, condition)) {
       terminateState(current);
       aiphase.stats.discarded++;
       return StatePair(0, 0);
@@ -4683,7 +4677,9 @@ void Executor::updateAIPhase(ExecutionState &state,
     NodeID dst = computeAbstractMO(state.getPTA().get(), location, false);
     targets.set(dst);
   }
-  aiphase.updateMod(src, targets, canStronglyUpdate && !isLocalObjectInRecursion);
+  aiphase.updateMod(src,
+                    targets,
+                    canStronglyUpdate && !isLocalObjectInRecursion);
 }
 
 void Executor::analyzeTargetFunction(ExecutionState &state,
@@ -4822,27 +4818,6 @@ void Executor::logCall(ExecutionState &state,
       errs() << callee_info.file;
   }
   errs() << "\n";
-}
-
-bool Executor::shouldLimitUnrolling(ExecutionState &state,
-                                    ref<Expr> condition) {
-  ref<Expr> simplified = state.constraints.simplifyExpr(condition);
-  if (isa<ConstantExpr>(simplified)) {
-    /* no restrictions in this case */
-    return false;
-  }
-
-  /* the condition may be symbolic */
-  StackFrame &sf = state.stack.back();
-  Instruction *inst = state.prevPC->inst;
-  if (sf.loopTrackingInfo.find(inst) != sf.loopTrackingInfo.end()) {
-    /* this branch is the terminator of a loop header block */
-    uint64_t count = sf.loopTrackingInfo[inst];
-    if (UseKUnrolling && count > UnrollingLimit) {
-      return true;
-    }
-  }
-  return false;
 }
 
 void Executor::prepareForEarlyExit() {

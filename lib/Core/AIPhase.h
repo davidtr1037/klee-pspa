@@ -46,6 +46,9 @@ public:
 
     void clearAll();
 
+    bool shouldDiscardState(ExecutionState &state,
+                            ref<Expr> condition);
+
     void reset();
 
     void dump();

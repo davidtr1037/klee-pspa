@@ -2,8 +2,17 @@
 
 #include <MemoryModel/PointerAnalysis.h>
 
+#include <klee/ExecutionState.h>
+#include <klee/Internal/Module/KInstruction.h>
+
 using namespace klee;
 using namespace llvm;
+
+cl::opt<bool>
+UseKUnrolling("use-k-unrolling", cl::init(false), cl::desc(""));
+
+cl::opt<unsigned>
+UnrollingLimit("unrolling-limit", cl::init(0), cl::desc(""));
 
 ExecutionState *AIPhase::getInitialState() {
   return initialState;
@@ -25,6 +34,27 @@ void AIPhase::updateMod(NodeID src, PointsTo dst, bool isStrong) {
 
 void AIPhase::clearAll() {
   pointsToMap.clear();
+}
+
+bool AIPhase::shouldDiscardState(ExecutionState &state,
+                                 ref<Expr> condition) {
+  ref<Expr> simplified = state.constraints.simplifyExpr(condition);
+  if (isa<ConstantExpr>(simplified)) {
+    /* no restrictions in this case */
+    return false;
+  }
+
+  /* the condition may be symbolic */
+  StackFrame &sf = state.stack.back();
+  Instruction *inst = state.prevPC->inst;
+  if (sf.loopTrackingInfo.find(inst) != sf.loopTrackingInfo.end()) {
+    /* this branch is the terminator of a loop header block */
+    uint64_t count = sf.loopTrackingInfo[inst];
+    if (UseKUnrolling && count > UnrollingLimit) {
+      return true;
+    }
+  }
+  return false;
 }
 
 void AIPhase::reset() {
