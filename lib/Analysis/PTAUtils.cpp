@@ -22,6 +22,7 @@ void klee::dumpNodeInfo(PointerAnalysis *pta,
   errs() << prefix << "-- node: " << nodeId << "\n";
   if (!pta->getPAG()->findPAGNode(nodeId)) {
     /* probably was deallocated (unique AS) */
+    errs() << "   -- not found\n";
     return;
   }
 

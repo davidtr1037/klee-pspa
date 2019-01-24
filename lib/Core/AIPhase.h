@@ -33,12 +33,12 @@ public:
     }
   };
 
+  typedef std::map<NodeID, PointsTo> PointsToMap;
+
   AIPhase() :
     initialState(nullptr) {
 
   }
-
-  typedef std::map<NodeID, PointsTo> PointsToMap;
 
   ExecutionState *getInitialState();
 

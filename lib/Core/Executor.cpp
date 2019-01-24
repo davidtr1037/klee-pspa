@@ -4470,6 +4470,11 @@ const Value *Executor::getAllocSite(ExecutionState &state,
 
   /* that should be a dynamic allocation */
   if (!mo->attachedInfo) {
+    if (state.isDummy) {
+      /* don't create a unique allocation site if the
+         object is allocated during the AI phase */
+      return mo->allocSite;
+    }
     const Value *clonedAllocSite = addClonedObjNode(state, mo->allocSite);
     mo->attachedInfo = new PTAInfo(clonedAllocSite);
   }
