@@ -67,7 +67,7 @@ private:
   /* the symbolic state from which the exploration starts */
   ExecutionState *initialState;
   /* TODO: add docs */
-  std::map<NodeID, PointsTo> pointsToMap;
+  PointsToMap pointsToMap;
 };
 
 }
