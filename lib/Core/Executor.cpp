@@ -1646,7 +1646,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     timer.reset(new TimerStatIncrementer(stats::staticAnalysisTime));
   }
 
-  trackLoopExecution(state);
+  if (state.isDummy) {
+    trackLoopExecution(state);
+  }
 
   Instruction *i = ki->inst;
   switch (i->getOpcode()) {
