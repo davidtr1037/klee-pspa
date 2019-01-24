@@ -1613,8 +1613,6 @@ void Executor::executeCall(ExecutionState &state,
         if (ptaMode == AIMode && isReady) {
           /* we are after the AI phase,
              so we can examine now the results */
-          aiphase.dump();
-
           /* TODO: use the same data structure */
           StateProjection projection;
           projection.pointsToMap = aiphase.getPointsToMap();

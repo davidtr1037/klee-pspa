@@ -12,6 +12,8 @@ namespace klee {
 
 class AIPhase {
 
+public:
+
   struct Stats {
     uint64_t exploredPaths;
     uint64_t forks;
@@ -31,37 +33,41 @@ class AIPhase {
     }
   };
 
-public:
+  AIPhase() :
+    initialState(nullptr) {
 
-    AIPhase() :
-      initialState(nullptr) {
+  }
 
-    }
+  typedef std::map<NodeID, PointsTo> PointsToMap;
 
-    ExecutionState *getInitialState();
+  ExecutionState *getInitialState();
 
-    void setInitialState(ExecutionState *es);
+  void setInitialState(ExecutionState *es);
 
-    void updateMod(NodeID src, PointsTo dst, bool isStrong);
+  void updateMod(NodeID src, PointsTo dst, bool isStrong);
 
-    void clearAll();
+  const PointsToMap &getPointsToMap() {
+    return pointsToMap;
+  };
 
-    bool shouldDiscardState(ExecutionState &state,
-                            ref<Expr> condition);
+  void clearAll();
 
-    void reset();
+  bool shouldDiscardState(ExecutionState &state,
+                          ref<Expr> condition);
 
-    void dump();
+  void reset();
 
-    /* statistics */
-    Stats stats;
+  void dump();
+
+  /* statistics */
+  Stats stats;
 
 private:
 
-    /* the symbolic state from which the exploration starts */
-    ExecutionState *initialState;
-    /* TODO: add docs */
-    std::map<NodeID, PointsTo> pointsToMap;
+  /* the symbolic state from which the exploration starts */
+  ExecutionState *initialState;
+  /* TODO: add docs */
+  PointsToMap pointsToMap;
 };
 
 }

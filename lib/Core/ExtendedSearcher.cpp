@@ -5,6 +5,7 @@
 #include <llvm/Support/raw_ostream.h>
 
 using namespace klee;
+using namespace llvm;
 
 ExtendedSearcher::ExtendedSearcher(Searcher *baseSearcher,
                                    Searcher *saSearcher,
