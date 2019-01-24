@@ -33,41 +33,41 @@ class AIPhase {
 
 public:
 
-    typedef std::map<NodeID, PointsTo> PointsToMap;
+  typedef std::map<NodeID, PointsTo> PointsToMap;
 
-    AIPhase() :
-      initialState(nullptr) {
+  AIPhase() :
+    initialState(nullptr) {
 
-    }
+  }
 
-    ExecutionState *getInitialState();
+  ExecutionState *getInitialState();
 
-    void setInitialState(ExecutionState *es);
+  void setInitialState(ExecutionState *es);
 
-    void updateMod(NodeID src, PointsTo dst, bool isStrong);
+  void updateMod(NodeID src, PointsTo dst, bool isStrong);
 
-    const PointsToMap &getPointsToMap() {
-      return pointsToMap;
-    };
+  const PointsToMap &getPointsToMap() {
+    return pointsToMap;
+  };
 
-    void clearAll();
+  void clearAll();
 
-    bool shouldDiscardState(ExecutionState &state,
-                            ref<Expr> condition);
+  bool shouldDiscardState(ExecutionState &state,
+                          ref<Expr> condition);
 
-    void reset();
+  void reset();
 
-    void dump();
+  void dump();
 
-    /* statistics */
-    Stats stats;
+  /* statistics */
+  Stats stats;
 
 private:
 
-    /* the symbolic state from which the exploration starts */
-    ExecutionState *initialState;
-    /* TODO: add docs */
-    std::map<NodeID, PointsTo> pointsToMap;
+  /* the symbolic state from which the exploration starts */
+  ExecutionState *initialState;
+  /* TODO: add docs */
+  std::map<NodeID, PointsTo> pointsToMap;
 };
 
 }
