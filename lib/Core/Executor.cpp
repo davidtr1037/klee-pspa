@@ -887,6 +887,7 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
   bool isSeeding = it != seedMap.end();
 
   if (current.isDummy) {
+    condition = current.constraints.simplifyExpr(condition);
     if (aiphase.shouldDiscardState(current, condition)) {
       terminateState(current);
       aiphase.stats.discarded++;
@@ -913,6 +914,7 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
 
       return StatePair(trueState, falseState);
     }
+    assert(false);
   }
 
   if (!isSeeding && !isa<ConstantExpr>(condition) && 
