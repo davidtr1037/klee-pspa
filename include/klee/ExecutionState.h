@@ -405,6 +405,15 @@ public:
     state->isDummy = true;
     state->setCallDepth(stack.size() + 1);
     state->pc = state->prevPC;
+
+    /* clear chopper related stuff */
+    state->snapshots.clear();
+    state->recoveredLoads.clear();
+    state->guidingConstraints.clear();
+    state->writtenAddresses.clear();
+    state->pendingRecoveryInfos.clear();
+    state->recoveryCache.clear();
+
     return state;
   }
 

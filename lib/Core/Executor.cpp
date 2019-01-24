@@ -1578,6 +1578,8 @@ void Executor::executeCall(ExecutionState &state,
     if (state.isNormalState() && !state.isRecoveryState() && \
         executionMode == ExecutionModeSymbolic && \
         isFunctionToSkip(state, f)) {
+      /* TODO: remove later */
+      assert(!state.isDummy);
       /* first, check if the skipped function has side effects */
       if (ptaMode == AIMode || isDynamicMode() || mra->hasSideEffects(f)) {
         if (isDynamicMode()) {
@@ -2402,6 +2404,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
   case Instruction::Load: {
     if (state.isNormalState() && state.isInDependentMode()) {
+      /* TODO: remove later */
       assert(!state.isDummy);
       if (state.isBlockingLoadRecovered() && isMayBlockingLoad(state, ki)) {
         if (isDynamicMode()) {
