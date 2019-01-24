@@ -1565,38 +1565,21 @@ void Executor::executeCall(ExecutionState &state,
     // from just an instruction (unlike LLVM).
 
     if (isTargetFunction(state, f) && ptaMode == AIMode && executionMode == ExecutionModeSymbolic) {
-      if (!aiphase.getInitialState()) {
-        /* initialize the state */
-        ExecutionState *dummyState = state.createDummyState();
-
-        //errs() << "analyzing: " << f->getName() << "\n";
-        ++stats::staticAnalysisUsage;
-
-        /* update the searcher */
-        addedStates.push_back(dummyState);
-        state.ptreeNode->data = 0;
-        auto res = processTree->split(state.ptreeNode, dummyState, &state);
-        dummyState->ptreeNode = res.first;
-        state.ptreeNode = res.second;
-
-        /* the current state should re-execute the call instruction */
-        state.pc = state.prevPC;
-        /* update execution mode */
-        executionMode = ExecutionModeAI;
-        /* when the AI phase is completed,
-           we should resume the current state */
-        aiphase.setInitialState(&state);
+      bool isReady = startAIPhase(state);
+      if (!isReady) {
         return;
       } else {
-        /* we are after the AI phase */
-        //aiphase.dump();
+        /* we are after the AI phase,
+           so we can examine now the results */
         aiphase.reset();
       }
     }
 
-    if (state.isNormalState() && !state.isRecoveryState() && isFunctionToSkip(state, f)) {
+    if (state.isNormalState() && !state.isRecoveryState() && \
+        executionMode == ExecutionModeSymbolic && \
+        isFunctionToSkip(state, f)) {
       /* first, check if the skipped function has side effects */
-      if (isDynamicMode() || mra->hasSideEffects(f)) {
+      if (ptaMode == AIMode || isDynamicMode() || mra->hasSideEffects(f)) {
         if (isDynamicMode()) {
           /* set the points-to information of the parameters before creating the snapshot */
           TimerStatIncrementer timer(stats::staticAnalysisTime);
@@ -1604,6 +1587,14 @@ void Executor::executeCall(ExecutionState &state,
             updatePointsToOnCallSymbolic(state, f, arguments);
           } else {
             updatePointsToOnCall(state, f, arguments);
+          }
+        }
+
+        bool isReady = false;
+        if (ptaMode == AIMode) {
+          isReady = startAIPhase(state);
+          if (!isReady) {
+            return;
           }
         }
 
@@ -1618,6 +1609,19 @@ void Executor::executeCall(ExecutionState &state,
         state.addSnapshot(snapshot);
         interpreterHandler->incSnapshotsCount();
         clientStats.snapshots[f]++;
+
+        if (ptaMode == AIMode && isReady) {
+          /* we are after the AI phase,
+             so we can examine now the results */
+          aiphase.dump();
+
+          /* TODO: use the same data structure */
+          StateProjection projection;
+          projection.pointsToMap = aiphase.getPointsToMap();
+          updateModInfo(snapshot, snapshot->state->getPTA().get(), projection);
+          snapshot->modComputed = true;
+          aiphase.reset();
+        }
 
         /* TODO: will be replaced later... */
         state.clearRecoveredAddresses();
@@ -2400,6 +2404,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
 
   case Instruction::Load: {
     if (state.isNormalState() && state.isInDependentMode()) {
+      assert(!state.isDummy);
       if (state.isBlockingLoadRecovered() && isMayBlockingLoad(state, ki)) {
         if (isDynamicMode()) {
           /* compute the mod set of the skipped function on the fly */
@@ -4636,6 +4641,7 @@ bool Executor::getDynamicMemoryLocations(ExecutionState &state,
   return true;
 }
 
+/* TODO: decide what to do with AIMode */
 bool Executor::isDynamicMode() {
   return ptaMode == DynamicAbstractMode || ptaMode == DynamicSymbolicMode;
 }
@@ -5113,6 +5119,34 @@ void Executor::logCall(ExecutionState &state,
   errs() << "\n";
 }
 
+bool Executor::startAIPhase(ExecutionState &state) {
+  if (!aiphase.getInitialState()) {
+    /* initialize the state */
+    ExecutionState *dummyState = state.createDummyState();
+
+    ++stats::staticAnalysisUsage;
+
+    /* update the searcher */
+    addedStates.push_back(dummyState);
+    state.ptreeNode->data = 0;
+    auto res = processTree->split(state.ptreeNode, dummyState, &state);
+    dummyState->ptreeNode = res.first;
+    state.ptreeNode = res.second;
+
+    /* the current state should re-execute the call instruction */
+    state.pc = state.prevPC;
+    /* update execution mode */
+    executionMode = ExecutionModeAI;
+    /* when the AI phase is completed,
+       we should resume the current state */
+    aiphase.setInitialState(&state);
+    return false;
+  }
+
+  /* we are after the AI phase */
+  return true;
+}
+
 bool Executor::isMayBlockingLoad(ExecutionState &state, KInstruction *ki) {
   /* basic check based on static analysis */
   if (!ki->mayBlock) {
@@ -5211,14 +5245,16 @@ bool Executor::getAllRecoveryInfo(ExecutionState &state,
                                   std::list<ref<RecoveryInfo> > &result) {
   /* all the recovery information which may be required  */
   std::list< ref<RecoveryInfo> > required;
-  if (!isDynamicMode()) {
+  if (isDynamicMode() || ptaMode == AIMode) {
+    if (!getRequiredRecoveryInfoDynamic(state, ki, required)) {
+      return false;
+    }
+  } else if (ptaMode == StaticMode) {
     if (!getRequiredRecoveryInfo(state, ki, required)) {
       return false;
     }
   } else {
-    if (!getRequiredRecoveryInfoDynamic(state, ki, required)) {
-      return false;
-    }
+    klee_error("Unexpected PTA mode...");
   }
 
   /* do some filtering... */

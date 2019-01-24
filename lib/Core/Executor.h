@@ -708,6 +708,8 @@ public:
     return aiphase.getInitialState();
   }
 
+  bool startAIPhase(ExecutionState &state);
+
   bool isMayBlockingLoad(ExecutionState &state,
                          KInstruction *ki);
 
