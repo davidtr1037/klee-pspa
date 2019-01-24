@@ -33,6 +33,8 @@ class AIPhase {
 
 public:
 
+    typedef std::map<NodeID, PointsTo> PointsToMap;
+
     AIPhase() :
       initialState(nullptr) {
 
@@ -43,6 +45,10 @@ public:
     void setInitialState(ExecutionState *es);
 
     void updateMod(NodeID src, PointsTo dst, bool isStrong);
+
+    const PointsToMap &getPointsToMap() {
+      return pointsToMap;
+    };
 
     void clearAll();
 
