@@ -1005,6 +1005,7 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
   ref<Expr> negatedCondition = Expr::createIsZero(condition);
 
   if (current.isDummy) {
+    condition = current.constraints.simplifyExpr(condition);
     if (aiphase.shouldDiscardState(current, condition)) {
       terminateState(current);
       aiphase.stats.discarded++;
@@ -1031,6 +1032,7 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
 
       return StatePair(trueState, falseState);
     }
+    assert(false);
   }
 
   if (!isSeeding && !isa<ConstantExpr>(condition) && 
@@ -1845,7 +1847,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     timer.reset(new TimerStatIncrementer(stats::staticAnalysisTime));
   }
 
-  trackLoopExecution(state);
+  if (state.isDummy) {
+    trackLoopExecution(state);
+  }
 
   Instruction *i = ki->inst;
   if (state.isRecoveryState() && state.isRecoveryDone()) {

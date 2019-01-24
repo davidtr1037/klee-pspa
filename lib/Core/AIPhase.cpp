@@ -45,8 +45,8 @@ bool AIPhase::shouldDiscardState(ExecutionState &state,
     return true;
   }
 
-  ref<Expr> simplified = state.constraints.simplifyExpr(condition);
-  if (isa<ConstantExpr>(simplified)) {
+  /* the condition is assumed to be already simplified */
+  if (isa<ConstantExpr>(condition)) {
     /* if the condition is not symbolic,
        then we don't have any restrictions in this case */
     return false;
