@@ -33,6 +33,8 @@ public:
     }
   };
 
+public:
+
   typedef std::map<NodeID, PointsTo> PointsToMap;
 
   AIPhase() :
