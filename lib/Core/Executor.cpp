@@ -4962,6 +4962,19 @@ void Executor::updateAIPhase(ExecutionState &state,
     return;
   }
 
+  /* if the updated memory object is on the stack and inside a recursion,
+     then we must perform weak update */
+  const AllocaInst *alloca = dyn_cast<AllocaInst>(mo->allocSite);
+  bool isLocalObjectInRecursion = false;
+  if (alloca) {
+    Function *allocatingFunction = (Function *)(alloca->getParent()->getParent());
+    isLocalObjectInRecursion = state.isCalledRecursively(allocatingFunction);
+    if (!isLocalObjectInRecursion) {
+      /* this update has doesn't effect on the mod set */
+      return;
+    }
+  }
+
   std::vector<DynamicMemoryLocation> locations;
   PointerType *valueType = dyn_cast<PointerType>(storeInst->getValueOperand()->getType());
   if (valueType) {
@@ -4985,15 +4998,6 @@ void Executor::updateAIPhase(ExecutionState &state,
                                  storeLocation,
                                  true,
                                  &canStronglyUpdate);
-
-  /* if the updated memory object is on the stack and inside a recursion,
-     then we must perform weak update */
-  const AllocaInst *alloca = dyn_cast<AllocaInst>(mo->allocSite);
-  bool isLocalObjectInRecursion = false;
-  if (alloca) {
-    Function *allocatingFunction = (Function *)(alloca->getParent()->getParent());
-    isLocalObjectInRecursion = state.isCalledRecursively(allocatingFunction);
-  }
 
   PointsTo targets;
   for (unsigned int i = 0; i < locations.size(); i++) {
