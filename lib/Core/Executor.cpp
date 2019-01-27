@@ -1435,6 +1435,10 @@ void Executor::executeCall(ExecutionState &state,
       }
     }
 
+    if (state.isDummy) {
+      aiphase.stats.reachable.insert(f);
+    }
+
     KFunction *kf = kmodule->functionMap[f];
     state.pushFrame(state.prevPC, kf);
     state.pc = kf->instructions;
