@@ -1621,10 +1621,21 @@ void Executor::executeCall(ExecutionState &state,
         if (ptaMode == AIMode && isReady) {
           /* we are after the AI phase,
              so we can examine now the results */
-          /* TODO: use the same data structure */
+
+          /* get called functions */
+          set<Function *> called;
+          for (StackFrame &sf : snapshot->state->stack) {
+            called.insert(sf.kf->function);
+          }
+
+          /* TODO: export new static API for getPAG? */
           StateProjection projection;
-          projection.pointsToMap = aiphase.getPointsToMap();
-          updateModInfo(snapshot, snapshot->state->getPTA().get(), projection);
+          aiphase.getStateProjection(state.getPTA()->getPAG(),
+                                     called,
+                                     projection);
+          updateModInfo(snapshot,
+                        snapshot->state->getPTA().get(),
+                        projection);
           snapshot->modComputed = true;
           aiphase.reset();
         }

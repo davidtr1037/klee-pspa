@@ -65,6 +65,42 @@ bool AIPhase::shouldDiscardState(ExecutionState &state,
   return false;
 }
 
+bool AIPhase::canIgnore(PAG *pag,
+                        NodeID nodeId,
+                        std::set<Function *> &called) {
+  if (!pag->findPAGNode(nodeId)) {
+    /* probably was deallocated (unique AS) */
+    return false;
+  }
+
+  PAGNode *pagNode = pag->getPAGNode(nodeId);
+  ObjPN *obj = dyn_cast<ObjPN>(pagNode);
+  if (obj) {
+    const Value *value = obj->getMemObj()->getRefVal();
+    if (value && isa<AllocaInst>(value)) {
+      AllocaInst *alloca = (AllocaInst *)(dyn_cast<AllocaInst>(value));
+      Function *src = alloca->getParent()->getParent();
+      if (called.find(src) == called.end()) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+void AIPhase::getStateProjection(PAG *pag,
+                                 std::set<Function *> &called,
+                                 StateProjection &projection) {
+  for (auto i : pointsToMap) {
+    NodeID nodeId = i.first;
+    PointsTo &pts = i.second;
+    if (!canIgnore(pag, nodeId, called)) {
+      projection.pointsToMap[nodeId] = pts;
+    }
+  }
+}
+
 void AIPhase::reset() {
   setInitialState(nullptr);
   clearAll();

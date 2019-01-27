@@ -61,6 +61,14 @@ public:
   bool shouldDiscardState(ExecutionState &state,
                           ref<Expr> condition);
 
+  bool canIgnore(PAG *pag,
+                 NodeID nodeId,
+                 std::set<llvm::Function *> &called);
+
+  void getStateProjection(PAG *pag,
+                          std::set<llvm::Function *> &called,
+                          StateProjection &projection);
+
   void reset();
 
   void dump();
