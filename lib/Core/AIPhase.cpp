@@ -76,6 +76,10 @@ void AIPhase::dump() {
   errs() << "explored path: " << stats.exploredPaths << "\n";
   errs() << "forks: " << stats.forks << "\n";
   errs() << "discarded states: " << stats.discarded << "\n";
+  errs() << "reachable functions:\n";
+  for (Function *f : stats.reachable) {
+    errs() << "- " << f->getName() << "\n";
+  }
   for (auto i : pointsToMap) {
     NodeID src = i.first;
     PointsTo &pts = i.second;

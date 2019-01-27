@@ -1,6 +1,8 @@
 #ifndef KLEE_AIPHASE_H
 #define KLEE_AIPHASE_H
 
+#include <llvm/IR/Function.h>
+
 #include <MemoryModel/PointerAnalysis.h>
 
 #include "klee/ExecutionState.h"
@@ -18,6 +20,7 @@ public:
     uint64_t exploredPaths;
     uint64_t forks;
     uint64_t discarded;
+    std::set<llvm::Function *> reachable;
 
     Stats() :
       exploredPaths(0),
@@ -30,6 +33,7 @@ public:
       exploredPaths = 0;
       forks = 0;
       discarded = 0;
+      reachable.clear();
     }
   };
 

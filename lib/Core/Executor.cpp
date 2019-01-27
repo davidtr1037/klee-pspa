@@ -1577,6 +1577,10 @@ void Executor::executeCall(ExecutionState &state,
       }
     }
 
+    if (state.isDummy) {
+      aiphase.stats.reachable.insert(f);
+    }
+
     if (state.isNormalState() && !state.isRecoveryState() && \
         executionMode == ExecutionModeSymbolic && \
         isFunctionToSkip(state, f)) {
