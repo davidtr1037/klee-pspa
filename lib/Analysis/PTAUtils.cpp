@@ -50,6 +50,29 @@ void klee::dumpNodeInfo(PointerAnalysis *pta,
   }
 }
 
+bool klee::canEscape(PAG *pag,
+                     NodeID nodeId,
+                     std::set<Function *> called) {
+  if (!pag->findPAGNode(nodeId)) {
+    /* probably was deallocated (unique AS) */
+    return false;
+  }
+
+  PAGNode *pagNode = pag->getPAGNode(nodeId);
+  ObjPN *obj = dyn_cast<ObjPN>(pagNode);
+  if (obj) {
+    const Value *value = obj->getMemObj()->getRefVal();
+    if (value && isa<AllocaInst>(value)) {
+      AllocaInst *alloca = (AllocaInst *)(dyn_cast<AllocaInst>(value));
+      Function *src = alloca->getParent()->getParent();
+      if (called.find(src) == called.end()) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
 void InstructionVisitor::visitFunction(PointerAnalysis *pta, Function *f) {
   for (inst_iterator j = inst_begin(f); j != inst_end(f); j++) {
     Instruction *inst = &*j;
@@ -169,29 +192,6 @@ void ResultsCollector::visitLoad(PointerAnalysis *pta,
   log << "}\n";
 }
 
-bool ModRefCollector::canEscape(PointerAnalysis *pta,
-                                NodeID nodeId) {
-  if (!pta->getPAG()->findPAGNode(nodeId)) {
-    /* probably was deallocated (unique AS) */
-    return false;
-  }
-
-  PAGNode *pagNode = pta->getPAG()->getPAGNode(nodeId);
-  ObjPN *obj = dyn_cast<ObjPN>(pagNode);
-  if (obj) {
-    const Value *value = obj->getMemObj()->getRefVal();
-    if (value && isa<AllocaInst>(value)) {
-      AllocaInst *alloca = (AllocaInst *)(dyn_cast<AllocaInst>(value));
-      Function *src = alloca->getParent()->getParent();
-      if (called.find(src) == called.end()) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
 void ModRefCollector::visitStore(PointerAnalysis *pta,
                                  Function *f,
                                  StoreInst *inst) {
@@ -203,7 +203,7 @@ void ModRefCollector::visitStore(PointerAnalysis *pta,
   PointsTo &pts = pta->getPts(id);
 
   for (NodeID nodeId : pts) {
-    if (canEscape(pta, nodeId)) {
+    if (canEscape(pta->getPAG(), nodeId, called)) {
       continue;
     }
     if (nodeId == pta->getPAG()->getConstantNode()) {
@@ -224,7 +224,7 @@ void ModRefCollector::visitLoad(PointerAnalysis *pta,
   PointsTo &pts = pta->getPts(id);
 
   for (NodeID nodeId : pts) {
-    if (canEscape(pta, nodeId)) {
+    if (canEscape(pta->getPAG(), nodeId, called)) {
       continue;
     }
     ref.insert(nodeId);

@@ -17,6 +17,10 @@ void dumpNodeInfo(PointerAnalysis *pta,
                   NodeID nodeId,
                   unsigned int level = 0);
 
+bool canEscape(PAG *pag,
+               NodeID nodeId,
+               std::set<llvm::Function *> called);
+
 class InstructionVisitor {
 
 public:
@@ -133,9 +137,6 @@ public:
   void dumpRefSet(PointerAnalysis *pta);
 
 private:
-
-  bool canEscape(PointerAnalysis *pta,
-                 NodeID nodeId);
 
   std::set<llvm::Function *> called;
   bool collectMod;
