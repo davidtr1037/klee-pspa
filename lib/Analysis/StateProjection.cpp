@@ -9,29 +9,6 @@ using namespace llvm;
 using namespace klee;
 
 
-bool SideEffectsCollector::canEscape(PointerAnalysis *pta,
-                                     NodeID nodeId) {
-  if (!pta->getPAG()->findPAGNode(nodeId)) {
-    /* probably was deallocated (unique AS) */
-    return false;
-  }
-
-  PAGNode *pagNode = pta->getPAG()->getPAGNode(nodeId);
-  ObjPN *obj = dyn_cast<ObjPN>(pagNode);
-  if (obj) {
-    const Value *value = obj->getMemObj()->getRefVal();
-    if (value && isa<AllocaInst>(value)) {
-      AllocaInst *alloca = (AllocaInst *)(dyn_cast<AllocaInst>(value));
-      Function *src = alloca->getParent()->getParent();
-      if (called.find(src) == called.end()) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
 void SideEffectsCollector::visitStore(PointerAnalysis *pta,
                                       Function *f,
                                       StoreInst *inst) {
@@ -39,7 +16,7 @@ void SideEffectsCollector::visitStore(PointerAnalysis *pta,
   PointsTo &pts = pta->getPts(id);
 
   for (NodeID nodeId : pts) {
-    if (canEscape(pta, nodeId)) {
+    if (canEscape(pta->getPAG(), nodeId, called)) {
       continue;
     }
     if (nodeId == pta->getPAG()->getConstantNode()) {

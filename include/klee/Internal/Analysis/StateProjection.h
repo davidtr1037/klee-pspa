@@ -39,9 +39,6 @@ public:
 
 private:
 
-  bool canEscape(PointerAnalysis *pta,
-                 NodeID nodeId);
-
   /* TODO: add docs */
   std::set<llvm::Function *> called;
   /* TODO: add docs */
