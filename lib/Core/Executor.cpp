@@ -358,6 +358,9 @@ namespace {
 
   cl::opt<unsigned>
   MaxInstructions("max-instructions", cl::init(0), cl::desc(""));
+
+  cl::opt<bool>
+  UseSolverInAIMode("use-solver-in-ai-mode", cl::init(true), cl::desc(""));
 }
 
 
@@ -893,31 +896,40 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
       aiphase.stats.discarded++;
       return StatePair(0, 0);
     }
-    solver->setTimeout(0.1);
-    bool success = solver->evaluate(current, condition, res);
-    solver->setTimeout(0);
-    if(!success)
-        klee_warning("dummy states forking timeout");
-    if (!success || res == Solver::Unknown) {
-        ExecutionState *falseState, *trueState = &current;
-        falseState = trueState->branch();
 
-        addedStates.push_back(falseState);
-        current.ptreeNode->data = 0;
-        auto res = processTree->split(current.ptreeNode, falseState, trueState);
-        falseState->ptreeNode = res.first;
-        trueState->ptreeNode = res.second;
-
-        aiphase.stats.forks++;
-        return StatePair(trueState, falseState);
-    } else if (res==Solver::True) {
-        return StatePair(&current, 0); 
+    if (UseSolverInAIMode) {
+      solver->setTimeout(0.1);
+      if (!solver->evaluate(current, condition, res)) {
+        /* if there is a timeout, explore both paths */
+        res = Solver::Unknown;
+      }
+      solver->setTimeout(0);
     } else {
-        return StatePair(0, &current); 
+      ConstantExpr *ce = dyn_cast<ConstantExpr>(condition);
+      if (ce) {
+        res = ce->isTrue() ? Solver::True : Solver::False;
+      } else {
+        res = Solver::Unknown;
+      }
     }
 
+    if (res == Solver::Unknown) {
+      ExecutionState *falseState, *trueState = &current;
+      falseState = trueState->branch();
 
-    assert(false);
+      addedStates.push_back(falseState);
+      current.ptreeNode->data = 0;
+      auto res = processTree->split(current.ptreeNode, falseState, trueState);
+      falseState->ptreeNode = res.first;
+      trueState->ptreeNode = res.second;
+
+      aiphase.stats.forks++;
+      return StatePair(trueState, falseState);
+    } else if (res == Solver::True) {
+      return StatePair(&current, 0);
+    } else {
+      return StatePair(0, &current);
+    }
   }
 
   ref<Expr> negatedCondition = Expr::createIsZero(condition);
@@ -1428,7 +1440,8 @@ void Executor::executeCall(ExecutionState &state,
     // instead of the actual instruction, since we can't make a KInstIterator
     // from just an instruction (unlike LLVM).
 
-    if (isTargetFunction(state, f) && ptaMode == AIMode && executionMode == ExecutionModeSymbolic) {
+    if (ptaMode == AIMode && executionMode == ExecutionModeSymbolic && \
+        isTargetFunction(state, f)) {
       bool isReady = startAIPhase(state);
       if (!isReady) {
         return;
@@ -1555,7 +1568,7 @@ void Executor::executeCall(ExecutionState &state,
     for (unsigned i=0; i<numFormals; ++i) 
       bindArgument(kf, i, state, arguments[i]);
 
-    if (isTargetFunction(state, f)) {
+    if (ptaMode != AIMode && isTargetFunction(state, f)) {
       analyzeTargetFunction(state, ki, f, arguments);
     }
   }
