@@ -2682,9 +2682,9 @@ void Executor::trackLoopExecution(ExecutionState &state) {
   StackFrame &sf = state.stack.back();
   KFunction *kf = sf.kf;
   Instruction *inst = state.prevPC->inst;
-  if (kf->loops.find(inst) != kf->loops.end()) {
-    auto headers = kf->loops[inst];
-    for (Instruction *i : headers) {
+  auto headers = kf->loops.find(inst);
+  if (headers != kf->loops.end()) {
+    for (Instruction *i : std::get<1>(*headers)) {
       sf.loopTrackingInfo[i] = 0;
     }
     uint64_t &count = sf.loopTrackingInfo[inst];

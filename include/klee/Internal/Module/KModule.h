@@ -14,6 +14,7 @@
 #include "klee/Interpreter.h"
 
 #include <map>
+#include <unordered_map>
 #include <set>
 #include <vector>
 
@@ -52,7 +53,7 @@ namespace klee {
     bool trackCoverage;
 
     /* TODO: add docs */
-    std::map<llvm::Instruction *, std::set<llvm::Instruction *>> loops;
+    std::unordered_map<llvm::Instruction *, std::set<llvm::Instruction *>> loops;
 
   private:
     KFunction(const KFunction&);
