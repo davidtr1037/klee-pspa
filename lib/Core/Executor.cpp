@@ -917,6 +917,7 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
     assert(false);
   }
 
+  ref<Expr> negatedCondition = Expr::createIsZero(condition);
   if (!isSeeding && !isa<ConstantExpr>(condition) && 
       (MaxStaticForkPct!=1. || MaxStaticSolvePct != 1. ||
        MaxStaticCPForkPct!=1. || MaxStaticCPSolvePct != 1.) &&
@@ -1645,7 +1646,7 @@ static inline const llvm::fltSemantics * fpWidthToSemantics(unsigned width) {
 }
 
 void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
-  std::shared_ptr<TimerStatIncrementer> timer;
+  std::unique_ptr<TimerStatIncrementer> timer;
   if (state.isDummy) {
     timer.reset(new TimerStatIncrementer(stats::staticAnalysisTime));
   }
