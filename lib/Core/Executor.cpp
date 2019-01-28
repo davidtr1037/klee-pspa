@@ -1010,27 +1010,30 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
       aiphase.stats.discarded++;
       return StatePair(0, 0);
     }
-    if (isa<ConstantExpr>(condition)) {
-      ConstantExpr *ce = dyn_cast<ConstantExpr>(condition);
-      if (ce->isTrue()) {
-        return StatePair(&current, 0);
-      } else {
-        return StatePair(0, &current);
-      }
+    solver->setTimeout(0.1);
+    bool success = solver->evaluate(current, condition, res);
+    solver->setTimeout(0);
+    if(!success)
+        klee_warning("dummy states forking timeout");
+    if (!success || res == Solver::Unknown) {
+        ExecutionState *falseState, *trueState = &current;
+        falseState = trueState->branch();
+
+        addedStates.push_back(falseState);
+        current.ptreeNode->data = 0;
+        auto res = processTree->split(current.ptreeNode, falseState, trueState);
+        falseState->ptreeNode = res.first;
+        trueState->ptreeNode = res.second;
+
+        aiphase.stats.forks++;
+        return StatePair(trueState, falseState);
+    } else if (res==Solver::True) {
+        return StatePair(&current, 0); 
     } else {
-      ExecutionState *falseState, *trueState = &current;
-      falseState = trueState->branch();
-
-      addedStates.push_back(falseState);
-      current.ptreeNode->data = 0;
-      auto res = processTree->split(current.ptreeNode, falseState, trueState);
-      falseState->ptreeNode = res.first;
-      trueState->ptreeNode = res.second;
-
-      aiphase.stats.forks++;
-
-      return StatePair(trueState, falseState);
+        return StatePair(0, &current); 
     }
+
+
     assert(false);
   }
 
