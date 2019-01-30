@@ -1358,7 +1358,9 @@ void Executor::stepInstruction(ExecutionState &state) {
   if (statsTracker)
     statsTracker->stepInstruction(state);
 
-  ++stats::instructions;
+  if (!state.isDummy) {
+    ++stats::instructions;
+  }
   state.prevPC = state.pc;
   ++state.pc;
 
