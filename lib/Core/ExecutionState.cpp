@@ -180,8 +180,12 @@ ExecutionState::ExecutionState(const ExecutionState& state):
 
   if (!state.pta.isNull()) {
     TimerStatIncrementer timer(stats::staticAnalysisTime);
-    pta = new AndersenDynamic(*state.pta);
-    pta->initialize(*state.pta->getModule());
+    if (isDummy) {
+      pta = state.pta;
+    } else {
+      pta = new AndersenDynamic(*state.pta);
+      pta->initialize(*state.pta->getModule());
+    }
   } else {
     pta = NULL;
   }
