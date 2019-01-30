@@ -175,8 +175,10 @@ void ExecutionState::popFrame() {
          ie = sf.allocas.end(); it != ie; ++it)
     addressSpace.unbindObject(*it);
 
-  /* clear non-relevant points-to information */
-  clearLocalPointsTo();
+  if (!isDummy) {
+    /* clear non-relevant points-to information */
+    clearLocalPointsTo();
+  }
 
   /* ... */
   uint32_t &count = callingFunctions[sf.kf->function];
