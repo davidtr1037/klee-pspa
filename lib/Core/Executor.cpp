@@ -1450,6 +1450,23 @@ void Executor::executeCall(ExecutionState &state,
       } else {
         /* we are after the AI phase,
            so we can examine now the results */
+        if (CollectPTAStats) {
+          const InstructionInfo &info = kmodule->infos->getInfo(state.prevPC->inst);
+          CallingContext context;
+          context.entry = f;
+          context.line = info.line;
+
+          PTAStatsSummary summary;
+          summary.context = context;
+          summary.queries = 0; // ignore
+          summary.average_size = 0; // ignore
+          summary.max_size = 0; // ignore
+          summary.mod_size = aiphase.getPointsToMap().size();
+          summary.ref_size = 0; // ignore
+
+          ptaStatsLogger->dump(summary);
+        }
+
         aiphase.reset();
       }
     }
