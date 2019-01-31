@@ -1499,7 +1499,9 @@ void Executor::stepInstruction(ExecutionState &state) {
   if (statsTracker)
     statsTracker->stepInstruction(state);
 
-  ++stats::instructions;
+  if (!state.isDummy) {
+    ++stats::instructions;
+  }
   state.prevPC = state.pc;
   ++state.pc;
 
@@ -1581,13 +1583,31 @@ void Executor::executeCall(ExecutionState &state,
     // instead of the actual instruction, since we can't make a KInstIterator
     // from just an instruction (unlike LLVM).
 
-    if (isTargetFunction(state, f) && ptaMode == AIMode && executionMode == ExecutionModeSymbolic) {
+    if (ptaMode == AIMode && executionMode == ExecutionModeSymbolic && \
+        isTargetFunction(state, f)) {
       bool isReady = startAIPhase(state);
       if (!isReady) {
         return;
       } else {
         /* we are after the AI phase,
            so we can examine now the results */
+        if (CollectPTAStats) {
+          const InstructionInfo &info = kmodule->infos->getInfo(state.prevPC->inst);
+          CallingContext context;
+          context.entry = f;
+          context.line = info.line;
+
+          PTAStatsSummary summary;
+          summary.context = context;
+          summary.queries = 0; // ignore
+          summary.average_size = 0; // ignore
+          summary.max_size = 0; // ignore
+          summary.mod_size = aiphase.getPointsToMap().size();
+          summary.ref_size = 0; // ignore
+
+          ptaStatsLogger->dump(summary);
+        }
+
         aiphase.reset();
       }
     }
@@ -1778,7 +1798,7 @@ void Executor::executeCall(ExecutionState &state,
     for (unsigned i=0; i<numFormals; ++i) 
       bindArgument(kf, i, state, arguments[i]);
 
-    if (isTargetFunction(state, f)) {
+    if (ptaMode != AIMode && isTargetFunction(state, f)) {
       analyzeTargetFunction(state, ki, f, arguments);
     }
   }
