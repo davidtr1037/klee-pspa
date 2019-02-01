@@ -4732,20 +4732,22 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
       updatePointsToOnCall(state, f, arguments);
     }
 
-    if (!NoAnalyze) {
-      clonedPTA = new AndersenDynamic(*state.getPTA().get());
-      clonedPTA->initialize(*kmodule->module);
-      clonedPTA->analyzeFunction(*kmodule->module, f);
-      if (RunSymPtaSanityCheck) {
-        /* build the symbolic points-to from scratch */
-        ExecutionState es(state);
-        es.getPTA()->clearPointsTo();
-        updatePointsToOnCallSymbolic(es, f, arguments);
-        es.getPTA()->analyzeFunction(*kmodule->module, f);
+    if (NoAnalyze) {
+      return;
+    }
 
-        /* compare with the abstrac points-to */
-        comparePointsToStates(clonedPTA, es.getPTA().get());
-      }
+    clonedPTA = new AndersenDynamic(*state.getPTA().get());
+    clonedPTA->initialize(*kmodule->module);
+    clonedPTA->analyzeFunction(*kmodule->module, f);
+    if (RunSymPtaSanityCheck) {
+      /* build the symbolic points-to from scratch */
+      ExecutionState es(state);
+      es.getPTA()->clearPointsTo();
+      updatePointsToOnCallSymbolic(es, f, arguments);
+      es.getPTA()->analyzeFunction(*kmodule->module, f);
+
+      /* compare with the abstrac points-to */
+      comparePointsToStates(clonedPTA, es.getPTA().get());
     }
   }
 
