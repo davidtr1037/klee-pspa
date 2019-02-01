@@ -1585,8 +1585,7 @@ void Executor::executeCall(ExecutionState &state,
 
     if (ptaMode == AIMode && executionMode == ExecutionModeSymbolic && \
         isTargetFunction(state, f)) {
-      bool isReady = startAIPhase(state);
-      if (!isReady) {
+      if (!startAIPhase(state)) {
         return;
       } else {
         /* we are after the AI phase,
