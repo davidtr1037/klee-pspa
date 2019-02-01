@@ -797,6 +797,10 @@ public:
   bool isFunctionToSkip(ExecutionState &state,
                         llvm::Function *f);
 
+  void handleSkippedFunction(ExecutionState &state,
+                             llvm::Function *f,
+                             std::vector<ref<Expr>> &arguments);
+
   void saveModSet(ExecutionState &state);
 
   void buildEntryState(ExecutionState &state,

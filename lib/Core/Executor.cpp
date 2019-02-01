@@ -1618,70 +1618,7 @@ void Executor::executeCall(ExecutionState &state,
     if (state.isNormalState() && !state.isRecoveryState() && \
         executionMode == ExecutionModeSymbolic && \
         isFunctionToSkip(state, f)) {
-      /* TODO: remove later */
-      assert(!state.isDummy);
-      /* first, check if the skipped function has side effects */
-      if (ptaMode == AIMode || isDynamicMode() || mra->hasSideEffects(f)) {
-        if (isDynamicMode()) {
-          /* set the points-to information of the parameters before creating the snapshot */
-          TimerStatIncrementer timer(stats::staticAnalysisTime);
-          if (ptaMode == DynamicSymbolicMode) {
-            updatePointsToOnCallSymbolic(state, f, arguments);
-          } else {
-            updatePointsToOnCall(state, f, arguments);
-          }
-        }
-
-        bool isReady = false;
-        if (ptaMode == AIMode) {
-          isReady = startAIPhase(state);
-          if (!isReady) {
-            return;
-          }
-        }
-
-        /* create snapshot, recovery state will be created on demand... */
-        unsigned int index = state.getSnapshots().size();
-        DEBUG_WITH_TYPE(
-          DEBUG_BASIC,
-          klee_message("%p: adding snapshot (index = %u)", &state, index)
-        );
-        ref<ExecutionState> snapshotState(createSnapshotState(state));
-        ref<Snapshot> snapshot(new Snapshot(snapshotState, f));
-        state.addSnapshot(snapshot);
-        interpreterHandler->incSnapshotsCount();
-        clientStats.snapshots[f]++;
-
-        if (ptaMode == AIMode && isReady) {
-          /* we are after the AI phase,
-             so we can examine now the results */
-
-          /* get called functions */
-          set<Function *> called;
-          for (StackFrame &sf : snapshot->state->stack) {
-            called.insert(sf.kf->function);
-          }
-
-          /* TODO: export new static API for getPAG? */
-          StateProjection projection;
-          aiphase.getStateProjection(state.getPTA()->getPAG(),
-                                     called,
-                                     projection);
-          updateModInfo(snapshot,
-                        snapshot->state->getPTA().get(),
-                        projection);
-          snapshot->modComputed = true;
-          aiphase.reset();
-        }
-
-        /* TODO: will be replaced later... */
-        state.clearRecoveredAddresses();
-
-        DEBUG_WITH_TYPE(
-          DEBUG_BASIC,
-          klee_message("%p: skipping function call to %s", &state, f->getName().data())
-        );
-      }
+      handleSkippedFunction(state, f, arguments);
       return;
     }
 
@@ -6136,6 +6073,79 @@ bool Executor::isFunctionToSkip(ExecutionState &state, Function *f) {
   }
 
   return false;
+}
+
+void Executor::handleSkippedFunction(ExecutionState &state,
+                                     Function *f,
+                                     std::vector<ref<Expr>> &arguments) {
+  /* TODO: remove later */
+  assert(!state.isDummy);
+  /* first, check if the skipped function has side effects */
+  if (ptaMode == StaticMode && !mra->hasSideEffects(f)) {
+    return;
+  }
+
+  StateProjection projection;
+  if (isDynamicMode()) {
+    /* set the points-to information of the parameters before creating the snapshot */
+    TimerStatIncrementer timer(stats::staticAnalysisTime);
+    if (ptaMode == DynamicSymbolicMode) {
+      updatePointsToOnCallSymbolic(state, f, arguments);
+    } else {
+      updatePointsToOnCall(state, f, arguments);
+    }
+  }
+
+  if (ptaMode == AIMode) {
+    if (!startAIPhase(state)) {
+      return;
+    } else {
+      /* get called functions */
+      set<Function *> called;
+      for (StackFrame &sf : state.stack) {
+        called.insert(sf.kf->function);
+      }
+
+      /* TODO: export new static API for getPAG? */
+      aiphase.getStateProjection(state.getPTA()->getPAG(),
+                                 called,
+                                 projection);
+    }
+  }
+
+  /* create snapshot, recovery state will be created on demand... */
+  unsigned int index = state.getSnapshots().size();
+  DEBUG_WITH_TYPE(
+    DEBUG_BASIC,
+    klee_message("%p: adding snapshot (index = %u)", &state, index)
+  );
+  ref<ExecutionState> snapshotState(createSnapshotState(state));
+  ref<Snapshot> snapshot(new Snapshot(snapshotState, f));
+  state.addSnapshot(snapshot);
+
+  /* update statistics */
+  interpreterHandler->incSnapshotsCount();
+  clientStats.snapshots[f]++;
+
+  if (ptaMode == AIMode) {
+    updateModInfo(snapshot,
+                  snapshot->state->getPTA().get(),
+                  projection);
+    snapshot->modComputed = true;
+    aiphase.reset();
+  }
+
+  /* TODO: will be replaced later... */
+  state.clearRecoveredAddresses();
+
+  DEBUG_WITH_TYPE(
+    DEBUG_BASIC,
+    klee_message(
+      "%p: skipping function call to %s",
+      &state,
+      f->getName().data()
+    )
+  );
 }
 
 void Executor::saveModSet(ExecutionState &state) {
