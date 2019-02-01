@@ -1443,33 +1443,9 @@ void Executor::executeCall(ExecutionState &state,
     // from just an instruction (unlike LLVM).
 
     if (executionMode == ExecutionModeSymbolic && isTargetFunction(state, f)) {
-      if (ptaMode == AIMode) {
-        if (!startAIPhase(state)) {
-          return;
-        } else {
-          /* we are after the AI phase,
-             so we can examine now the results */
-          if (CollectPTAStats) {
-            const InstructionInfo &info = kmodule->infos->getInfo(state.prevPC->inst);
-            CallingContext context;
-            context.entry = f;
-            context.line = info.line;
-
-            PTAStatsSummary summary;
-            summary.context = context;
-            summary.queries = 0; // ignore
-            summary.average_size = 0; // ignore
-            summary.max_size = 0; // ignore
-            summary.mod_size = aiphase.getPointsToMap().size();
-            summary.ref_size = 0; // ignore
-
-            ptaStatsLogger->dump(summary);
-          }
-
-          aiphase.reset();
-        }
-      } else {
-        analyzeTargetFunction(state, ki, f, arguments);
+      analyzeTargetFunction(state, ki, f, arguments);
+      if (executionMode == ExecutionModeAI) {
+        return;
       }
     }
 
@@ -4753,6 +4729,35 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
 
   if (NoAnalyze) {
     /* no statistics in this mode... */
+    return;
+  }
+
+  if (ptaMode == AIMode) {
+    if (!startAIPhase(state)) {
+      return;
+    } else {
+      /* we are after the AI phase,
+         so we can examine now the results */
+      if (CollectPTAStats) {
+        const InstructionInfo &info = kmodule->infos->getInfo(state.prevPC->inst);
+        CallingContext context;
+        context.entry = f;
+        context.line = info.line;
+
+        PTAStatsSummary summary;
+        summary.context = context;
+        summary.queries = 0; // ignore
+        summary.average_size = 0; // ignore
+        summary.max_size = 0; // ignore
+        summary.mod_size = aiphase.getPointsToMap().size();
+        summary.ref_size = 0; // ignore
+
+        ptaStatsLogger->dump(summary);
+      }
+
+      aiphase.reset();
+    }
+    /* other statistics are not supported */
     return;
   }
 
