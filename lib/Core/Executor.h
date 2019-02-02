@@ -803,8 +803,7 @@ public:
 
   void saveModSet(ExecutionState &state);
 
-  void buildEntryState(ExecutionState &state,
-                       ref<AndersenDynamic> pta,
+  void buildEntryState(ref<AndersenDynamic> pta,
                        llvm::Function *f,
                        EntryState &entryState);
 
