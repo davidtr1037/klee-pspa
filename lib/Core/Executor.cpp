@@ -6179,7 +6179,7 @@ void Executor::saveModSet(ExecutionState &state) {
       mergePointsTo(state, index, clonedPTA.get());
 
       /* build the entry state for the given function */
-      buildEntryState(clonedPTA, f, entryState);
+      buildEntryState(snapshotPTA, f, entryState);
 
       /* TODO: should we check reusability without the call stack? */
       canReuse = modularPTA->computeModSet(f, entryState, projection);
@@ -6233,6 +6233,7 @@ void Executor::buildEntryState(ref<AndersenDynamic> pta,
   unsigned int argIndex = 0;
   for (Argument &arg : f->getArgumentList()) {
     argIndex++;
+
     PointerType *paramType = dyn_cast<PointerType>(arg.getType());
     if (!paramType) {
       continue;
