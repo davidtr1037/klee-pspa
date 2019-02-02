@@ -323,6 +323,12 @@ NodeID ModularPTA::substituteNode(EntryState &es1,
 
 void ModularPTA::dump(EntryState &es) {
   errs() << "### Entry state ###\n";
+
+  for (NodeID n : es.usedGlobals) {
+    errs() << "// global\n";
+    dump(es, n);
+  }
+
   for (unsigned int i = 0; i < es.parameters.size(); i++) {
     Parameter p = es.parameters[i];
     errs() << "// parameter " << p.index << ":\n";
