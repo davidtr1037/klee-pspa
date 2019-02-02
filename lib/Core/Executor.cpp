@@ -6233,6 +6233,7 @@ void Executor::buildEntryState(ExecutionState &state,
 
   unsigned int argIndex = 0;
   for (Argument &arg : f->getArgumentList()) {
+    argIndex++;
     PointerType *paramType = dyn_cast<PointerType>(arg.getType());
     if (!paramType) {
       continue;
@@ -6244,7 +6245,7 @@ void Executor::buildEntryState(ExecutionState &state,
       continue;
     }
     NodeID dst = *pts.begin();
-    entryState.addParameter(dst, argIndex);
+    entryState.addParameter(dst, argIndex - 1);
   }
 }
 
