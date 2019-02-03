@@ -3050,15 +3050,19 @@ void Executor::terminateStateEarly(ExecutionState &state,
                                    const Twine &message) {
   if (!OnlyOutputStatesCoveringNew || state.coveredNew ||
       (AlwaysOutputSeeds && seedMap.count(&state)))
-    interpreterHandler->processTestCase(state, (message + "\n").str().c_str(),
-                                        "early");
+    if (!state.isDummy) {
+      interpreterHandler->processTestCase(state, (message + "\n").str().c_str(),
+                                          "early");
+    }
   terminateState(state);
 }
 
 void Executor::terminateStateOnExit(ExecutionState &state) {
   if (!OnlyOutputStatesCoveringNew || state.coveredNew || 
       (AlwaysOutputSeeds && seedMap.count(&state)))
-    interpreterHandler->processTestCase(state, 0, 0);
+    if (!state.isDummy) {
+      interpreterHandler->processTestCase(state, 0, 0);
+    }
   terminateState(state);
 }
 
@@ -3158,7 +3162,9 @@ void Executor::terminateStateOnError(ExecutionState &state,
       suffix = suffix_buf.c_str();
     }
 
-    interpreterHandler->processTestCase(state, msg.str().c_str(), suffix);
+    if (!state.isDummy) {
+      interpreterHandler->processTestCase(state, msg.str().c_str(), suffix);
+    }
   }
     
   terminateState(state);
