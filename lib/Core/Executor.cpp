@@ -3257,12 +3257,12 @@ void Executor::terminateState(ExecutionState &state) {
 
     if (std::find(removedStates.begin(), removedStates.end(), &state) == removedStates.end()) {
       removedStates.push_back(&state);
-      if (!state.isRecoveryState()) {
+      if (!state.isDummy && !state.isRecoveryState()) {
         interpreterHandler->incPathsExplored();
       }
     }
   } else {
-    if (!state.isRecoveryState()) {
+    if (!state.isDummy && !state.isRecoveryState()) {
       interpreterHandler->incPathsExplored();
     }
     // never reached searcher, just delete immediately
