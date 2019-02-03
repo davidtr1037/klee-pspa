@@ -6636,6 +6636,14 @@ void Executor::collectModStats(ExecutionState &state,
   summary.mod_size = projection.pointsToMap.size();
   summary.ref_size = 0; // ignore
 
+  CallInst *callInst = dyn_cast<CallInst>(state.prevPC->inst);
+  if (!callInst) {
+    assert(0);
+  }
+  if (!callInst->hasNUses(0)) {
+    summary.mod_size++;
+  }
+
   ptaStatsLogger->dump(summary);
 }
 
