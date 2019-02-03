@@ -540,7 +540,7 @@ const Module *Executor::setModule(llvm::Module *module,
 
   if (UseModularPTA) {
     if (!isDynamicMode()) {
-      klee_error("modular analysis must be used in dynamic mode");
+      klee_warning("modular analysis can be used only in dynamic mode");
     }
     modularPTA = new ModularPTA();
     collectGlobalsUsage();
