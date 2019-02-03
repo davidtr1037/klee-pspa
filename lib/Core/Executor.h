@@ -846,6 +846,9 @@ public:
 
   void collectGlobalsUsage();
 
+  void collectModStats(ExecutionState &state,
+                       llvm::Function *f,
+                       std::vector<ref<Expr>> &arguments);
 };
   
 } // End klee namespace

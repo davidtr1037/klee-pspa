@@ -377,6 +377,8 @@ namespace {
   cl::opt<bool>
   UseRecoveryCache("use-recovery-cache", cl::init(false), cl::desc(""));
 
+  cl::opt<bool>
+  CollectModStatsOnly("collect-mod-stats-only", cl::init(false), cl::desc(""));
 }
 
 
@@ -1584,7 +1586,11 @@ void Executor::executeCall(ExecutionState &state,
     // from just an instruction (unlike LLVM).
 
     if (executionMode == ExecutionModeSymbolic && isTargetFunction(state, f)) {
-      analyzeTargetFunction(state, ki, f, arguments);
+      if (CollectModStatsOnly) {
+        collectModStats(state, f, arguments);
+      } else {
+        analyzeTargetFunction(state, ki, f, arguments);
+      }
       if (executionMode == ExecutionModeAI) {
         return;
       }
@@ -6537,6 +6543,100 @@ void Executor::collectGlobalsUsage() {
       }
     }
   }
+}
+
+void Executor::collectModStats(ExecutionState &state,
+                               Function *f,
+                               std::vector<ref<Expr>> &arguments) {
+  TimerStatIncrementer timer(stats::staticAnalysisTime);
+
+  /* TODO: remove later */
+  assert(!state.isDummy);
+
+  StateProjection projection;
+  set<Function *> called;
+
+  /* get called functions */
+  for (StackFrame &sf : state.stack) {
+    called.insert(sf.kf->function);
+  }
+
+  if (isDynamicMode()) {
+    if (ptaMode == DynamicSymbolicMode) {
+      updatePointsToOnCallSymbolic(state, f, arguments);
+    } else {
+      updatePointsToOnCall(state, f, arguments);
+    }
+  }
+
+  if (ptaMode == AIMode) {
+    if (!startAIPhase(state)) {
+      return;
+    } else {
+      /* TODO: export new static API for getPAG? */
+      aiphase.getStateProjection(state.getPTA()->getPAG(),
+                                 called,
+                                 projection);
+      aiphase.reset();
+    }
+  } else if (isDynamicMode()) {
+    ++stats::staticAnalysisUsage;
+
+    ref<ExecutionState> snapshotState(createSnapshotState(state));
+    ref<Snapshot> snapshot(new Snapshot(snapshotState, f));
+
+    EntryState entryState;
+
+    /* create a new instance for computing the mod-set */
+    ref<AndersenDynamic> snapshotPTA = snapshot->state->getPTA();
+    ref<AndersenDynamic> pta = new AndersenDynamic(*snapshotPTA);
+    pta->initialize(*kmodule->module);
+
+    bool canReuse = false;
+    if (UseModularPTA) {
+      /* build the entry state for the given function */
+      buildEntryState(snapshotPTA, f, entryState);
+      /* TODO: should we check reusability without the call stack? */
+      canReuse = modularPTA->computeModSet(f, entryState, projection);
+    }
+
+    if (canReuse) {
+      ++stats::staticAnalysisReuse;
+    } else {
+      pta->analyzeFunction(*kmodule->module, snapshot->f);
+
+      SideEffectsCollector collector(called, projection);
+      collector.visitReachable(pta.get(), snapshot->f);
+      collectRelevantGlobals(pta.get(), snapshot->f, entryState.usedGlobals);
+
+      if (UseModularPTA) {
+        modularPTA->update(f, entryState, projection);
+        /* this one is a bit hacky... */
+        cachedSnapshots.push_back(snapshot);
+      }
+    }
+
+    /* free memory... */
+    pta->postAnalysisCleanup();
+  } else {
+    SideEffectsCollector collector(called, projection);
+    collector.visitReachable(staticPTA, f);
+  }
+
+  auto &info = kmodule->infos->getInfo(state.prevPC->inst);
+  CallingContext context;
+  context.entry = f;
+  context.line = info.line;
+
+  PTAStatsSummary summary;
+  summary.context = context;
+  summary.queries = 0; // ignore
+  summary.average_size = 0; // ignore
+  summary.max_size = 0; // ignore
+  summary.mod_size = projection.pointsToMap.size();
+  summary.ref_size = 0; // ignore
+
+  ptaStatsLogger->dump(summary);
 }
 
 void Executor::prepareForEarlyExit() {
