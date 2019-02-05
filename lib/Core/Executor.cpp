@@ -4539,8 +4539,11 @@ NodeID Executor::ptrToAbstract(ExecutionState &state,
      caller needs to use the traverse API or call getColocatedPointers manually */
   assert(!p->multiplePointers);
 
-  PointerType *pt = dyn_cast<PointerType>(sPTA.getMemoryObjectType(m));
-  DynamicMemoryLocation dl(getAllocSite(state,m), m->size, false, offset, pt);
+  DynamicMemoryLocation dl(getAllocSite(state,m),
+                           m->size,
+                           false,
+                           offset,
+                           m->getTypeHint());
   return computeAbstractMO(state.getPTA().get(), dl, false);
 }
 
