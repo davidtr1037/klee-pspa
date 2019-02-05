@@ -4519,7 +4519,7 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
     for (unsigned int i = 0; i < locations.size(); i++) {
       DynamicMemoryLocation &location = locations[i];
       NodeID dst = computeAbstractMO(state.getPTA().get(), location, false);
-      state.updatePointsTo(formalParamId,dst, i == 0);
+      state.updatePointsTo(formalParamId, dst, i == 0);
     }
   }
 }
@@ -4601,10 +4601,16 @@ void Executor::updatePointsToOnCallSymbolic(ExecutionState &state,
       continue;
     }
 
-    ResolutionList rl1;
-    state.addressSpace.resolve(state, solver, e, rl1);
+    ResolutionList rl;
+    state.addressSpace.resolve(state, solver, e, rl);
     NodeID formalParamId = state.getPTA()->getPAG()->getValueNode(&arg);
-    for (auto &op1 : rl1) {
+    if (rl.empty()) {
+      /* TODO: this can be a function pointer as well */
+      NodeID dst = state.getPTA()->getPAG()->getNullPtr();
+      state.updatePointsTo(formalParamId, dst, true);
+    }
+
+    for (auto &op1 : rl) {
       const MemoryObject* mo = op1.first;
       Pointer *ptr = sPTA.getPointer(mo, mo->getOffsetExpr(e));
       for (PointsToPair &pair : sPTA.traverse(ptr)) {
