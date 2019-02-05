@@ -4464,19 +4464,6 @@ const Value *Executor::getAllocSite(ExecutionState &state,
   return info->getAllocSite();
 }
 
-PointerType *Executor::getTypeHint(const MemoryObject *mo) {
-  PointerType *hint = NULL;
-
-  if (mo->types.size() > 0) {
-    if (mo->types.size() > 1) {
-      assert(false);
-    }
-    hint = *mo->types.begin();
-  }
-
-  return hint;
-}
-
 bool Executor::getDynamicMemoryLocation(ExecutionState &state,
                                         ref<Expr> value,
                                         PointerType *valueType,
@@ -4543,7 +4530,7 @@ bool Executor::getDynamicMemoryLocation(ExecutionState &state,
 
   location.value = getAllocSite(state, mo);
   location.size = mo->size;
-  location.hint = getTypeHint(mo);
+  location.hint = mo->getTypeHint();
   return true;
 }
 
@@ -4626,7 +4613,7 @@ bool Executor::getDynamicMemoryLocations(ExecutionState &state,
 
     location.value = getAllocSite(state, mo);
     location.size = mo->size;
-    location.hint = getTypeHint(mo);
+    location.hint = mo->getTypeHint();
     locations.push_back(location);
   }
   return true;
@@ -4738,7 +4725,7 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
                                       mo->size,
                                       ce == NULL,
                                       ce == NULL ? 0 : ce->getZExtValue(),
-                                      getTypeHint(mo));
+                                      mo->getTypeHint());
 
   bool canStronglyUpdate;
   NodeID src = computeAbstractMO(state.getPTA().get(),
@@ -4828,8 +4815,11 @@ NodeID Executor::ptrToAbstract(ExecutionState &state,
      caller needs to use the traverse API or call getColocatedPointers manually */
   assert(!p->multiplePointers);
 
-  PointerType *pt = dyn_cast<PointerType>(sPTA.getMemoryObjectType(m));
-  DynamicMemoryLocation dl(getAllocSite(state,m), m->size, false, offset, pt);
+  DynamicMemoryLocation dl(getAllocSite(state,m),
+                           m->size,
+                           false,
+                           offset,
+                           m->getTypeHint());
   return computeAbstractMO(state.getPTA().get(), dl, false);
 }
 
@@ -4848,17 +4838,17 @@ void Executor::updateGlobalsPts(ExecutionState &state,
         state.updatePointsTo(from, to, !pair.first->isWeak() && !pair.second->isWeak());
       }
       if (!ptr->multiplePointers) {
-          NodeID dst = ptrToAbstract(state, ptr, sPTA);
-          state.updatePointsTo(formalGlobalId, dst, !ptr->isWeak());
+        NodeID dst = ptrToAbstract(state, ptr, sPTA);
+        state.updatePointsTo(formalGlobalId, dst, !ptr->isWeak());
       } else {
-         // We are conservative here and consider all coolocated pointers
-         // if there is a symbolic pointer to multiple fields in a structs
-         bool first = true;
-         for (Pointer *p : sPTA.getColocatedPointers(*ptr)) {
-            NodeID dst = ptrToAbstract(state, p, sPTA);
-            state.updatePointsTo(formalGlobalId, dst, first);
-            first = false;
-         }
+        // We are conservative here and consider all coolocated pointers
+        // if there is a symbolic pointer to multiple fields in a structs
+        bool first = true;
+        for (Pointer *p : sPTA.getColocatedPointers(*ptr)) {
+          NodeID dst = ptrToAbstract(state, p, sPTA);
+          state.updatePointsTo(formalGlobalId, dst, first);
+          first = false;
+        }
       }
     }
   }
@@ -4899,16 +4889,16 @@ void Executor::updatePointsToOnCallSymbolic(ExecutionState &state,
         state.updatePointsTo(from, to, !pair.first->isWeak() && !pair.second->isWeak());
       }
       if (!ptr->multiplePointers) {
-          NodeID dst = ptrToAbstract(state, ptr, sPTA);
-          state.updatePointsTo(formalParamId, dst, !ptr->isWeak());
+        NodeID dst = ptrToAbstract(state, ptr, sPTA);
+        state.updatePointsTo(formalParamId, dst, !ptr->isWeak());
       } else {
         // We are conservative here and consider all coolocated pointers
         // if there is a symbolic pointer to multiple fields in a structs
         bool first = true;
         for (Pointer *p : sPTA.getColocatedPointers(*ptr)) {
-           NodeID dst = ptrToAbstract(state, p, sPTA);
-           state.updatePointsTo(formalParamId, dst, first);
-           first = false;
+          NodeID dst = ptrToAbstract(state, p, sPTA);
+          state.updatePointsTo(formalParamId, dst, first);
+          first = false;
         }
       }
     }
@@ -4957,7 +4947,7 @@ void Executor::updateAIPhase(ExecutionState &state,
                                       mo->size,
                                       ce == NULL,
                                       ce == NULL ? 0 : ce->getZExtValue(),
-                                      getTypeHint(mo));
+                                      mo->getTypeHint());
 
   bool canStronglyUpdate;
   NodeID src = computeAbstractMO(state.getPTA().get(),
@@ -5467,7 +5457,7 @@ bool Executor::getRequiredRecoveryInfoDynamic(ExecutionState &state,
   }
 
   location.value = getAllocSite(state, loadInfo.mo);
-  location.hint = getTypeHint(loadInfo.mo);
+  location.hint = loadInfo.mo->getTypeHint();
 
   PointerAnalysis *pta = (ptaMode == StaticMode) ? staticPTA : state.getPTA().get();
   std::vector<NodeID> loads;

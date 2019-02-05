@@ -152,6 +152,9 @@ public:
       return ConstantExpr::alloc(0, Expr::Bool);
     }
   }
+
+  llvm::PointerType *getTypeHint() const;
+
 };
 
 class ObjectState {

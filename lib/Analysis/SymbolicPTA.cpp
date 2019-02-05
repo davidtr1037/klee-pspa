@@ -171,6 +171,12 @@ std::vector<Pointer *> SymbolicPTA::getColocatedPointers(Pointer &p) {
  
 /* TODO: we can use the type info collected by Executor::handleBitCast */
 Type* SymbolicPTA::getMemoryObjectType(const MemoryObject *mo) {
+  /* TODO: probably should use only this API... */
+  PointerType *hint = mo->getTypeHint();
+  if (hint) {
+    return hint;
+  }
+
   Type *t = moTypes[mo];
   if (t != nullptr) {
     return t;
