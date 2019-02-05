@@ -11,17 +11,21 @@ using namespace std;
 
 
 void ModularPTA::update(Function *f,
+                        unsigned int line,
                         EntryState &entryState,
                         StateProjection &projection) {
-  AnalysisResults &results = cache[f];
+  auto k = std::make_pair(f, line);
+  AnalysisResults &results = cache[k];
   AnalysisResult result(entryState, projection);
   results.push_back(result);
 }
 
 bool ModularPTA::computeModSet(Function *f,
+                               unsigned int line,
                                EntryState &entryState,
                                StateProjection &projection) {
-  AnalysisResults &results = cache[f];
+  auto k = std::make_pair(f, line);
+  AnalysisResults &results = cache[k];
   for (AnalysisResult &result : results) {
     SubstitutionInfo info;
     if (checkIsomorphism(result.entryState, entryState, info)) {

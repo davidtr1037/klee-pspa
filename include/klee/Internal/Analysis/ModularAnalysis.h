@@ -86,10 +86,12 @@ public:
   }
 
   void update(llvm::Function *f,
+              unsigned int line,
               EntryState &entryState,
               StateProjection &projection);
 
   bool computeModSet(llvm::Function *f,
+                     unsigned int line,
                      EntryState &entryState,
                      StateProjection &projection);
 
@@ -127,8 +129,9 @@ public:
 
 private:
 
+  typedef std::pair<llvm::Function *, unsigned int> Context;
   typedef std::vector<AnalysisResult> AnalysisResults;
-  typedef std::map<llvm::Function *, AnalysisResults> Cache;
+  typedef std::map<Context, AnalysisResults> Cache;
 
   Cache cache;
 };

@@ -4321,8 +4321,16 @@ size_t Executor::getAllocationAlignment(const llvm::Value *allocSite) const {
 }
 
 bool Executor::isTargetFunction(ExecutionState &state, Function *f) {
-  std::vector<std::string> prefixes_to_ignore = {"strncasecmp_l", "tolower_l", "klee_"};
-  std::vector<std::string> names_to_ignore = {"__uClibc_main", "__user_main"};
+  std::vector<std::string> prefixes_to_ignore = {
+    "strncasecmp_l",
+    "tolower_l",
+    "klee_",
+  };
+  std::vector<std::string> names_to_ignore = {
+    "__uClibc_main",
+    "__user_main",
+  };
+
   if (AnalyzeAll) {
     /* don't analyze internal libc functions */
     const InstructionInfo &info = kmodule->infos->getInfo(state.prevPC->inst);
@@ -6194,7 +6202,7 @@ void Executor::saveModSet(ExecutionState &state) {
       buildEntryState(snapshotPTA, f, entryState);
 
       /* TODO: should we check reusability without the call stack? */
-      canReuse = modularPTA->computeModSet(f, entryState, projection);
+      canReuse = modularPTA->computeModSet(f, 0, entryState, projection);
     }
 
     if (canReuse) {
@@ -6224,7 +6232,7 @@ void Executor::saveModSet(ExecutionState &state) {
       computeModSet(state, index, entryState, projection);
 
       if (UseModularPTA) {
-        modularPTA->update(f, entryState, projection);
+        modularPTA->update(f, 0, entryState, projection);
       }
 
       /* we need to hold a reference for it,
@@ -6599,11 +6607,15 @@ void Executor::collectModStats(ExecutionState &state,
     pta->initialize(*kmodule->module);
 
     bool canReuse = false;
+    auto &info = kmodule->infos->getInfo(snapshot->state->prevPC->inst);
     if (UseModularPTA) {
       /* build the entry state for the given function */
       buildEntryState(snapshotPTA, f, entryState);
       /* TODO: should we check reusability without the call stack? */
-      canReuse = modularPTA->computeModSet(f, entryState, projection);
+      canReuse = modularPTA->computeModSet(f,
+                                           info.line,
+                                           entryState,
+                                           projection);
     }
 
     if (canReuse) {
@@ -6616,7 +6628,7 @@ void Executor::collectModStats(ExecutionState &state,
       collectRelevantGlobals(pta.get(), snapshot->f, entryState.usedGlobals);
 
       if (UseModularPTA) {
-        modularPTA->update(f, entryState, projection);
+        modularPTA->update(f, info.line, entryState, projection);
         /* this one is a bit hacky... */
         cachedSnapshots.push_back(snapshot);
       }
