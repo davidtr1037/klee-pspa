@@ -4562,17 +4562,17 @@ void Executor::updateGlobalsPts(ExecutionState &state,
         state.updatePointsTo(from, to, !pair.first->isWeak() && !pair.second->isWeak());
       }
       if (!ptr->multiplePointers) {
-          NodeID dst = ptrToAbstract(state, ptr, sPTA);
-          state.updatePointsTo(formalGlobalId, dst, !ptr->isWeak());
+        NodeID dst = ptrToAbstract(state, ptr, sPTA);
+        state.updatePointsTo(formalGlobalId, dst, !ptr->isWeak());
       } else {
-         // We are conservative here and consider all coolocated pointers
-         // if there is a symbolic pointer to multiple fields in a structs
-         bool first = true;
-         for (Pointer *p : sPTA.getColocatedPointers(*ptr)) {
-            NodeID dst = ptrToAbstract(state, p, sPTA);
-            state.updatePointsTo(formalGlobalId, dst, first);
-            first = false;
-         }
+        // We are conservative here and consider all coolocated pointers
+        // if there is a symbolic pointer to multiple fields in a structs
+        bool first = true;
+        for (Pointer *p : sPTA.getColocatedPointers(*ptr)) {
+          NodeID dst = ptrToAbstract(state, p, sPTA);
+          state.updatePointsTo(formalGlobalId, dst, first);
+          first = false;
+        }
       }
     }
   }
@@ -4613,16 +4613,16 @@ void Executor::updatePointsToOnCallSymbolic(ExecutionState &state,
         state.updatePointsTo(from, to, !pair.first->isWeak() && !pair.second->isWeak());
       }
       if (!ptr->multiplePointers) {
-          NodeID dst = ptrToAbstract(state, ptr, sPTA);
-          state.updatePointsTo(formalParamId, dst, !ptr->isWeak());
+        NodeID dst = ptrToAbstract(state, ptr, sPTA);
+        state.updatePointsTo(formalParamId, dst, !ptr->isWeak());
       } else {
         // We are conservative here and consider all coolocated pointers
         // if there is a symbolic pointer to multiple fields in a structs
         bool first = true;
         for (Pointer *p : sPTA.getColocatedPointers(*ptr)) {
-           NodeID dst = ptrToAbstract(state, p, sPTA);
-           state.updatePointsTo(formalParamId, dst, first);
-           first = false;
+          NodeID dst = ptrToAbstract(state, p, sPTA);
+          state.updatePointsTo(formalParamId, dst, first);
+          first = false;
         }
       }
     }
