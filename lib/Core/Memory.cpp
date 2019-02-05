@@ -93,6 +93,19 @@ void MemoryObject::getAllocInfo(std::string &result) const {
   info.flush();
 }
 
+PointerType *MemoryObject::getTypeHint() const {
+  PointerType *hint = NULL;
+
+  if (types.size() > 0) {
+    if (types.size() > 1) {
+      assert(false);
+    }
+    hint = *types.begin();
+  }
+
+  return hint;
+}
+
 /***/
 
 ObjectState::ObjectState(const MemoryObject *mo)

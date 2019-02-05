@@ -4192,19 +4192,6 @@ const Value *Executor::getAllocSite(ExecutionState &state,
   return info->getAllocSite();
 }
 
-PointerType *Executor::getTypeHint(const MemoryObject *mo) {
-  PointerType *hint = NULL;
-
-  if (mo->types.size() > 0) {
-    if (mo->types.size() > 1) {
-      assert(false);
-    }
-    hint = *mo->types.begin();
-  }
-
-  return hint;
-}
-
 bool Executor::getDynamicMemoryLocation(ExecutionState &state,
                                         ref<Expr> value,
                                         PointerType *valueType,
@@ -4271,7 +4258,7 @@ bool Executor::getDynamicMemoryLocation(ExecutionState &state,
 
   location.value = getAllocSite(state, mo);
   location.size = mo->size;
-  location.hint = getTypeHint(mo);
+  location.hint = mo->getTypeHint();
   return true;
 }
 
@@ -4354,7 +4341,7 @@ bool Executor::getDynamicMemoryLocations(ExecutionState &state,
 
     location.value = getAllocSite(state, mo);
     location.size = mo->size;
-    location.hint = getTypeHint(mo);
+    location.hint = mo->getTypeHint();
     locations.push_back(location);
   }
   return true;
@@ -4465,7 +4452,7 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
                                       mo->size,
                                       ce == NULL,
                                       ce == NULL ? 0 : ce->getZExtValue(),
-                                      getTypeHint(mo));
+                                      mo->getTypeHint());
 
   bool canStronglyUpdate;
   NodeID src = computeAbstractMO(state.getPTA().get(),
@@ -4668,7 +4655,7 @@ void Executor::updateAIPhase(ExecutionState &state,
                                       mo->size,
                                       ce == NULL,
                                       ce == NULL ? 0 : ce->getZExtValue(),
-                                      getTypeHint(mo));
+                                      mo->getTypeHint());
 
   bool canStronglyUpdate;
   NodeID src = computeAbstractMO(state.getPTA().get(),
