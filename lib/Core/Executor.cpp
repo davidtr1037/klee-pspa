@@ -4892,11 +4892,12 @@ void Executor::updatePointsToOnCallSymbolic(ExecutionState &state,
       for (PointsToPair &pair : sPTA.traverse(ptr)) {
         NodeID from = ptrToAbstract(state, pair.first, sPTA);
         NodeID to = ptrToAbstract(state, pair.second, sPTA);
-        state.updatePointsTo(from, to, !pair.first->isWeak() && !pair.second->isWeak());
+        state.updatePointsTo(from, to, !pair.first->isWeak());
       }
       if (!ptr->multiplePointers) {
+        /* TODO: strong update only for the first MO */
         NodeID dst = ptrToAbstract(state, ptr, sPTA);
-        state.updatePointsTo(formalParamId, dst, !ptr->isWeak());
+        state.updatePointsTo(formalParamId, dst, true);
       } else {
         // We are conservative here and consider all coolocated pointers
         // if there is a symbolic pointer to multiple fields in a structs
