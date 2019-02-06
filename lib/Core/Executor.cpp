@@ -4803,6 +4803,11 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
 NodeID Executor::ptrToAbstract(ExecutionState &state,
                                Pointer *p,
                                SymbolicPTA &sPTA) {
+  if (p->isNullPtr()) {
+    /* TODO: use computeAbstractMO API? */
+    return NullPtr;
+  }
+
   if (p->isFunctionPtr()) {
     DynamicMemoryLocation dl(p->f, 0, false, 0, nullptr);
     return computeAbstractMO(state.getPTA().get(), dl, false);

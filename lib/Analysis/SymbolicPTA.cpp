@@ -8,6 +8,8 @@ using namespace llvm;
 using namespace klee;
 
 
+Pointer *SymbolicPTA::nullPointer = nullptr;
+
 bool SymbolicPTA::isPointerOffset(Pointer &p) {
   /* TODO: use dynamic type information? */
   Type *type = getMemoryObjectType(p.pointerContainer);
@@ -75,6 +77,13 @@ Pointer* SymbolicPTA::getPointer(const MemoryObject *mo,
   return retPtr;
 }
 
+Pointer* SymbolicPTA::getNullPointer() {
+  if (!nullPointer) {
+    nullPointer = new Pointer();
+  }
+  return nullPointer;
+}
+
 Pointer* SymbolicPTA::getFunctionPointer(const Function *f) {
   // MemoryObject and Function addresses can't overlap so this is fine but hacky
   std::vector<Pointer *> &ptrs = allPointers[(const MemoryObject *)(f)];
@@ -87,20 +96,24 @@ Pointer* SymbolicPTA::getFunctionPointer(const Function *f) {
   return retPtr;
 }
 
-std::vector<Pointer *> SymbolicPTA::handleFunctionPtr(ref<Expr> fp) {
-  std::vector<Pointer *> ret;
-  ConstantExpr *cfp = dyn_cast<ConstantExpr>(fp);
-  if (cfp == nullptr) {
-    return ret;
+Pointer *SymbolicPTA::handleUnresolved(ref<Expr> e) {
+  ConstantExpr *ce = dyn_cast<ConstantExpr>(e);
+  if (ce == nullptr) {
+    return nullptr;
   }
 
   // TODO: symbolic function pointers
-  uint64_t addr = cfp->getZExtValue();
+  uint64_t addr = ce->getZExtValue();
+  if (addr == 0) {
+    return getNullPointer();
+  }
+
   if (legalFunctions.count(addr)) {
     const Function *f = (const Function *)(addr);
-    ret.push_back(getFunctionPointer(f));
+    return getFunctionPointer(f);
   }
-  return ret;
+
+  return nullptr;
 }
 
 std::vector<Pointer *> SymbolicPTA::getPointerTarget(Pointer &p) {
@@ -136,8 +149,10 @@ std::vector<Pointer *> SymbolicPTA::getPointerTarget(Pointer &p) {
       ret.push_back(p);
       cnt++;
     }
-    auto fps = handleFunctionPtr(ptr);
-    ret.insert(ret.end(), std::begin(fps), std::end(fps));
+    Pointer *resolved = handleUnresolved(ptr);
+    if (resolved) {
+      ret.push_back(resolved);
+    }
   }
   return ret;
 }
@@ -145,7 +160,7 @@ std::vector<Pointer *> SymbolicPTA::getPointerTarget(Pointer &p) {
 std::vector<Pointer *> SymbolicPTA::getColocatedPointers(Pointer &p) {
   // If it's a pointer type it can be an array
   std::vector<Pointer *> ret;
-  if (p.isFunctionPtr()) {
+  if (p.isNullPtr() || p.isFunctionPtr()) {
     return ret;
   }
 
