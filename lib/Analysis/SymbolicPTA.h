@@ -34,8 +34,12 @@ public:
     return weakUpdate;
   }
  
+  bool isNullPtr() {
+    return pointerContainer == nullptr && f == nullptr;
+  }
+
   bool isFunctionPtr() {
-    return pointerContainer == nullptr;
+    return pointerContainer == nullptr && f != nullptr;
   }
  
   std::string print() {
@@ -59,6 +63,13 @@ private:
     pointerContainer(nullptr),
     offset(0),
     f(f) {
+
+  }
+
+  Pointer() :
+    pointerContainer(nullptr),
+    offset(0),
+    f(nullptr) {
 
   }
 
@@ -229,6 +240,8 @@ public:
   Pointer* getPointer(const MemoryObject *mo,
                       ref<Expr> offset);
 
+  Pointer* getNullPointer();
+
   Pointer* getFunctionPointer(const llvm::Function *f);
 
   std::vector<Pointer *> getPointerTarget(Pointer &p);
@@ -252,7 +265,7 @@ private:
   bool mayBeTrue(ref<Expr> e) { return mayBeTrue(e, state); }
   bool mayBeTrue(ref<Expr> e, ExecutionState &s);
 
-  std::vector<Pointer *> handleFunctionPtr(ref<Expr> fp);
+  Pointer *handleUnresolved(ref<Expr> e);
 
   bool isPointerOffset(Pointer &p);
 
@@ -270,6 +283,8 @@ private:
   llvm::DataLayout &layout;
   /* TODO: add docs */
   OffsetFinder of;
+  /* TODO: add docs */
+  static Pointer *nullPointer;
 };
 
 }
