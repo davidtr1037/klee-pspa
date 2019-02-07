@@ -4917,20 +4917,6 @@ void Executor::updatePointsToOnCallSymbolic(ExecutionState &state,
   }
 }
 
-void Executor::clearParameterPointsTo(ExecutionState &state,
-                                      Function *f) {
-  for (Argument &arg : f->getArgumentList()) {
-    PointerType *paramType = dyn_cast<PointerType>(arg.getType());
-    if (!paramType) {
-      /* resolve only pointer values */
-      continue;
-    }
-
-    NodeID formalParamId = state.getPTA()->getPAG()->getValueNode(&arg);
-    state.getPTA()->clearPointsTo(formalParamId);
-  }
-}
-
 void Executor::updateAIPhase(ExecutionState &state,
                              KInstruction *ki,
                              const MemoryObject *mo,
@@ -6653,7 +6639,7 @@ void Executor::collectModStats(ExecutionState &state,
       pta->postAnalysisCleanup();
     }
 
-    clearParameterPointsTo(state, f);
+    state.clearParameterPointsTo(f);
 
   } else {
     SideEffectsCollector collector(called, projection);

@@ -386,6 +386,8 @@ public:
     }
   }
 
+  void clearParameterPointsTo(llvm::Function *f);
+
   bool isCalledRecursively(llvm::Function *f);
 
   void addRelevantGlobal(const llvm::GlobalVariable *gv) {
