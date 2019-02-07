@@ -22,7 +22,7 @@ void klee::dumpNodeInfo(PointerAnalysis *pta,
   errs() << prefix << "-- node: " << nodeId << "\n";
   if (!pta->getPAG()->findPAGNode(nodeId)) {
     /* probably was deallocated (unique AS) */
-    errs() << "   -- not found\n";
+    errs() << prefix << "   -- not found\n";
     return;
   }
 
@@ -41,8 +41,8 @@ void klee::dumpNodeInfo(PointerAnalysis *pta,
     } else {
       errs() << prefix << "-- AS: " << *value << "\n";
     }
-    errs() << "   -- base: " << pta->getBaseObjNode(obj->getId()) << "\n";
-    errs() << "   -- kind: " << obj->getNodeKind() << "\n";
+    errs() << prefix << "   -- base: " << pta->getBaseObjNode(obj->getId()) << "\n";
+    errs() << prefix << "   -- kind: " << obj->getNodeKind() << "\n";
     GepObjPN *gepObj = dyn_cast<GepObjPN>(obj);
     if (gepObj) {
        errs() << prefix << "   -- ls: " << gepObj->getLocationSet().getOffset() << "\n";
