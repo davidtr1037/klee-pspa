@@ -4732,6 +4732,7 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
       /* compare with the abstrac points-to */
       comparePointsToStates(clonedPTA, es.getPTA().get());
     }
+    state.clearParameterPointsTo(f);
   }
 
   if (NoAnalyze) {
