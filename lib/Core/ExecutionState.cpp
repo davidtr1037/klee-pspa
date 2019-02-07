@@ -418,6 +418,15 @@ void ExecutionState::dumpStack(llvm::raw_ostream &out) const {
   }
 }
 
+void ExecutionState::clearParameterPointsTo(Function *f) {
+  for (Argument &arg : f->getArgumentList()) {
+    if (isa<PointerType>(arg.getType())) {
+      NodeID formalParamId = getPTA()->getPAG()->getValueNode(&arg);
+      getPTA()->clearPointsTo(formalParamId);
+    }
+  }
+}
+
 bool ExecutionState::isCalledRecursively(Function *f) {
   uint32_t &count = callingFunctions[f];
   if (count == 0) {
