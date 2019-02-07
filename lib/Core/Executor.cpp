@@ -6156,6 +6156,10 @@ void Executor::handleSkippedFunction(ExecutionState &state,
   interpreterHandler->incSnapshotsCount();
   clientStats.snapshots[f]++;
 
+  if (isDynamicMode()) {
+    state.clearParameterPointsTo(f);
+  }
+
   if (ptaMode == AIMode) {
     updateModInfo(snapshot,
                   snapshot->state->getPTA().get(),
