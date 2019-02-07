@@ -677,9 +677,6 @@ public:
                                     llvm::Function *f,
                                     std::vector<ref<Expr>> &arguments);
 
-  void clearParameterPointsTo(ExecutionState &state,
-                              llvm::Function *f);
-
   void updateAIPhase(ExecutionState &state,
                      KInstruction *ki,
                      const MemoryObject *mo,
