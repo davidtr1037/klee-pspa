@@ -6619,8 +6619,6 @@ void Executor::collectModStats(ExecutionState &state,
 
     /* create a new instance for computing the mod-set */
     ref<AndersenDynamic> snapshotPTA = snapshot->state->getPTA();
-    ref<AndersenDynamic> pta = new AndersenDynamic(*snapshotPTA);
-    pta->initialize(*kmodule->module);
 
     bool canReuse = false;
     auto &info = kmodule->infos->getInfo(snapshot->state->prevPC->inst);
@@ -6637,6 +6635,8 @@ void Executor::collectModStats(ExecutionState &state,
     if (canReuse) {
       ++stats::staticAnalysisReuse;
     } else {
+      ref<AndersenDynamic> pta = new AndersenDynamic(*snapshotPTA);
+      pta->initialize(*kmodule->module);
       pta->analyzeFunction(*kmodule->module, snapshot->f);
 
       SideEffectsCollector collector(called, projection);
@@ -6648,12 +6648,13 @@ void Executor::collectModStats(ExecutionState &state,
         /* this one is a bit hacky... */
         cachedSnapshots.push_back(snapshot);
       }
+
+      /* free memory... */
+      pta->postAnalysisCleanup();
     }
 
     clearParameterPointsTo(state, f);
 
-    /* free memory... */
-    pta->postAnalysisCleanup();
   } else {
     SideEffectsCollector collector(called, projection);
     collector.visitReachable(staticPTA, f);
