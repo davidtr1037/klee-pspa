@@ -127,6 +127,8 @@ public:
 
   void dump(EntryState &es, NodeID nodeId, unsigned level = 0);
 
+  void dump(EntryState &es, NodeID nodeId, std::set<NodeID> &visited, unsigned level);
+
 private:
 
   typedef std::pair<llvm::Function *, unsigned int> Context;

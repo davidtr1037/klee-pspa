@@ -341,18 +341,30 @@ void ModularPTA::dump(EntryState &es) {
 }
 
 void ModularPTA::dump(EntryState &es, NodeID nodeId, unsigned level) {
-  std::string indent = std::string(level * 4, ' ');
+  std::set<NodeID> visited;
+  dump(es, nodeId, visited, level);
+}
 
+void ModularPTA::dump(EntryState &es, NodeID nodeId, std::set<NodeID> &visited, unsigned level) {
+  std::string indent = std::string(level * 4, ' ');
+  if (visited.find(nodeId) != visited.end()) {
+    errs() << indent << "// loop " << nodeId << "\n";
+    return;
+  }
+
+  visited.insert(nodeId);
   errs() << indent << "// node:\n";
   dumpNodeInfo(es.pta.get(), nodeId, level * 4);
+
   const NodeBS &subNodes = es.pta->getAllFieldsObjNode(nodeId);
   for (NodeID subNode : subNodes) {
+    visited.insert(subNode);
     errs() << indent << "// sub node:\n";
     dumpNodeInfo(es.pta.get(), subNode, level * 4);
 
     PointsTo &pts = es.pta->getPts(subNode);
     for (NodeID p : pts) {
-      dump(es, p, level + 1);
+      dump(es, p, visited, level + 1);
     }
   }
 }
