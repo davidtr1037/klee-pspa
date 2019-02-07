@@ -112,6 +112,8 @@ public:
                        std::vector<NodeID> &ordered1,
                        std::vector<NodeID> &ordered2);
 
+  void filterNodes(EntryState &es, const NodeBS &nodes, NodeBS &result);
+
   void substitute(EntryState &es1,
                   EntryState &es2,
                   SubstitutionInfo &info,

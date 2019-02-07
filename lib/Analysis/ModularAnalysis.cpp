@@ -200,20 +200,25 @@ bool ModularPTA::getMatchedNodes(EntryState &es1,
                                  std::vector<NodeID> &ordered1,
                                  std::vector<NodeID> &ordered2) {
   PAGNode *pagNode;
+  NodeBS filtered1;
+  NodeBS filtered2;
 
-  if (subNodes1.count() != subNodes2.count()) {
+  filterNodes(es1, subNodes1, filtered1);
+  filterNodes(es2, subNodes2, filtered2);
+
+  if (filtered1.count() != filtered2.count()) {
     /* it is restrictive, but is it correct? */
     return false;
   }
 
-  for (NodeID s1 : subNodes1) {
+  for (NodeID s1 : filtered1) {
     pagNode = es1.pta->getPAG()->getPAGNode(s1);
     ObjPN *subObj1 = dyn_cast<ObjPN>(pagNode);
     if (isa<FIObjPN>(subObj1)) {
       bool found = false;
       FIObjPN *fiObj1 = dyn_cast<FIObjPN>(subObj1);
 
-      for (NodeID s2 : subNodes2) {
+      for (NodeID s2 : filtered2) {
         pagNode = es2.pta->getPAG()->getPAGNode(s2);
         FIObjPN *fiObj2 = dyn_cast<FIObjPN>(pagNode);
         if (fiObj2) {
@@ -256,6 +261,24 @@ bool ModularPTA::getMatchedNodes(EntryState &es1,
   }
 
   return true;
+}
+
+void ModularPTA::filterNodes(EntryState &es,
+                             const NodeBS &nodes,
+                             NodeBS &result) {
+  for (NodeID n : nodes) {
+    PointsTo &pts = es.pta->getPts(n);
+    if (pts.count() == 0) {
+       continue;
+    }
+    if (pts.count() == 1) {
+        NodeID x = *pts.begin();
+        if (x == es.pta->getPAG()->getNullPtr()) {
+            continue;
+        }
+    }
+    result.set(n);
+  }
 }
 
 void ModularPTA::substitute(EntryState &es1,
