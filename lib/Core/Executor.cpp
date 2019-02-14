@@ -5013,6 +5013,7 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
       /* compare with the abstrac points-to */
       comparePointsToStates(clonedPTA, es.getPTA().get());
     }
+    state.clearParameterPointsTo(f);
   }
 
   if (NoAnalyze) {
@@ -6154,6 +6155,10 @@ void Executor::handleSkippedFunction(ExecutionState &state,
   /* update statistics */
   interpreterHandler->incSnapshotsCount();
   clientStats.snapshots[f]++;
+
+  if (isDynamicMode()) {
+    state.clearParameterPointsTo(f);
+  }
 
   if (ptaMode == AIMode) {
     updateModInfo(snapshot,
