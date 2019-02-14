@@ -137,8 +137,10 @@ struct RecoveryInfo {
   unsigned int refCount;
   /* TODO: is it required? */
   llvm::Instruction *loadInst;
+  uint64_t loadBase;
   uint64_t loadAddr;
   uint64_t loadSize;
+  bool isConcrete;
   uint32_t sliceId;
   /* TODO: a bit strange that it is here, will be fixed later */
   ref<Snapshot> snapshot;
@@ -147,8 +149,10 @@ struct RecoveryInfo {
   RecoveryInfo() :
     refCount(0),
     loadInst(0),
+    loadBase(0),
     loadAddr(0),
     loadSize(0),
+    isConcrete(true),
     sliceId(0),
     snapshot(0),
     snapshotIndex(0)
