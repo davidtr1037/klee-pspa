@@ -176,11 +176,16 @@ void klee::ReturnToVoidFunctionPass::replaceCall(CallInst *origCallInst,
   argsForCall.push_back(allocaInst);
   for (unsigned int i = 0; i < origCallInst->getNumArgOperands(); i++) {
     Value *arg = origCallInst->getArgOperand(i);
-    Type *argType = arg->getType();
-    Type *dstType = wrapper->getFunctionType()->getParamType(i + 1);
-    if (argType != dstType) {
-      arg = builder.CreateBitCast(arg, dstType);
+    assert(!(i >= f->getFunctionType()->getNumParams()) ||  f->getFunctionType()->isVarArg()
+                       && "i >= numParams must imply f is a vararg");
+    if (i < f->getFunctionType()->getNumParams()) {
+      Type *argType = arg->getType();
+      Type *dstType = wrapper->getFunctionType()->getParamType(i + 1);
+      if (argType != dstType) {
+        arg = builder.CreateBitCast(arg, dstType);
+      }
     }
+
 
     argsForCall.push_back(arg);
   }
