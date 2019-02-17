@@ -1090,7 +1090,7 @@ Executor::toConstant(ExecutionState &state,
   if (AllExternalWarnings)
     klee_warning(reason, os.str().c_str());
   else
-    klee_warning_once(reason, "%s", os.str().c_str());
+    klee_warning_once(reason, os.str().c_str());
 
   addConstraint(state, EqExpr::create(e, value));
     
@@ -1265,6 +1265,10 @@ void Executor::executeCall(ExecutionState &state,
     KFunction *kf = kmodule->functionMap[f];
     state.pushFrame(state.prevPC, kf);
     state.pc = kf->instructions;
+
+    if (isTargetFunction(state, f)) {
+      state.skipped = true;
+    }
 
     if (statsTracker)
       statsTracker->framePushed(state, &state.stack[state.stack.size()-2]);
@@ -2010,6 +2014,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   }
 
   case Instruction::Load: {
+    onLoad(state, ki);
     ref<Expr> base = eval(ki, 0, state).value;
     executeMemoryOperation(state, false, base, 0, ki);
     break;
@@ -3784,6 +3789,42 @@ size_t Executor::getAllocationAlignment(const llvm::Value *allocSite) const {
   assert(bits64::isPowerOfTwo(alignment) &&
          "Returned alignment must be a power of two");
   return alignment;
+}
+
+bool Executor::isTargetFunction(ExecutionState &state, Function *f) {
+  for (auto &option : interpreterOpts.loadLocations) {
+    if (option.name == f->getName()) {
+      const std::vector<unsigned int> &lines = option.lines;
+
+      /* skip any call site */
+      if (lines.empty()) {
+        return true;
+      }
+
+      Instruction *callInst = state.prevPC->inst;
+      const InstructionInfo &info = kmodule->infos->getInfo(callInst);
+      if (info.line == 0) {
+        return false;
+      }
+
+      return std::find(lines.begin(), lines.end(), info.line) != lines.end();
+    }
+  }
+
+  return false;
+}
+
+void Executor::onLoad(ExecutionState &state,
+                      KInstruction *ki) {
+  if (!state.skipped) {
+    return;
+  }
+
+  ref<Expr> address = eval(ki, 0, state).value;
+  address = state.constraints.simplifyExpr(address);
+  if (!isa<ConstantExpr>(address)) {
+    address = toConstant(state, address, "forced concretization on load");
+  }
 }
 
 void Executor::prepareForEarlyExit() {

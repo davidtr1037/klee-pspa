@@ -502,6 +502,11 @@ public:
     inhibitForking = value;
   }
 
+  bool isTargetFunction(ExecutionState &state, llvm::Function *f);
+
+  void onLoad(ExecutionState &state,
+              KInstruction *ki);
+
   void prepareForEarlyExit();
 
   /*** State accessor methods ***/

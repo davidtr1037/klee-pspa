@@ -71,6 +71,17 @@ public:
 	  SMTLIB2 //.SMT2 files (SMTLIB version 2 files)
   };
 
+  struct LineLocation {
+    std::string name;
+    std::vector<unsigned int> lines;
+
+    LineLocation(std::string &name, std::vector<unsigned int> &lines) :
+      name(name), lines(lines)
+    {
+
+    }
+  };
+
   /// InterpreterOptions - Options varying the runtime behavior during
   /// interpretation.
   struct InterpreterOptions {
@@ -78,6 +89,7 @@ public:
     /// symbolic values. This is used to test the correctness of the
     /// symbolic execution on concrete programs.
     unsigned MakeConcreteSymbolic;
+    std::vector<LineLocation> loadLocations;
 
     InterpreterOptions()
       : MakeConcreteSymbolic(false)
