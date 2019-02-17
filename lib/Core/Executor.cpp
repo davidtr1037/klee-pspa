@@ -1410,7 +1410,7 @@ Executor::toConstant(ExecutionState &state,
   if (AllExternalWarnings)
     klee_warning(reason, os.str().c_str());
   else
-    klee_warning_once(reason, "%s", os.str().c_str());
+    klee_warning_once(reason, os.str().c_str());
 
   addConstraint(state, EqExpr::create(e, value));
     
