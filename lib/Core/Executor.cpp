@@ -5675,6 +5675,7 @@ void Executor::onRecoveryStateExit(ExecutionState &state) {
   );
 
   ExecutionState *dependentState = state.getDependentState();
+  dependentState->coveredNew |= state.coveredNew;
   //dumpConstrains(*dependentState);
 
   /* check if we need to run another recovery state */
@@ -5728,6 +5729,9 @@ void Executor::startRecoveryState(ExecutionState &state,
 
   /* initialize recovery state */
   ExecutionState *recoveryState = new ExecutionState(*snapshotState);
+  recoveryState->coveredNew = false;
+  recoveryState->coveredLines.clear();
+
   if (recoveryInfo->snapshotIndex == 0) {
     /* a recovery state which is created from the first snapshot has no dependencies */
     recoveryState->setType(RECOVERY_STATE);
@@ -6472,6 +6476,8 @@ void Executor::forkDependentStates(ExecutionState *trueState, ExecutionState *fa
   /* fork the chain of dependent states */
   do {
     forked = new ExecutionState(*current);
+    forked->coveredNew = false;
+    forked->coveredLines.clear();
     assert(forked->isSuspended());
     DEBUG_WITH_TYPE(
       DEBUG_BASIC,
