@@ -3244,9 +3244,7 @@ void Executor::terminateState(ExecutionState &state) {
                       "replay did not consume all objects in test input.");
   }
 
-  if (!state.isDummy) {
-    interpreterHandler->incPathsExplored();
-  } else {
+  if (state.isDummy) {
     aiphase.stats.exploredPaths++;
   }
 
