@@ -378,6 +378,9 @@ namespace {
   UseRecoveryCache("use-recovery-cache", cl::init(false), cl::desc(""));
 
   cl::opt<bool>
+  ConcretizeSymbolicLoad("concretize-sym-load", cl::init(false), cl::desc(""));
+
+  cl::opt<bool>
   CollectModStatsOnly("collect-mod-stats-only", cl::init(false), cl::desc(""));
 }
 
@@ -5196,7 +5199,11 @@ bool Executor::isRecoveryRequired(ExecutionState &state, KInstruction *ki) {
   /* resolve address expression */
   ref<Expr> addressExpr = eval(ki, 0, state).value;
   if (!isa<ConstantExpr>(addressExpr)) {
-    return true;
+    if (ConcretizeSymbolicLoad) {
+      addressExpr = toConstant(state, addressExpr, "symbolic dependent load");
+    } else {
+      return true;
+    }
   }
 
   uint64_t address = dyn_cast<ConstantExpr>(addressExpr)->getZExtValue();
