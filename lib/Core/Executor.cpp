@@ -6063,7 +6063,7 @@ void Executor::terminateSuspendedState(ExecutionState &state) {
   DEBUG_WITH_TYPE(DEBUG_BASIC, klee_message("recursively terminating suspended state..."));
 
   /* get the top recovery state */
-  while (current->isNormalState()) {
+  while (current->isNormalState() && current->isSuspended()) {
     current = current->getRecoveryState();
     assert(current);
   }
