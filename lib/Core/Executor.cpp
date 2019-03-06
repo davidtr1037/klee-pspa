@@ -378,6 +378,9 @@ namespace {
   UseRecoveryCache("use-recovery-cache", cl::init(false), cl::desc(""));
 
   cl::opt<bool>
+  ConcretizeSymbolicLoad("concretize-sym-load", cl::init(false), cl::desc(""));
+
+  cl::opt<bool>
   CollectModStatsOnly("collect-mod-stats-only", cl::init(false), cl::desc(""));
 }
 
@@ -1410,7 +1413,7 @@ Executor::toConstant(ExecutionState &state,
   if (AllExternalWarnings)
     klee_warning(reason, os.str().c_str());
   else
-    klee_warning_once(reason, "%s", os.str().c_str());
+    klee_warning_once(reason, os.str().c_str());
 
   addConstraint(state, EqExpr::create(e, value));
     
@@ -3244,9 +3247,7 @@ void Executor::terminateState(ExecutionState &state) {
                       "replay did not consume all objects in test input.");
   }
 
-  if (!state.isDummy) {
-    interpreterHandler->incPathsExplored();
-  } else {
+  if (state.isDummy) {
     aiphase.stats.exploredPaths++;
   }
 
@@ -5198,7 +5199,11 @@ bool Executor::isRecoveryRequired(ExecutionState &state, KInstruction *ki) {
   /* resolve address expression */
   ref<Expr> addressExpr = eval(ki, 0, state).value;
   if (!isa<ConstantExpr>(addressExpr)) {
-    addressExpr = toConstant(state, addressExpr, "symbolic address in dependent load");
+    if (ConcretizeSymbolicLoad) {
+      addressExpr = toConstant(state, addressExpr, "symbolic dependent load");
+    } else {
+      return true;
+    }
   }
 
   uint64_t address = dyn_cast<ConstantExpr>(addressExpr)->getZExtValue();
@@ -5290,6 +5295,7 @@ bool Executor::getAllRecoveryInfo(ExecutionState &state,
   for (ref<RecoveryInfo> recoveryInfo : required) {
     unsigned int index = recoveryInfo->snapshotIndex;
     unsigned int sliceId = recoveryInfo->sliceId;
+    /* TODO: check if concrete... */
     uint64_t loadAddr = recoveryInfo->loadAddr;
 
     DEBUG_WITH_TYPE(
@@ -5355,8 +5361,9 @@ bool Executor::getAllRecoveryInfo(ExecutionState &state,
           sliceId
         )
       );
-      /* TODO: add docs */
-      state.updateRecoveredValue(index, sliceId, loadAddr, NULL);
+      if (UseRecoveryCache) {
+        state.updateRecoveredValue(index, sliceId, loadAddr, NULL);
+      }
       result.push_front(recoveryInfo);
     }
   }
@@ -5392,7 +5399,15 @@ bool Executor::getRequiredRecoveryInfo(ExecutionState &state,
   /* the snapshots of the state */
   std::vector< ref<Snapshot> > &snapshots = state.getSnapshots();
   /* we start from the last snapshot which is not affected by an overwrite */
-  unsigned int startIndex = state.getStartingIndex(loadInfo.addr, loadInfo.size);
+  unsigned int startIndex;
+  if (isa<ConstantExpr>(loadInfo.offset)) {
+    startIndex = state.getStartingIndex(loadInfo.addr, loadInfo.size);
+  } else {
+    /* if the address is not concrete,
+       then we fallback to a conservative approach,
+       which means starting from the first snapshot */
+    startIndex = 0;
+  }
 
   /* collect recovery information */
   for (unsigned int index = startIndex; index < snapshots.size(); index++) {
@@ -5423,8 +5438,10 @@ bool Executor::getRequiredRecoveryInfo(ExecutionState &state,
       /* initialize... */
       ref<RecoveryInfo> recoveryInfo(new RecoveryInfo());
       recoveryInfo->loadInst = loadInst;
+      recoveryInfo->loadBase = loadInfo.mo->address;
       recoveryInfo->loadAddr = loadInfo.addr;
       recoveryInfo->loadSize = loadInfo.size;
+      recoveryInfo->isConcrete = isa<ConstantExpr>(loadInfo.offset);
       recoveryInfo->sliceId = sliceId;
       recoveryInfo->snapshot = snapshot;
       recoveryInfo->snapshotIndex = index;
@@ -5490,7 +5507,12 @@ bool Executor::getRequiredRecoveryInfoDynamic(ExecutionState &state,
   /* the snapshots of the state */
   std::vector< ref<Snapshot> > &snapshots = state.getSnapshots();
   /* we start from the last snapshot which is not affected by an overwrite */
-  unsigned int startIndex = state.getStartingIndex(loadInfo.addr, loadInfo.size);
+  unsigned int startIndex;
+  if (isa<ConstantExpr>(loadInfo.offset)) {
+    startIndex = state.getStartingIndex(loadInfo.addr, loadInfo.size);
+  } else {
+    startIndex = 0;
+  }
 
   /* collect recovery information */
   for (unsigned int index = startIndex; index < snapshots.size(); index++) {
@@ -5503,8 +5525,10 @@ bool Executor::getRequiredRecoveryInfoDynamic(ExecutionState &state,
     if (mayDepend(state, pta, index, loads)) {
       ref<RecoveryInfo> recoveryInfo(new RecoveryInfo());
       recoveryInfo->loadInst = loadInst;
+      recoveryInfo->loadBase = loadInfo.mo->address;
       recoveryInfo->loadAddr = loadInfo.addr;
       recoveryInfo->loadSize = loadInfo.size;
+      recoveryInfo->isConcrete = isa<ConstantExpr>(loadInfo.offset);
       recoveryInfo->sliceId = 0;
       recoveryInfo->snapshot = snapshots[index];
       recoveryInfo->snapshotIndex = index;
@@ -5576,30 +5600,15 @@ bool Executor::getLoadInfo(ExecutionState &state,
   solver->setTimeout(0);
 
   if (success) {
-    /* get load address */
     ce = dyn_cast<ConstantExpr>(address);
-    if (!ce) {
-      /* TODO: use the resolve() API in order to support symbolic addresses */
-      state.dumpStack(llvm::errs());
-      llvm_unreachable("getLoadInfo() does not support symbolic addresses");
-    }
-
-    info.addr = ce->getZExtValue();
-
-    /* get load size */
     Expr::Width width = getWidthForLLVMType(ki->inst->getType());
-    info.size = Expr::getMinBytesForWidth(width);
+    const MemoryObject *mo = op.first;
 
     /* get allocation site value and offset */
-    const MemoryObject *mo = op.first;
-    /* TODO: we don't actually need the offset... */
-    ref<Expr> offset = mo->getOffsetExpr(address);
-    offset = toConstant(state, offset, "...");
-
-    /* get the precise allocation site */
+    info.addr = ce ? ce->getZExtValue() : 0;
+    info.size = Expr::getMinBytesForWidth(width);
     info.mo = mo;
-    info.offset = offset;
-
+    info.offset = mo->getOffsetExpr(address);
     return true;
   } else {
     DEBUG_WITH_TYPE(
@@ -5671,6 +5680,7 @@ void Executor::onRecoveryStateExit(ExecutionState &state) {
   );
 
   ExecutionState *dependentState = state.getDependentState();
+  dependentState->coveredNew |= state.coveredNew;
   //dumpConstrains(*dependentState);
 
   /* check if we need to run another recovery state */
@@ -5724,6 +5734,9 @@ void Executor::startRecoveryState(ExecutionState &state,
 
   /* initialize recovery state */
   ExecutionState *recoveryState = new ExecutionState(*snapshotState);
+  recoveryState->coveredNew = false;
+  recoveryState->coveredLines.clear();
+
   if (recoveryInfo->snapshotIndex == 0) {
     /* a recovery state which is created from the first snapshot has no dependencies */
     recoveryState->setType(RECOVERY_STATE);
@@ -5843,14 +5856,33 @@ void Executor::onRecoveryStateWrite(ExecutionState &state,
     )
   );
 
+  ExecutionState *dependentState = state.getDependentState();
   uint64_t storeAddr = dyn_cast<ConstantExpr>(address)->getZExtValue();
   ref<RecoveryInfo> recoveryInfo = state.getRecoveryInfo();
-  if (storeAddr != recoveryInfo->loadAddr) {
-    return;
+
+  if (!recoveryInfo->isConcrete) {
+    if (recoveryInfo->loadBase != mo->address) {
+      return;
+    }
+
+    Expr::Width type = value->getWidth();
+    size_t size = Expr::getMinBytesForWidth(type);
+    WrittenAddressInfo info;
+    if (dependentState->getWrittenAddressInfo(storeAddr, size, info)) {
+      /* the address was written somewhere... */
+      if (recoveryInfo->snapshotIndex <= info.snapshotIndex) {
+        /* the address was writen after the current snapshot,
+           so we don't need to update */
+        return;
+      }
+    }
+  } else {
+    if (storeAddr != recoveryInfo->loadAddr) {
+      return;
+    }
   }
 
   /* copy data to dependent state... */
-  ExecutionState *dependentState = state.getDependentState();
   const ObjectState *os = dependentState->addressSpace.findObject(mo);
   ObjectState *wos = dependentState->addressSpace.getWriteable(mo, os);
   wos->write(offset, value);
@@ -5870,12 +5902,14 @@ void Executor::onRecoveryStateWrite(ExecutionState &state,
       recoveryInfo->sliceId
     )
   );
-  dependentState->updateRecoveredValue(
-    recoveryInfo->snapshotIndex,
-    recoveryInfo->sliceId,
-    storeAddr,
-    value
-  );
+  if (UseRecoveryCache) {
+    dependentState->updateRecoveredValue(
+      recoveryInfo->snapshotIndex,
+      recoveryInfo->sliceId,
+      storeAddr,
+      value
+    );
+  }
 }
 
 void Executor::onNormalStateWrite(ExecutionState &state,
@@ -5937,13 +5971,15 @@ void Executor::onNormalStateRead(ExecutionState &state,
     return;
   }
 
-  assert(isa<ConstantExpr>(address));
-
+  /* we can't add the address if it's not concrete,
+     this may result in redundant recoveries */
   ConstantExpr *ce = dyn_cast<ConstantExpr>(address);
-  uint64_t addr = ce->getZExtValue();
+  if (ce) {
+    /* update recovered loads */
+    uint64_t addr = ce->getZExtValue();
+    state.addRecoveredAddress(addr);
+  }
 
-  /* update recovered loads */
-  state.addRecoveredAddress(addr);
   state.markLoadAsRecovered();
 }
 
@@ -6445,6 +6481,8 @@ void Executor::forkDependentStates(ExecutionState *trueState, ExecutionState *fa
   /* fork the chain of dependent states */
   do {
     forked = new ExecutionState(*current);
+    forked->coveredNew = false;
+    forked->coveredLines.clear();
     assert(forked->isSuspended());
     DEBUG_WITH_TYPE(
       DEBUG_BASIC,
