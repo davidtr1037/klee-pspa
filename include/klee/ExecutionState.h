@@ -223,6 +223,8 @@ public:
     }
   }
 
+  void clearParameterPointsTo(llvm::Function *f);
+
   bool isCalledRecursively(llvm::Function *f);
 
   unsigned int getCallDepth() {

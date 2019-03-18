@@ -134,6 +134,10 @@ std::vector<Pointer *> SymbolicPTA::getPointerTarget(Pointer &p) {
   uint64_t cnt = 0;
   for (Pointer *cp : pointers) {
     assert(isPointerOffset(*cp) && "Trying to resolve non pointer type field as pointer");
+    if (cp->offset + (ptrWidth / 8) > p.pointerContainer->size) {
+      /* TODO: add warning? */
+      continue;
+    }
     ref<Expr> ptr = os->read(cp->offset, ptrWidth);
     ResolutionList rl;
     bool timedout = state.addressSpace.resolve(state, &solver, ptr, rl, 0, 10);

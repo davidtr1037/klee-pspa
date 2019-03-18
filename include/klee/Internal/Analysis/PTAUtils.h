@@ -15,7 +15,8 @@
 namespace klee {
 
 void dumpNodeInfo(PointerAnalysis *pta,
-                  NodeID nodeId);
+                  NodeID nodeId,
+                  unsigned int level = 0);
 
 bool canEscape(PAG *pag,
                NodeID nodeId,
