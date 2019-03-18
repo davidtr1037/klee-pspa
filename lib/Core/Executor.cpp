@@ -323,6 +323,11 @@ namespace {
                    cl::desc("Use strong updates for points-to information"));
 
   cl::opt<bool>
+  ComputeColour("compute-colours",
+                 cl::init(false),
+                 cl::desc("Computes the WIT colours for target function"));
+
+  cl::opt<bool>
   CreateUniqueAS("create-unique-as",
                  cl::init(true),
                  cl::desc("Create unique allocation sites for heap objects"));
@@ -4780,6 +4785,15 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
     context.line = kmodule->infos->getInfo(ki->inst).line;
     context.call_depth = state.stack.size() - 1;
     ptaStatsLogger->dump(context, collector.getStats());
+  }
+
+
+  if (ComputeColour) {
+      ColourCollector colours;
+      colours.visitAll(pta);
+      errs() << "Finished visit!\n";
+      colours.computeColours();
+      terminateState(state);
   }
 
   if (CollectPTAResults) {

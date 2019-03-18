@@ -9,6 +9,7 @@
 #include <llvm/IR/Instruction.h>
 
 #include <set>
+#include <vector>
 
 
 namespace klee {
@@ -47,6 +48,19 @@ public:
   }
 
 };
+class ColourCollector : public InstructionVisitor {
+  
+  std::vector<PointsTo> ptsSets;
+public:
+
+  virtual void visitStore(PointerAnalysis *pta,
+                          llvm::Function *f,
+                          llvm::StoreInst *inst);
+
+  void computeColours();
+
+};
+
 
 
 class StatsCollector : public InstructionVisitor {
