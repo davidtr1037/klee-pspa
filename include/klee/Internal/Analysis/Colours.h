@@ -20,6 +20,11 @@ public:
                           llvm::StoreInst *inst);
 
   ColourCollector(llvm::raw_ostream &outputFile): outputFile(outputFile) {}
+
+  bool intersects(PointerAnalysis* pta,
+                  PointsTo &pts1,
+                  PointsTo &pts2);
+
   void computeColours(PointerAnalysis* pta);
 
 private:

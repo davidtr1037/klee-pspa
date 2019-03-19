@@ -14,56 +14,59 @@ void ColourCollector::visitStore(PointerAnalysis *pta,
                                  Function *f,
                                  StoreInst *inst) {
   NodeID id = pta->getPAG()->getValueNode(inst->getPointerOperand());
-  PointsTo pts = pta->getPts(id);
+  PointsTo pts;
+  for (NodeID n : pta->getPts(id)) {
+    pts.set(stripUniqueAS(pta, n));
+  }
   ptsSets.push_back(pts);
 }
 
-void ColourCollector::computeColours(PointerAnalysis* pta) {
-    int changes = 0;
-    
-    //Set all nodes to FI, so they will intersect
-    for(auto pts: ptsSets) {
-        for(auto nodeId : pts) {
-            pts.set(pta->getFIObjNode(nodeId));
-            pts.set(pta->getBaseObjNode(nodeId));
+bool ColourCollector::intersects(PointerAnalysis* pta,
+                                 PointsTo &pts1,
+                                 PointsTo &pts2) {
+  for (NodeID n1 : pts1) {
+    for (NodeID n2 : pts2) {
+      PAGNode *pagNode;
+      pagNode = pta->getPAG()->getPAGNode(n1);
+      ObjPN *obj1 = dyn_cast<ObjPN>(pagNode);
+      pagNode = pta->getPAG()->getPAGNode(n2);
+      ObjPN *obj2 = dyn_cast<ObjPN>(pagNode);
+      bool fiCheck = isa<FIObjPN>(obj1) || isa<FIObjPN>(obj2);
+      if (fiCheck) {
+        if (obj1->getMemObj()->getSymId() == obj2->getMemObj()->getSymId()) {
+          return true;
         }
+      } else {
+        if (n1 == n2) {
+          return true;
+        }
+      }
     }
-    
-    do {
-       changes = 0;
-       for(auto it = ptsSets.begin(); it != ptsSets.end(); it++) {
-           for(auto it_other = it+1; it_other != ptsSets.end(); ) {
-               if(it->intersects(*it_other)) {
-                   changes++;
-                   *it |= *it_other;
-                   it_other = ptsSets.erase(it_other);
-               } else it_other++;
-           }
-       }
-      errs() << "Completed loop with " << changes << " changes\n";
-    } while(changes > 0);
+  }
 
+  return false;
+}
 
-//  for(auto pts : ptsSets) {
-//      llvm::dump(pts, errs());
-//  }
-   int colour = 1;
-   for(auto pts : ptsSets) {
-       colour++;
-       for(auto nodeId : pts) {
-          PAGNode *pagNode = pta->getPAG()->getPAGNode(nodeId);
-          ObjPN *obj = dyn_cast<ObjPN>(pagNode);
-          if(!obj) continue;
-          auto inst = dyn_cast<Instruction>(obj->getMemObj()->getRefVal());
-          if(!inst) continue;
-          MDNode *n = inst->getMetadata("dbg");
-          if(!n) continue;
-          DILocation *loc = cast<DILocation>(n);
-          outputFile << loc->getFilename();
-          outputFile << ":" << loc->getLine();
-          outputFile << " " << colour << "\n";
-       }
+void ColourCollector::computeColours(PointerAnalysis* pta) {
+  int changes = 0;
+
+  do {
+    changes = 0;
+    for (auto i = ptsSets.begin(); i != ptsSets.end(); i++) {
+      for (auto j = i + 1; j != ptsSets.end(); ) {
+        PointsTo &pts1 = *i;
+        PointsTo &pts2 = *j;
+        if (intersects(pta, pts1, pts2)) {
+          changes++;
+          pts1 |= pts2;
+          j = ptsSets.erase(j);
+        } else {
+          j++;
+        }
+      }
     }
-   errs() << "There are " << ptsSets.size() << " colours\n";
-    
+    errs() << "Completed loop with " << changes << " changes\n";
+  } while(changes > 0);
+
+  errs() << "There are " << ptsSets.size() << " colours\n";
 }

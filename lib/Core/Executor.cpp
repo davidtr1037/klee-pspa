@@ -4791,10 +4791,13 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
 
 
   if (ComputeColour) {
-    ColourCollector colours(*interpreterHandler->openOutputFile("colours"));
+    klee_message("Computing colours...");
+    auto os = interpreterHandler->openOutputFile("colours");
+    ColourCollector colours(*os);
     colours.visitAll(pta);
-    errs() << "Finished visit!\n";
     colours.computeColours(pta);
+    delete os;
+
     terminateState(state);
   }
 
