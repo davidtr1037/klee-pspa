@@ -6614,6 +6614,7 @@ void Executor::collectModStats(ExecutionState &state,
 
   StateProjection projection;
   set<Function *> called;
+  size_t size = 0;
 
   /* get called functions */
   for (StackFrame &sf : state.stack) {
@@ -6671,6 +6672,7 @@ void Executor::collectModStats(ExecutionState &state,
       SideEffectsCollector collector(called, projection);
       collector.visitReachable(pta.get(), snapshot->f);
       collectRelevantGlobals(pta.get(), snapshot->f, entryState.usedGlobals);
+      size = getFlatModSize(pta.get(), projection);
 
       if (UseModularPTA) {
         modularPTA->update(f, info.line, entryState, projection);
@@ -6687,6 +6689,7 @@ void Executor::collectModStats(ExecutionState &state,
   } else {
     SideEffectsCollector collector(called, projection);
     collector.visitReachable(staticPTA, f);
+    size = getFlatModSize(staticPTA, projection);
   }
 
   auto &info = kmodule->infos->getInfo(state.prevPC->inst);
@@ -6699,7 +6702,7 @@ void Executor::collectModStats(ExecutionState &state,
   summary.queries = 0; // ignore
   summary.average_size = 0; // ignore
   summary.max_size = 0; // ignore
-  summary.mod_size = projection.pointsToMap.size();
+  summary.mod_size = size;
   summary.ref_size = 0; // ignore
 
   CallInst *callInst = dyn_cast<CallInst>(state.prevPC->inst);
