@@ -9,6 +9,7 @@
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/Instruction.h>
 #include <llvm/IR/InstIterator.h>
+#include "llvm/IR/DebugInfo.h"
 
 using namespace llvm;
 using namespace klee;
@@ -257,8 +258,16 @@ void ColourCollector::visitStore(PointerAnalysis *pta,
 //  llvm::dump(pts,errs());
 }
 
-void ColourCollector::computeColours() {
+void ColourCollector::computeColours(PointerAnalysis* pta) {
     int changes = 0;
+    
+    //Set all nodes to FI, so they will intersect
+    for(auto pts: ptsSets) {
+        for(auto nodeId : pts) {
+            pts.set(pta->getFIObjNode(nodeId));
+            pts.set(pta->getBaseObjNode(nodeId));
+        }
+    }
     
     do {
        changes = 0;
@@ -278,6 +287,23 @@ void ColourCollector::computeColours() {
 //  for(auto pts : ptsSets) {
 //      llvm::dump(pts, errs());
 //  }
-    errs() << "There are " << ptsSets.size() << " colours\n";
+   int colour = 1;
+   for(auto pts : ptsSets) {
+       colour++;
+       for(auto nodeId : pts) {
+          PAGNode *pagNode = pta->getPAG()->getPAGNode(nodeId);
+          ObjPN *obj = dyn_cast<ObjPN>(pagNode);
+          if(!obj) continue;
+          auto inst = dyn_cast<Instruction>(obj->getMemObj()->getRefVal());
+          if(!inst) continue;
+          MDNode *n = inst->getMetadata("dbg");
+          if(!n) continue;
+          DILocation *loc = cast<DILocation>(n);
+          outputFile << loc->getFilename();
+          outputFile << ":" << loc->getLine();
+          outputFile << " " << colour << "\n";
+       }
+    }
+   errs() << "There are " << ptsSets.size() << " colours\n";
     
 }

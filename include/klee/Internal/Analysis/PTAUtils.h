@@ -52,13 +52,16 @@ public:
 class ColourCollector : public InstructionVisitor {
   
   std::vector<PointsTo> ptsSets;
+  llvm::raw_ostream &outputFile;
 public:
+  
 
   virtual void visitStore(PointerAnalysis *pta,
                           llvm::Function *f,
                           llvm::StoreInst *inst);
 
-  void computeColours();
+  ColourCollector(llvm::raw_ostream &outputFile): outputFile(outputFile) {}
+  void computeColours(PointerAnalysis* pta);
 
 };
 

@@ -4790,10 +4790,10 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
 
 
   if (ComputeColour) {
-      ColourCollector colours;
+      ColourCollector colours(*interpreterHandler->openOutputFile("colours"));
       colours.visitAll(pta);
       errs() << "Finished visit!\n";
-      colours.computeColours();
+      colours.computeColours(pta);
       terminateState(state);
   }
 
