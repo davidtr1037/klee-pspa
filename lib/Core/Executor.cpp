@@ -4427,7 +4427,7 @@ const Value *Executor::addClonedObjNode(ExecutionState &state,
   const Value *newValue = dyn_cast<Instruction>(value)->clone();
 
   /* add a node for it in the PAG */
-  PAG::getPAG()->addExternalObjNode(newValue);
+  PAG::getPAG()->addExternalObjNode(newValue, value);
 
   return newValue;
 }
@@ -6615,6 +6615,7 @@ void Executor::collectModStats(ExecutionState &state,
 
   StateProjection projection;
   set<Function *> called;
+  size_t size = 0;
 
   /* get called functions */
   for (StackFrame &sf : state.stack) {
@@ -6630,16 +6631,10 @@ void Executor::collectModStats(ExecutionState &state,
   }
 
   if (ptaMode == AIMode) {
-    if (!startAIPhase(state)) {
-      return;
-    } else {
-      /* TODO: export new static API for getPAG? */
-      aiphase.getStateProjection(state.getPTA()->getPAG(),
-                                 called,
-                                 projection);
-      aiphase.reset();
-    }
-  } else if (isDynamicMode()) {
+    klee_error("AI mode is not supported here...");
+  }
+
+  if (isDynamicMode()) {
     ++stats::staticAnalysisUsage;
 
     ref<ExecutionState> snapshotState(createSnapshotState(state));
@@ -6672,6 +6667,7 @@ void Executor::collectModStats(ExecutionState &state,
       SideEffectsCollector collector(called, projection);
       collector.visitReachable(pta.get(), snapshot->f);
       collectRelevantGlobals(pta.get(), snapshot->f, entryState.usedGlobals);
+      size = getFlatModSize(pta.get(), projection);
 
       if (UseModularPTA) {
         modularPTA->update(f, info.line, entryState, projection);
@@ -6688,6 +6684,7 @@ void Executor::collectModStats(ExecutionState &state,
   } else {
     SideEffectsCollector collector(called, projection);
     collector.visitReachable(staticPTA, f);
+    size = getFlatModSize(staticPTA, projection);
   }
 
   auto &info = kmodule->infos->getInfo(state.prevPC->inst);
@@ -6700,7 +6697,7 @@ void Executor::collectModStats(ExecutionState &state,
   summary.queries = 0; // ignore
   summary.average_size = 0; // ignore
   summary.max_size = 0; // ignore
-  summary.mod_size = projection.pointsToMap.size();
+  summary.mod_size = size;
   summary.ref_size = 0; // ignore
 
   CallInst *callInst = dyn_cast<CallInst>(state.prevPC->inst);

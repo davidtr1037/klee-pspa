@@ -9,6 +9,8 @@
 #include <llvm/IR/Instruction.h>
 
 
+namespace klee {
+
 struct StateProjection {
   /* TODO: add docs */
   std::map<NodeID, PointsTo> pointsToMap;
@@ -44,5 +46,10 @@ private:
   /* TODO: add docs */
   StateProjection &projection;
 };
+
+size_t getFlatModSize(PointerAnalysis *pta,
+                      StateProjection &projection);
+
+}
 
 #endif
