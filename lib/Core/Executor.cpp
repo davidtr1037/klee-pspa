@@ -53,6 +53,7 @@
 #include "klee/Internal/Analysis/PTAGraph.h"
 #include "klee/Internal/Analysis/PTAStats.h"
 #include "klee/Internal/Analysis/PTAUtils.h"
+#include "klee/Internal/Analysis/Colours.h"
 
 #include "WPA/AndersenDynamic.h"
 
@@ -4790,11 +4791,11 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
 
 
   if (ComputeColour) {
-      ColourCollector colours(*interpreterHandler->openOutputFile("colours"));
-      colours.visitAll(pta);
-      errs() << "Finished visit!\n";
-      colours.computeColours(pta);
-      terminateState(state);
+    ColourCollector colours(*interpreterHandler->openOutputFile("colours"));
+    colours.visitAll(pta);
+    errs() << "Finished visit!\n";
+    colours.computeColours(pta);
+    terminateState(state);
   }
 
   if (CollectPTAResults) {

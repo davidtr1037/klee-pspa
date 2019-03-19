@@ -8,6 +8,7 @@
 #===------------------------------------------------------------------------===#
 
 klee_add_component(kleeAnalysis
+    Colours.cpp
     PTAStats.cpp
     PTAUtils.cpp
     PTAGraph.cpp
