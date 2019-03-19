@@ -4154,7 +4154,7 @@ const Value *Executor::addClonedObjNode(ExecutionState &state,
   const Value *newValue = dyn_cast<Instruction>(value)->clone();
 
   /* add a node for it in the PAG */
-  PAG::getPAG()->addExternalObjNode(newValue);
+  PAG::getPAG()->addExternalObjNode(newValue, value);
 
   return newValue;
 }
