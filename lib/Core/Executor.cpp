@@ -6630,16 +6630,10 @@ void Executor::collectModStats(ExecutionState &state,
   }
 
   if (ptaMode == AIMode) {
-    if (!startAIPhase(state)) {
-      return;
-    } else {
-      /* TODO: export new static API for getPAG? */
-      aiphase.getStateProjection(state.getPTA()->getPAG(),
-                                 called,
-                                 projection);
-      aiphase.reset();
-    }
-  } else if (isDynamicMode()) {
+    klee_error("AI mode is not supported here...");
+  }
+
+  if (isDynamicMode()) {
     ++stats::staticAnalysisUsage;
 
     ref<ExecutionState> snapshotState(createSnapshotState(state));
