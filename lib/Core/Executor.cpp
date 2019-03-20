@@ -4799,7 +4799,7 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
 
   if (CollectModRef) {
     set<Function *> functions;
-    for (unsigned int i = 0; i < state.stack.size() - 1; i++) {
+    for (unsigned int i = 0; i < state.stack.size(); i++) {
       StackFrame &sf = state.stack[i];
       functions.insert(sf.kf->function);
     }
