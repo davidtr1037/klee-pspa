@@ -47,8 +47,7 @@ private:
   StateProjection &projection;
 };
 
-size_t getFlatModSize(PointerAnalysis *pta,
-                      StateProjection &projection);
+size_t getFlatModSize(StateProjection &projection);
 
 }
 

@@ -40,12 +40,11 @@ void SideEffectsCollector::dump(PointerAnalysis *pta) {
   }
 }
 
-size_t klee::getFlatModSize(PointerAnalysis *pta,
-                            StateProjection &projection) {
+size_t klee::getFlatModSize(StateProjection &projection) {
   std::set<NodeID> mod;
 
   for (auto i : projection.pointsToMap) {
-    NodeID nodeId = stripUniqueAS(pta, i.first);
+    NodeID nodeId = stripUniqueAS(i.first);
     mod.insert(nodeId);
   }
 

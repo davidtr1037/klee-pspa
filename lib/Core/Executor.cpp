@@ -6667,7 +6667,6 @@ void Executor::collectModStats(ExecutionState &state,
       SideEffectsCollector collector(called, projection);
       collector.visitReachable(pta.get(), snapshot->f);
       collectRelevantGlobals(pta.get(), snapshot->f, entryState.usedGlobals);
-      size = getFlatModSize(pta.get(), projection);
 
       if (UseModularPTA) {
         modularPTA->update(f, info.line, entryState, projection);
@@ -6679,12 +6678,13 @@ void Executor::collectModStats(ExecutionState &state,
       pta->postAnalysisCleanup();
     }
 
+    size = getFlatModSize(projection);
     state.clearParameterPointsTo(f);
 
   } else {
     SideEffectsCollector collector(called, projection);
     collector.visitReachable(staticPTA, f);
-    size = getFlatModSize(staticPTA, projection);
+    size = projection.pointsToMap.size();
   }
 
   auto &info = kmodule->infos->getInfo(state.prevPC->inst);

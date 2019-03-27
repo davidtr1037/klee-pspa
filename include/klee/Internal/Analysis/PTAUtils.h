@@ -21,8 +21,7 @@ bool canEscape(PAG *pag,
                NodeID nodeId,
                std::set<llvm::Function *> called);
 
-NodeID stripUniqueAS(PointerAnalysis *pta,
-                     NodeID nodeId);
+NodeID stripUniqueAS(NodeID nodeId);
 
 class InstructionVisitor {
 

@@ -74,9 +74,8 @@ bool klee::canEscape(PAG *pag,
   return false;
 }
 
-NodeID klee::stripUniqueAS(PointerAnalysis *pta,
-                           NodeID nodeId) {
-  PAGNode *pagNode = pta->getPAG()->getPAGNode(nodeId);
+NodeID klee::stripUniqueAS(NodeID nodeId) {
+  PAGNode *pagNode = PAG::getPAG()->getPAGNode(nodeId);
   ObjPN *obj = dyn_cast<ObjPN>(pagNode);
   if (!obj) {
     return nodeId;
@@ -85,14 +84,14 @@ NodeID klee::stripUniqueAS(PointerAnalysis *pta,
   const MemObj *memObj = obj->getMemObj();
   const Value *origVal = memObj->getOrigRefVal();
   if (origVal) {
-    NodeID base = pta->getPAG()->getObjectNode(origVal);
+    NodeID base = PAG::getPAG()->getObjectNode(origVal);
     if (isa<FIObjPN>(obj)) {
-      return pta->getFIObjNode(base);
+      return PAG::getPAG()->getFIObjNode(base);
     }
 
     if (isa<GepObjPN>(obj)) {
       GepObjPN *gepObj = dyn_cast<GepObjPN>(obj);
-      return pta->getGepObjNode(base, gepObj->getLocationSet());
+      return PAG::getPAG()->getGepObjNode(base, gepObj->getLocationSet());
     }
 
     /* TODO: should not happen... */
