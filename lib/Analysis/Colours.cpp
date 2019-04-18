@@ -1,5 +1,5 @@
 #include "klee/Internal/Analysis/Colours.h"
-
+#include "klee/Internal/Support/ErrorHandling.h"
 #include <MemoryModel/PointerAnalysis.h>
 
 #include <llvm/IR/Function.h>
@@ -67,6 +67,25 @@ void ColourCollector::computeColours(PointerAnalysis* pta) {
     }
     errs() << "Completed loop with " << changes << " changes\n";
   } while(changes > 0);
+  int colour = 1;
+  for(auto pts : ptsSets) {
+      colour++;
+      for(auto nodeId : pts) {
+         PAGNode *pagNode = pta->getPAG()->getPAGNode(nodeId);
+         ObjPN *obj = dyn_cast<ObjPN>(pagNode);
+         if(!obj) continue;
+         //if(!obj || isa<GepObjPN>(obj)) continue;
+         if(obj->getMemObj()->getRefVal() == nullptr) continue;
+         auto inst = dyn_cast<Instruction>(obj->getMemObj()->getRefVal());
+         if(!inst) continue;
+         MDNode *n = inst->getMetadata("dbg");
+         if(!n) continue;
+         DILocation *loc = cast<DILocation>(n);
+         outputFile << loc->getFilename();
+         outputFile << ":" << loc->getLine();
+         outputFile << " " << colour << " " << nodeId << "\n";
+      }
+	}
 
-  errs() << "There are " << ptsSets.size() << " colours\n";
+  klee_message("There are %lu colours", ptsSets.size());
 }
