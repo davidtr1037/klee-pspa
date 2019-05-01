@@ -382,6 +382,9 @@ namespace {
 
   cl::opt<bool>
   CollectModStatsOnly("collect-mod-stats-only", cl::init(false), cl::desc(""));
+
+  cl::opt<std::string>
+  PTAEntryPoint("pta-entry-point", cl::init(""), cl::desc(""));
 }
 
 
@@ -4331,6 +4334,19 @@ bool Executor::isTargetFunction(ExecutionState &state, Function *f) {
     "__uClibc_main",
     "__user_main",
   };
+
+  /* check if the entry point was called */
+  if (PTAEntryPoint != "") {
+    bool wasCalled = false;
+    for (StackFrame &sf : state.stack) {
+      if (sf.kf->function->getName() == PTAEntryPoint) {
+        wasCalled = true;
+      }
+    }
+    if (!wasCalled) {
+      return false;
+    }
+  }
 
   if (AnalyzeAll) {
     /* don't analyze internal libc functions */
