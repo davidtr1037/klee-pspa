@@ -217,6 +217,14 @@ namespace {
   SkippedFunctions("skip-functions",
                    cl::desc("..."));
 
+  cl::opt<unsigned int>
+  MaxErrorCount("max-error-count",
+                cl::desc("max error count before exit"),
+                cl::init(0));
+
+  cl::opt<std::string>
+  ErrorLocation("error-location",
+                cl::desc("Comma-separated list of locations where a failure is expected (e.g. <file1>[:line],<file2>[:line],..)"));
 }
 
 extern cl::opt<double> MaxTime;
@@ -1202,6 +1210,22 @@ void parseFunctionListParameter(Module *module,
   }
 }
 
+void parseErrorLocationParameter(std::string parameter,
+                                 std::map<std::string,
+                                 std::vector<unsigned> > &result) {
+    std::istringstream stream(parameter);
+    std::string token;
+    std::string fname;
+
+    while (std::getline(stream, token, ',')) {
+        std::vector<unsigned int> lines;
+        if (!parseNameLineOption(token, fname, lines)) {
+            klee_error("error-location option: invalid parameter: %s", token.c_str());
+        }
+        result.insert(std::pair<std::string, std::vector<unsigned> >(fname, lines));
+    }
+}
+
 bool canIgnoreReturnValue(Module *module, Interpreter::FunctionOption &option) {
   Function *f = module->getFunction(option.name);
   if (!f) {
@@ -1438,6 +1462,9 @@ int main(int argc, char **argv, char **envp) {
   std::vector<Interpreter::FunctionOption> targetFunctions;
   parseFunctionListParameter(mainModule, PTATarget, targetFunctions);
 
+  std::map<std::string, std::vector<unsigned> > errorLocationOptions;
+  parseErrorLocationParameter(ErrorLocation, errorLocationOptions);
+
   std::vector<Interpreter::FunctionOption> skippedFunctions;
   parseFunctionListParameter(mainModule, SkippedFunctions, skippedFunctions);
   for (Interpreter::FunctionOption &option : skippedFunctions) {
@@ -1453,6 +1480,8 @@ int main(int argc, char **argv, char **envp) {
   IOpts.MakeConcreteSymbolic = MakeConcreteSymbolic;
   IOpts.targetFunctions = targetFunctions;
   IOpts.skippedFunctions = skippedFunctions;
+  IOpts.errorLocations = errorLocationOptions;
+  IOpts.maxErrorCount = MaxErrorCount;
   KleeHandler *handler = new KleeHandler(pArgc, pArgv);
   Interpreter *interpreter =
     theInterpreter = Interpreter::create(ctx, IOpts, handler);

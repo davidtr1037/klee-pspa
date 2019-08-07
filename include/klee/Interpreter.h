@@ -86,15 +86,27 @@ public:
     }
   };
 
+  struct ErrorLocationOption {
+    std::string filename;
+    std::vector<unsigned> lines;
+
+    ErrorLocationOption(std::string filename, std::vector<unsigned> &lines) :
+        filename(filename), lines(lines) {}
+  };
+
   /// InterpreterOptions - Options varying the runtime behavior during
   /// interpretation.
   struct InterpreterOptions {
     /// A frequency at which to make concrete reads return constrained
     /// symbolic values. This is used to test the correctness of the
     /// symbolic execution on concrete programs.
+    typedef std::map<std::string, std::vector<unsigned> > ErrorLocations;
+
     unsigned MakeConcreteSymbolic;
     std::vector<FunctionOption> targetFunctions;
     std::vector<FunctionOption> skippedFunctions;
+    mutable ErrorLocations errorLocations;
+    unsigned int maxErrorCount;
 
     InterpreterOptions()
       : MakeConcreteSymbolic(false)

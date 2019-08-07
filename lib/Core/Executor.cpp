@@ -436,6 +436,7 @@ Executor::Executor(LLVMContext &ctx, const InterpreterOptions &opts,
                             ? std::min(MaxCoreSolverTime, MaxInstructionTime)
                             : std::max(MaxCoreSolverTime, MaxInstructionTime)),
       debugInstFile(0), debugLogBuffer(debugBufferString),
+      errorCount(0),
       ptaMode(NoneMode), staticPTA(0), ptaStatsLogger(0),
       executionMode(ExecutionModeSymbolic),
       saLog(0), ra(0), mra(0), modularPTA(0) {
@@ -3374,6 +3375,9 @@ void Executor::terminateStateOnError(ExecutionState &state,
   
   if (EmitAllErrors ||
       emittedErrors.insert(std::make_pair(lastInst, message)).second) {
+    if (shouldExitOn(termReason)) {
+      errorCount++;
+    }
     if (ii.file != "") {
       klee_message("ERROR: %s:%d: %s", ii.file.c_str(), ii.line, message.c_str());
     } else {
@@ -3415,8 +3419,31 @@ void Executor::terminateStateOnError(ExecutionState &state,
     terminateState(state);
   }
 
-  if (shouldExitOn(termReason))
-    haltExecution = true;
+  if (shouldExitOn(termReason)) {
+    unsigned int maxCount = interpreterOpts.maxErrorCount;
+
+    if (interpreterOpts.errorLocations.empty()) {
+      if (maxCount == 0 || maxCount == errorCount) {
+        haltExecution = true;
+      }
+    } else if (ii.file != "") {
+      InterpreterOptions::ErrorLocations &errorLocations = interpreterOpts.errorLocations;
+      for (std::vector<ErrorLocationOption>::size_type i = 0; i < errorLocations.size(); ++i) {
+        std::string basename = ii.file.substr(ii.file.find_last_of("/\\") + 1);
+        InterpreterOptions::ErrorLocations::iterator entry = errorLocations.find(basename);
+        if (entry != errorLocations.end()) {
+          entry->second.erase(std::remove(entry->second.begin(), entry->second.end(), ii.line), entry->second.end());
+          if (entry->second.empty()) {
+            errorLocations.erase(entry);
+          }
+          break;
+        }
+      }
+      if (errorLocations.empty()) {
+        haltExecution = true;
+      }
+    }
+  }
 }
 
 // XXX shoot me

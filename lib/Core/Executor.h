@@ -266,6 +266,8 @@ private:
   // @brief buffer to store logs before flushing to file
   llvm::raw_string_ostream debugLogBuffer;
 
+  unsigned int errorCount;
+
   /* TODO: add docs */
   PTAMode ptaMode;
 
