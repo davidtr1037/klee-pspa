@@ -12,6 +12,7 @@
 
 #include "klee/Config/Version.h"
 #include "klee/Interpreter.h"
+#include "klee/Internal/Analysis/Inliner.h"
 
 #include <map>
 #include <unordered_map>
@@ -131,7 +132,7 @@ namespace klee {
     // FIXME: ihandler should not be here
     void prepare(const Interpreter::ModuleOptions &opts,
                  const Interpreter::InterpreterOptions &interpreterOpts,
-                 InterpreterHandler *ihandler);
+                 InterpreterHandler *ihandler, Inliner *inliner);
 
     /// Return an id for the given constant, creating a new one if necessary.
     unsigned getConstantID(llvm::Constant *c, KInstruction* ki);

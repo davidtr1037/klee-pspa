@@ -105,6 +105,7 @@ public:
     unsigned MakeConcreteSymbolic;
     std::vector<FunctionOption> targetFunctions;
     std::vector<FunctionOption> skippedFunctions;
+    std::vector<std::string> inlinedFunctions;
     mutable ErrorLocations errorLocations;
     unsigned int maxErrorCount;
 

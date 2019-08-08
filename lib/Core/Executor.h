@@ -26,6 +26,7 @@
 #include "AttachedInfo.h"
 #include "klee/Internal/Analysis/PTAStats.h"
 #include "klee/Internal/Analysis/ReachabilityAnalysis.h"
+#include "klee/Internal/Analysis/Inliner.h"
 #include "klee/Internal/Analysis/ModRefAnalysis.h"
 #include "klee/Internal/Analysis/ModularAnalysis.h"
 #include "klee/Internal/Analysis/StateProjection.h"
@@ -297,6 +298,9 @@ private:
 
   /* TODO: add docs */
   ReachabilityAnalysis *ra;
+
+  /* TODO: add docs */
+  Inliner *inliner;
 
   /* TODO: add docs */
   ModRefAnalysis *mra;

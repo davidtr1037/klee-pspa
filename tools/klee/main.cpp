@@ -217,6 +217,11 @@ namespace {
   SkippedFunctions("skip-functions",
                    cl::desc("..."));
 
+  cl::opt<std::string>
+  InlinedFunctions("inline",
+                   cl::desc("Comma-separated list of functions to be inlined (e.g. <function1>,<function2>,..)"),
+                   cl::init(""));
+
   cl::opt<unsigned int>
   MaxErrorCount("max-error-count",
                 cl::desc("max error count before exit"),
@@ -1210,6 +1215,23 @@ void parseFunctionListParameter(Module *module,
   }
 }
 
+void parseInlinedFunctions(
+    Module *module,
+    std::string parameter,
+    std::vector<std::string> &result
+) {
+    std::istringstream stream(parameter);
+    std::string fname;
+
+    while (std::getline(stream, fname, ',')) {
+        if (!module->getFunction(fname)) {
+          klee_error("inline option: '%s' not found in module.", fname.c_str());
+        }
+
+        result.push_back(fname);
+    }
+}
+
 void parseErrorLocationParameter(std::string parameter,
                                  std::map<std::string,
                                  std::vector<unsigned> > &result) {
@@ -1462,6 +1484,9 @@ int main(int argc, char **argv, char **envp) {
   std::vector<Interpreter::FunctionOption> targetFunctions;
   parseFunctionListParameter(mainModule, PTATarget, targetFunctions);
 
+  std::vector<std::string> inlinedFunctions;
+  parseInlinedFunctions(mainModule, InlinedFunctions, inlinedFunctions);
+
   std::map<std::string, std::vector<unsigned> > errorLocationOptions;
   parseErrorLocationParameter(ErrorLocation, errorLocationOptions);
 
@@ -1480,6 +1505,7 @@ int main(int argc, char **argv, char **envp) {
   IOpts.MakeConcreteSymbolic = MakeConcreteSymbolic;
   IOpts.targetFunctions = targetFunctions;
   IOpts.skippedFunctions = skippedFunctions;
+  IOpts.inlinedFunctions = inlinedFunctions;
   IOpts.errorLocations = errorLocationOptions;
   IOpts.maxErrorCount = MaxErrorCount;
   KleeHandler *handler = new KleeHandler(pArgc, pArgv);

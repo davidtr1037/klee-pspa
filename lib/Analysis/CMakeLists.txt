@@ -14,6 +14,7 @@ klee_add_component(kleeAnalysis
     SymbolicPTA.cpp
     Reachability.cpp
     ReachabilityAnalysis.cpp
+    Inliner.cpp
     ModRefAnalysis.cpp
     ModularAnalysis.cpp
     StateProjection.cpp

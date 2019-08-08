@@ -20,6 +20,7 @@
 #include "klee/Internal/Module/InstructionInfoTable.h"
 #include "klee/Internal/Support/Debug.h"
 #include "klee/Internal/Support/ModuleUtil.h"
+#include "klee/Internal/Analysis/Inliner.h"
 
 #include "Util/BreakConstantExpr.h"
 
@@ -207,7 +208,7 @@ void KModule::addInternalFunction(const char* functionName){
 
 void KModule::prepare(const Interpreter::ModuleOptions &opts,
                       const Interpreter::InterpreterOptions &interpreterOpts,
-                      InterpreterHandler *ih) {
+                      InterpreterHandler *ih, Inliner *inliner) {
   // Inject checks prior to optimization... we also perform the
   // invariant transformations that we will end up doing later so that
   // optimize is seeing what is as close as possible to the final
@@ -338,6 +339,8 @@ void KModule::prepare(const Interpreter::ModuleOptions &opts,
   LegacyLLVMPassManagerTy passManager;
   passManager.add(new UnusedValuesRemovalPass(opts.EntryPoint));
   passManager.run(*module);
+
+  inliner->run();
 
   if (OutputModule) {
     llvm::raw_fd_ostream *f = ih->openOutputFile("final.bc");

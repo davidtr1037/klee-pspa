@@ -54,6 +54,7 @@
 #include "klee/Internal/Analysis/PTAStats.h"
 #include "klee/Internal/Analysis/PTAUtils.h"
 #include "klee/Internal/Analysis/ReachabilityAnalysis.h"
+#include "klee/Internal/Analysis/Inliner.h"
 #include "klee/Internal/Analysis/ModRefAnalysis.h"
 #include "klee/Internal/Analysis/ModularAnalysis.h"
 #include "klee/Internal/Analysis/Reachability.h"
@@ -439,7 +440,7 @@ Executor::Executor(LLVMContext &ctx, const InterpreterOptions &opts,
       errorCount(0),
       ptaMode(NoneMode), staticPTA(0), ptaStatsLogger(0),
       executionMode(ExecutionModeSymbolic),
-      saLog(0), ra(0), mra(0), modularPTA(0) {
+      saLog(0), ra(0), inliner(0), mra(0), modularPTA(0) {
 
   if (coreSolverTimeout) UseForkedCoreSolver = true;
   Solver *coreSolver = klee::createCoreSolver(CoreSolverToUse);
@@ -522,7 +523,26 @@ const Module *Executor::setModule(llvm::Module *module,
   specialFunctionHandler = new SpecialFunctionHandler(*this);
   specialFunctionHandler->prepare();
 
-  kmodule->prepare(opts, interpreterOpts, interpreterHandler);
+  /* build target functions */
+  std::vector<std::string> targets;
+  for (auto i : interpreterOpts.skippedFunctions) {
+    targets.push_back(i.name);
+  }
+
+  saLog = interpreterHandler->openOutputFile("sa.log");
+
+  ra = new ReachabilityAnalysis(kmodule->module,
+                                opts.EntryPoint,
+                                targets,
+                                *saLog);
+
+  inliner = new Inliner(kmodule->module,
+                        ra,
+                        targets,
+                        interpreterOpts.inlinedFunctions,
+                        *saLog);
+
+  kmodule->prepare(opts, interpreterOpts, interpreterHandler, inliner);
 
   if (UsePTAMode.size() > 1) {
     klee_error("Only one PTA mode can be specified");
@@ -555,19 +575,6 @@ const Module *Executor::setModule(llvm::Module *module,
 
   if (!interpreterOpts.skippedFunctions.empty()) {
     if (ptaMode == StaticMode || UseStaticModRef) {
-      /* build target functions */
-      std::vector<std::string> targets;
-      for (auto i : interpreterOpts.skippedFunctions) {
-        targets.push_back(i.name);
-      }
-
-      saLog = interpreterHandler->openOutputFile("sa.log");
-
-      ra = new ReachabilityAnalysis(kmodule->module,
-                                    opts.EntryPoint,
-                                    targets,
-                                    *saLog);
-
       mra = new ModRefAnalysis(kmodule->module,
                                ra,
                                staticPTA,
@@ -645,6 +652,9 @@ Executor::~Executor() {
   }
   if (ra) {
     delete ra;
+  }
+  if (inliner) {
+    delete inliner;
   }
   if (mra) {
     delete mra;
