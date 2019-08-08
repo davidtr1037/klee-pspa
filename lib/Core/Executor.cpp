@@ -425,6 +425,8 @@ const llvm::Value *PTAInfo::getAllocSite() {
   return allocSite;
 }
 
+#define HUGE_ALLOC_SIZE (1U << 31)
+
 Executor::Executor(LLVMContext &ctx, const InterpreterOptions &opts,
     InterpreterHandler *ih)
     : Interpreter(opts), kmodule(0), interpreterHandler(ih), searcher(0),
@@ -3638,14 +3640,18 @@ void Executor::executeAlloc(ExecutionState &state,
                           state.prevPC->inst,
                           zeroMemory);
     } else {
-      mo = memory->allocate(CE->getZExtValue(), isLocal, /*isGlobal=*/false,
-                            allocSite, allocationAlignment);
+      if (CE->getZExtValue() < HUGE_ALLOC_SIZE) {
+        mo = memory->allocate(CE->getZExtValue(), isLocal, false, allocSite, allocationAlignment);
+      } else {
+        klee_message("NOTE: found huge concrete malloc (size = %ld), returning 0",
+                     CE->getZExtValue());
+      }
     }
-    mo->name = name;
     if (!mo) {
       bindLocal(target, state, 
                 ConstantExpr::alloc(0, Context::get().getPointerWidth()));
     } else {
+      mo->name = name;
       ObjectState *os = bindObjectInState(state, mo, isLocal);
       if (zeroMemory) {
         os->initializeToZero();
@@ -3713,7 +3719,7 @@ void Executor::executeAlloc(ExecutionState &state,
         // malloc will fail for it, so lets fork and return 0.
         StatePair hugeSize = 
           fork(*fixedSize.second, 
-               UltExpr::create(ConstantExpr::alloc(1U<<31, W), size),
+               UltExpr::create(ConstantExpr::alloc(HUGE_ALLOC_SIZE, W), size),
                true);
         if (hugeSize.first) {
           klee_message("NOTE: found huge malloc, returning 0");
@@ -6077,11 +6083,20 @@ MemoryObject *Executor::onExecuteAlloc(ExecutionState &state,
     }
   } else {
     size_t allocationAlignment = getAllocationAlignment(allocInst);
-    mo = memory->allocate(size, isLocal, false, allocInst, allocationAlignment);
-    DEBUG_WITH_TYPE(
-      DEBUG_BASIC,
-      klee_message("%p: allocating new address: %lx, size: %lu", &state, mo->address, size)
-    );
+    if (size < HUGE_ALLOC_SIZE) {
+      mo = memory->allocate(size, isLocal, false, allocInst, allocationAlignment);
+      DEBUG_WITH_TYPE(
+        DEBUG_BASIC,
+        klee_message("%p: allocating new address: %lx, size: %lu", &state, mo->address, size)
+      );
+    } else {
+      mo = NULL;
+      DEBUG_WITH_TYPE(
+        DEBUG_BASIC,
+        klee_message("%p: allocating null address", &state)
+      );
+    }
+
 
     /* TODO: do we need to add the MemoryObject here? */
     allocationRecord.addAddr(context, mo);
