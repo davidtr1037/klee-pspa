@@ -1457,6 +1457,11 @@ void Executor::executeCall(ExecutionState &state,
     state.pushFrame(state.prevPC, kf);
     state.pc = kf->instructions;
 
+    StackFrame &sf = state.stack.back();
+    sf.frameSnapshot.state = new ExecutionState(state);
+    sf.frameSnapshot.arguments = arguments;
+    sf.frameSnapshot.wasComputed = false;
+
     if (statsTracker)
       statsTracker->framePushed(state, &state.stack[state.stack.size()-2]);
 
@@ -3591,11 +3596,17 @@ void Executor::executeMemoryOperation(ExecutionState &state,
   // we are on an error path (no resolution, multiple resolution, one
   // resolution with out of bounds)
 
+  PointsTo pts;
+  getOperandPointsTo(state, pts);
+  klee_message("pts size: %u", pts.count());
+
+  klee_message("resolving...");
   ResolutionList rl;  
   solver->setTimeout(coreSolverTimeout);
   bool incomplete = state.addressSpace.resolve(state, solver, address, rl,
                                                0, coreSolverTimeout);
   solver->setTimeout(0);
+  klee_message("multiple resolution: %lu", rl.size());
   
   // XXX there is some query wasteage here. who cares?
   ExecutionState *unbound = &state;
@@ -4893,6 +4904,46 @@ bool Executor::startAIPhase(ExecutionState &state) {
 
   /* we are after the AI phase */
   return true;
+}
+
+void Executor::getOperandPointsTo(ExecutionState &state, PointsTo &result) {
+  PointerAnalysis *pta = nullptr;
+  StackFrame &sf = state.stack.back();
+  ExecutionState *snapshot = sf.frameSnapshot.state.get();
+
+  if (!sf.frameSnapshot.wasComputed) {
+    Function *f = sf.kf->function;
+    if (isDynamicMode()) {
+      if (ptaMode == DynamicSymbolicMode) {
+        updatePointsToOnCallSymbolic(*snapshot, f, sf.frameSnapshot.arguments);
+      } else {
+        updatePointsToOnCall(*snapshot, f, sf.frameSnapshot.arguments);
+      }
+      klee_message("analyzing %s...", f->getName().data());
+      ref<AndersenDynamic> snapshotPTA = snapshot->getPTA();
+      snapshotPTA->initialize(*kmodule->module);
+      snapshotPTA->analyzeFunction(*kmodule->module, f);
+      snapshotPTA->postAnalysisCleanup();
+      pta = snapshotPTA.get();
+
+      sf.frameSnapshot.wasComputed = true;
+    } else {
+      assert(0);
+    }
+  } else {
+    pta = sf.frameSnapshot.state->getPTA().get();
+  }
+
+  NodeID n;
+  Instruction *inst = state.prevPC->inst;
+  if (isa<LoadInst>(inst)) {
+    LoadInst *load = dyn_cast<LoadInst>(inst);
+    Value *p = load->getPointerOperand();
+    n = PAG::getPAG()->getValueNode(p);
+  } else {
+    assert(0);
+  }
+  result = pta->getPts(n);
 }
 
 void Executor::prepareForEarlyExit() {

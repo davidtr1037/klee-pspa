@@ -38,6 +38,18 @@ struct InstructionInfo;
 
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const MemoryMap &mm);
 
+struct FrameSnapshot {
+  ref<ExecutionState> state;
+  std::vector<ref<Expr>> arguments;
+  bool wasComputed;
+  //ref<AndersenDynamic> pta;
+
+  FrameSnapshot() :
+    state(nullptr), wasComputed(false) {
+
+  }
+};
+
 struct StackFrame {
   KInstIterator caller;
   KFunction *kf;
@@ -63,6 +75,8 @@ struct StackFrame {
 
   /* TODO: add docs */
   std::map<llvm::Instruction *, uint64_t> loopTrackingInfo;
+
+  FrameSnapshot frameSnapshot;
 
   StackFrame(KInstIterator caller, KFunction *kf);
   StackFrame(const StackFrame &s);
@@ -91,6 +105,8 @@ private:
 
 public:
   // Execution - Control Flow specific
+
+  unsigned refCount;
 
   /// @brief Pointer to instruction to be executed after the current
   /// instruction

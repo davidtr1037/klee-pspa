@@ -664,6 +664,8 @@ public:
 
   bool startAIPhase(ExecutionState &state);
 
+  void getOperandPointsTo(ExecutionState &state, PointsTo &result);
+
 };
   
 } // End klee namespace

@@ -54,7 +54,8 @@ StackFrame::StackFrame(const StackFrame &s)
     localPointers(s.localPointers),
     minDistToUncoveredOnReturn(s.minDistToUncoveredOnReturn),
     varargs(s.varargs),
-    loopTrackingInfo(s.loopTrackingInfo) {
+    loopTrackingInfo(s.loopTrackingInfo),
+    frameSnapshot(s.frameSnapshot) {
   locals = new Cell[s.kf->numRegisters];
   for (unsigned i=0; i<s.kf->numRegisters; i++)
     locals[i] = s.locals[i];
@@ -70,6 +71,7 @@ ExecutionState::ExecutionState(KFunction *kf) :
     pta(0),
     initialCallDepth(0),
 
+    refCount(0),
     pc(kf->instructions),
     prevPC(pc),
 
@@ -86,7 +88,7 @@ ExecutionState::ExecutionState(KFunction *kf) :
 }
 
 ExecutionState::ExecutionState(const std::vector<ref<Expr> > &assumptions)
-    : pta(0), initialCallDepth(0), constraints(assumptions), queryCost(0.), ptreeNode(0), isDummy(false) {}
+    : pta(0), initialCallDepth(0), refCount(0), constraints(assumptions), queryCost(0.), ptreeNode(0), isDummy(false) {}
 
 ExecutionState::~ExecutionState() {
   for (unsigned int i=0; i<symbolics.size(); i++)
@@ -105,6 +107,7 @@ ExecutionState::ExecutionState(const ExecutionState& state):
     fnAliases(state.fnAliases),
     callingFunctions(state.callingFunctions),
     initialCallDepth(state.initialCallDepth),
+    refCount(0),
     pc(state.pc),
     prevPC(state.prevPC),
     stack(state.stack),
