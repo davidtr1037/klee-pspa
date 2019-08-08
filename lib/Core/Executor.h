@@ -24,6 +24,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "AbstractMO.h"
 #include "AttachedInfo.h"
+#include "PTAInfo.h"
 #include "klee/Internal/Analysis/PTAStats.h"
 #include "../Analysis/SymbolicPTA.h"
 #include "AIPhase.h"
@@ -82,21 +83,6 @@ namespace klee {
   /// \todo Add a context object to keep track of data only live
   /// during an instruction step. Should contain addedStates,
   /// removedStates, and haltExecution, among others.
-
-class PTAInfo : public AttachedInfo {
-
-public:
-
-    PTAInfo(const llvm::Value *allocSite);
-
-    ~PTAInfo();
-
-    const llvm::Value *getAllocSite();
-
-private:
-
-    const llvm::Value *allocSite;
-};
 
 class Executor : public Interpreter {
   friend class RandomPathSearcher;

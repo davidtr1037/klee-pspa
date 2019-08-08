@@ -361,6 +361,9 @@ namespace {
 
   cl::opt<bool>
   UseSolverInAIMode("use-solver-in-ai-mode", cl::init(true), cl::desc(""));
+
+  cl::opt<bool>
+  UseSAResolve("use-sa-resolve", cl::init(false), cl::desc(""));
 }
 
 
@@ -3597,14 +3600,16 @@ void Executor::executeMemoryOperation(ExecutionState &state,
   // resolution with out of bounds)
 
   PointsTo pts;
-  getOperandPointsTo(state, pts);
-  klee_message("pts size: %u", pts.count());
+  if (UseSAResolve) {
+    getOperandPointsTo(state, pts);
+    klee_message("pts size: %u", pts.count());
+  }
 
   klee_message("resolving...");
   ResolutionList rl;  
   solver->setTimeout(coreSolverTimeout);
   bool incomplete = state.addressSpace.resolve(state, solver, address, rl,
-                                               0, coreSolverTimeout);
+                                               0, coreSolverTimeout, UseSAResolve ? &pts : nullptr);
   solver->setTimeout(0);
   klee_message("multiple resolution: %lu", rl.size());
   
@@ -3849,6 +3854,8 @@ void Executor::runFunctionAsMain(Function *f,
   // hack to clear memory objects
   delete memory;
   memory = new MemoryManager(NULL);
+
+  klee_message("Resolve queries: %lu", (uint64_t)(stats::resolveQueries));
 
   globalObjects.clear();
   globalAddresses.clear();
@@ -4934,16 +4941,20 @@ void Executor::getOperandPointsTo(ExecutionState &state, PointsTo &result) {
     pta = sf.frameSnapshot.state->getPTA().get();
   }
 
-  NodeID n;
+  NodeID operand;
   Instruction *inst = state.prevPC->inst;
   if (isa<LoadInst>(inst)) {
     LoadInst *load = dyn_cast<LoadInst>(inst);
     Value *p = load->getPointerOperand();
-    n = PAG::getPAG()->getValueNode(p);
+    operand = PAG::getPAG()->getValueNode(p);
   } else {
     assert(0);
   }
-  result = pta->getPts(n);
+
+  for (NodeID nodeId : pta->getPts(operand)) {
+    NodeID base = PAG::getPAG()->getBaseObjNode(nodeId);
+    result.set(base);
+  }
 }
 
 void Executor::prepareForEarlyExit() {

@@ -15,6 +15,8 @@
 #include "klee/Expr.h"
 #include "klee/Internal/ADT/ImmutableMap.h"
 
+#include "MemoryModel/PointerAnalysis.h"
+
 namespace klee {
   class ExecutionState;
   class MemoryObject;
@@ -87,7 +89,8 @@ namespace klee {
                  ref<Expr> address, 
                  ResolutionList &rl, 
                  unsigned maxResolutions=0,
-                 double timeout=0.);
+                 double timeout=0.,
+                 PointsTo *pts = nullptr);
 
     /***/
 
@@ -125,6 +128,8 @@ namespace klee {
     /// \retval true The copy succeeded. 
     /// \retval false The copy failed because a read-only object was modified.
     bool copyInConcretes();
+
+    bool canSkipMO(const MemoryObject *mo, PointsTo &pts);
   };
 } // End klee namespace
 

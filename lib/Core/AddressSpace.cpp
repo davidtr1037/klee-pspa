@@ -11,6 +11,7 @@
 #include "CoreStats.h"
 #include "Memory.h"
 #include "TimingSolver.h"
+#include "PTAInfo.h"
 
 #include "klee/Expr.h"
 #include "klee/TimerStatIncrementer.h"
@@ -165,7 +166,8 @@ bool AddressSpace::resolve(ExecutionState &state,
                            ref<Expr> p, 
                            ResolutionList &rl, 
                            unsigned maxResolutions,
-                           double timeout) {
+                           double timeout,
+                           PointsTo *pts) {
   if (ConstantExpr *CE = dyn_cast<ConstantExpr>(p)) {
     ObjectPair res;
     if (resolveOne(CE, res))
@@ -213,11 +215,16 @@ bool AddressSpace::resolve(ExecutionState &state,
     while (oi!=begin) {
       --oi;
       const MemoryObject *mo = oi->first;
+      if (pts && canSkipMO(mo, *pts)) {
+        continue;
+      }
+
       if (timeout_us && timeout_us < timer.check())
         return true;
 
       // XXX I think there is some query wasteage here?
       ref<Expr> inBounds = mo->getBoundsCheckPointer(p);
+      stats::resolveQueries += 1;
       bool mayBeTrue;
       if (!solver->mayBeTrue(state, inBounds, mayBeTrue))
         return true;
@@ -227,6 +234,7 @@ bool AddressSpace::resolve(ExecutionState &state,
         // fast path check
         unsigned size = rl.size();
         if (size==1) {
+          stats::resolveQueries += 1;
           bool mustBeTrue;
           if (!solver->mustBeTrue(state, inBounds, mustBeTrue))
             return true;
@@ -237,6 +245,7 @@ bool AddressSpace::resolve(ExecutionState &state,
         }
       }
         
+      stats::resolveQueries += 1;
       bool mustBeTrue;
       if (!solver->mustBeTrue(state, 
                               UgeExpr::create(p, mo->getBaseExpr()),
@@ -248,9 +257,13 @@ bool AddressSpace::resolve(ExecutionState &state,
     // search forwards
     for (oi=start; oi!=end; ++oi) {
       const MemoryObject *mo = oi->first;
+      if (pts && canSkipMO(mo, *pts)) {
+        continue;
+      }
       if (timeout_us && timeout_us < timer.check())
         return true;
 
+      stats::resolveQueries += 1;
       bool mustBeTrue;
       if (!solver->mustBeTrue(state, 
                               UltExpr::create(p, mo->getBaseExpr()),
@@ -261,6 +274,7 @@ bool AddressSpace::resolve(ExecutionState &state,
       
       // XXX I think there is some query wasteage here?
       ref<Expr> inBounds = mo->getBoundsCheckPointer(p);
+      stats::resolveQueries += 1;
       bool mayBeTrue;
       if (!solver->mayBeTrue(state, inBounds, mayBeTrue))
         return true;
@@ -270,6 +284,7 @@ bool AddressSpace::resolve(ExecutionState &state,
         // fast path check
         unsigned size = rl.size();
         if (size==1) {
+          stats::resolveQueries += 1;
           bool mustBeTrue;
           if (!solver->mustBeTrue(state, inBounds, mustBeTrue))
             return true;
@@ -327,6 +342,28 @@ bool AddressSpace::copyInConcretes() {
   }
 
   return true;
+}
+
+bool AddressSpace::canSkipMO(const MemoryObject *mo, PointsTo &pts) {
+  const llvm::Value *as = mo->allocSite;
+  if (mo->attachedInfo) {
+    PTAInfo *info = (PTAInfo *)(mo->attachedInfo);
+    as = info->getAllocSite();
+  }
+
+  if (as) {
+    if (!PAG::getPAG()->hasObjectNode(as)) {
+      return true;
+    }
+
+    NodeID base = PAG::getPAG()->getObjectNode(as);
+    if (!pts.test(base)) {
+      //llvm::errs() << "skipping mo: " << mo->address << "\n";
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /***/
