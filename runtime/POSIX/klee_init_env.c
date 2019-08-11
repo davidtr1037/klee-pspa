@@ -90,7 +90,7 @@ void klee_init_env(int* argcPtr, char*** argvPtr) {
   char* new_argv[1024];
   unsigned max_len, min_argvs, max_argvs;
   unsigned sym_files = 0, sym_file_len = 0;
-  unsigned sym_stdin_len = 0;
+  unsigned long long sym_stdin_len = 0;
   int sym_stdout_flag = 0;
   int save_all_writes_flag = 0;
   int fd_fail = 0;
@@ -170,7 +170,12 @@ usage: (klee_init_env) [options] [program arguments]\n\
       if (++k == argc)
         __emit_error(msg);
 
-      sym_stdin_len = __str_to_int(argv[k++], msg);
+      if (argv[k][0] < '0' || argv[k][0] > '9') {
+        sym_stdin_len = (unsigned long long)argv[k++];
+      } else {
+        sym_stdin_len = __str_to_int(argv[k++], msg);
+      }
+      //sym_stdin_len = __str_to_int(argv[k++], msg);
     } else if (__streq(argv[k], "--sym-stdout") ||
                __streq(argv[k], "-sym-stdout")) {
       sym_stdout_flag = 1;
