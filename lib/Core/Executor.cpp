@@ -5685,7 +5685,7 @@ bool Executor::getLoadInfo(ExecutionState &state,
         klee_warning(
             "Unable to resolve blocking load to any address. Terminating state");
         terminateStateOnError(
-            state, "Unable to resolve blocking load to any address", Unhandled);
+            state, "Unable to resolve blocking load to any address", Ptr);
       } else {
         klee_warning("Unable to resolve blocking load address: Solver timeout");
         terminateStateEarly(
