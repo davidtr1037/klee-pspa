@@ -108,6 +108,7 @@ static unsigned __sym_uint32(const char *name) {
                          writes past the initial file size are discarded 
 			 (file offset is always incremented)
    max_failures: maximum number of system call failures */
+#define INPUT_PATH "/home/user/tau/dsa/klee-dsa-benchmarks/resolution/make/make.input"
 void klee_init_fds(unsigned n_files, unsigned file_length,
                    unsigned long long stdin_length, int sym_stdout_flag,
                    int save_all_writes_flag, unsigned max_failures) {
@@ -121,7 +122,26 @@ void klee_init_fds(unsigned n_files, unsigned file_length,
   __exe_fs.sym_files = malloc(sizeof(*__exe_fs.sym_files) * n_files);
   for (k=0; k < n_files; k++) {
     name[0] = 'A' + k;
-    __create_new_dfile(&__exe_fs.sym_files[k], file_length, name, &s);
+    if (k == 0) {
+      char buffer[500];
+      int filedesc = open(INPUT_PATH, O_RDONLY);
+      file_length = read(filedesc, buffer, 500);
+      buffer[file_length + 1] = 0;
+      fprintf(stderr, "Populating %s %u\n", name, file_length);
+      __create_new_dfile(&__exe_fs.sym_files[k], file_length, name, &s);
+      unsigned int i;
+      for (i = 0; i < file_length; i++) {
+        if (buffer[i] == '?') {
+          fprintf(stderr, "Skipping %u\n", i);
+          continue;
+        }
+        __exe_fs.sym_files[k].contents[i] = buffer[i];
+      }
+      stat64(INPUT_PATH, __exe_fs.sym_files[k].stat);
+    } else {
+      __create_new_dfile(&__exe_fs.sym_files[k], file_length, name, &s);
+    }
+    //__create_new_dfile(&__exe_fs.sym_files[k], file_length, name, &s);
   }
   
   /* setting symbolic stdin */
@@ -129,22 +149,20 @@ void klee_init_fds(unsigned n_files, unsigned file_length,
     char *fileName = stdin_length > 100000 ? (char *)stdin_length : 0;
 
     char buffer[500];
-    printf("Filename %p\n", fileName);
     if (fileName) {
-      printf("Opening %s\n", fileName);
+      fprintf(stderr, "Opening %s\n", fileName);
       int filedesc = open(fileName, O_RDONLY);
       stdin_length = read(filedesc, buffer, 500);
-      printf("Populating stdin with %llu\n", stdin_length);
+      fprintf(stderr, "Populating stdin with %llu\n", stdin_length);
     }
     __exe_fs.sym_stdin = malloc(sizeof(*__exe_fs.sym_stdin));
     __create_new_dfile(__exe_fs.sym_stdin, stdin_length, "stdin", &s);
     if (fileName) {
-      printf("Cocnrfetiyng back stdin\n");
       unsigned long long i;
       for (i = 0; i < stdin_length; i++) {
         if (buffer[i] == '?') {
           klee_assume((__exe_fs.sym_stdin->contents[i] >= 'A') & (__exe_fs.sym_stdin->contents[i] <= 'z'));
-          printf("Skipping %llu\n", i);
+          fprintf(stderr, "Skipping %llu\n", i);
           continue;
         }
         __exe_fs.sym_stdin->contents[i] = buffer[i];
