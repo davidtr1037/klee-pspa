@@ -39,6 +39,10 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
     llvm::report_fatal_error("Unexpected type of allocation site");
   }
 
+  if (!pta->getPAG()->hasObjectNode(location.value)) {
+    return pta->getPAG()->getBlackHoleNode();
+  }
+
   NodeID nodeId = pta->getPAG()->getObjectNode(location.value);
   const MemObj *mem = pta->getPAG()->getObject(nodeId);
   if (!mem) {
