@@ -46,9 +46,30 @@ bool ColourCollector::intersects(PointerAnalysis* pta,
 
   return false;
 }
+llvm::BitVector ColourCollector::getColour(llvm::Instruction *inst) {
+    auto objnodeId = pta->getPAG()->getObjectNode(inst);
+    //llvm::errs() << " object node Id" << objnodeId << "\n";
+    auto memobj = pta->getPAG()->getBaseObj(objnodeId);
+    assert(memobj && "Passed instructions is not an allocation");
+    auto allFields = pta->getPAG()->getAllFieldsObjNode(memobj);
+    int colour = 0;
+    llvm::BitVector returnColour(ptsSets.size() + 1);
+    for(auto pts : ptsSets) {
+        colour++;
+        if(pts.intersects(allFields)) {
+            returnColour.set(colour);
+//            llvm::errs() << " found a colour" << colour << "!\n" ;
+        }
+    }
+    return returnColour;
+}
 
-void ColourCollector::computeColours(PointerAnalysis* pta) {
+void ColourCollector::computeColours(PointerAnalysis* pta, 
+                                     llvm::raw_ostream &outputFile) {
+  
   int changes = 0;
+  this->pta = pta;
+  witMode = true;
 
   do {
     changes = 0;

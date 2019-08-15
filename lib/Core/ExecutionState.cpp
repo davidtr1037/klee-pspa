@@ -129,6 +129,9 @@ ExecutionState::ExecutionState(const ExecutionState& state):
     arrayNames(state.arrayNames),
     openMergeStack(state.openMergeStack),
     modifiedGlobals(state.modifiedGlobals),
+    colors(state.colors),
+    numberOfColorTransitions(state.numberOfColorTransitions),
+    previousAllocationColours(state.previousAllocationColours),
     isDummy(state.isDummy)
 {
   for (unsigned int i=0; i<symbolics.size(); i++)

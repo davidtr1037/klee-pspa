@@ -3349,6 +3349,16 @@ void Executor::executeAlloc(ExecutionState &state,
                             bool zeroMemory,
                             const ObjectState *reallocFrom,
                             std::string name) {
+  if(state.colors.witMode) {
+      auto colors = state.colors.getColour(target->inst);
+      // We are conservative here and assume even if 1 field colour matches,
+      // the buffer overflow can be hidden
+      if(!colors.anyCommon(state.previousAllocationColours)) {
+          state.numberOfColorTransitions += colors.count();
+          state.previousAllocationColours = colors;
+//          llvm::errs() << "Colour transitions increased by"<< colors.count() << "\n";
+      }
+  }
   size = toUnique(state, size);
   if (ConstantExpr *CE = dyn_cast<ConstantExpr>(size)) {
     const llvm::Value *allocSite = state.prevPC->inst;
@@ -4793,12 +4803,11 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
   if (ComputeColour) {
     klee_message("Computing colours...");
     auto os = interpreterHandler->openOutputFile("colours");
-    ColourCollector colours(*os);
-    colours.visitAll(pta);
-    colours.computeColours(pta);
+    state.colors.visitAll(pta);
+    state.colors.computeColours(pta, *os);
     delete os;
 
-    terminateState(state);
+//    terminateState(state);
   }
 
   if (CollectPTAResults) {

@@ -7,6 +7,7 @@
 
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Instruction.h>
+#include "llvm/ADT/BitVector.h"
 
 namespace klee {
 
@@ -19,17 +20,21 @@ public:
                           llvm::Function *f,
                           llvm::StoreInst *inst);
 
-  ColourCollector(llvm::raw_ostream &outputFile): outputFile(outputFile) {}
+  llvm::BitVector getColour(llvm::Instruction *inst);
+
+  ColourCollector() {}
 
   bool intersects(PointerAnalysis* pta,
                   PointsTo &pts1,
                   PointsTo &pts2);
 
-  void computeColours(PointerAnalysis* pta);
+  void computeColours(PointerAnalysis* pta, llvm::raw_ostream &outputFile);
+  //True when colours can are computed
+  bool witMode = false;
 
 private:
   std::vector<PointsTo> ptsSets;
-  llvm::raw_ostream &outputFile;
+  PointerAnalysis* pta;
 };
 
 }

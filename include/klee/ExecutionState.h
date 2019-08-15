@@ -18,6 +18,7 @@
 // FIXME: We do not want to be exposing these? :(
 #include "../../lib/Core/AddressSpace.h"
 #include "klee/Internal/Module/KInstIterator.h"
+#include "klee/Internal/Analysis/Colours.h"
 
 #include "WPA/Andersen.h"
 #include "WPA/AndersenDynamic.h"
@@ -90,6 +91,9 @@ private:
   unsigned int initialCallDepth;
 
 public:
+  ColourCollector colors;
+  llvm::BitVector previousAllocationColours;
+  int numberOfColorTransitions;
   // Execution - Control Flow specific
 
   /// @brief Pointer to instruction to be executed after the current

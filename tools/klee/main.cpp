@@ -489,6 +489,10 @@ void KleeHandler::processTestCase(const ExecutionState &state,
         delete f;
     }
 
+    llvm::raw_ostream *colours = openTestFile("colourTransitions", id);
+    *colours << state.numberOfColorTransitions;
+    delete colours;
+
     if (m_symPathWriter) {
       std::vector<unsigned char> symbolicBranches;
       m_symPathWriter->readStream(m_interpreter->getSymbolicPathStreamID(state),
