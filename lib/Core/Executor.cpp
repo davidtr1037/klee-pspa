@@ -4913,9 +4913,12 @@ bool Executor::startAIPhase(ExecutionState &state) {
   return true;
 }
 
+#define K (0)
+
 void Executor::getOperandPointsTo(ExecutionState &state, PointsTo &result) {
   PointerAnalysis *pta = nullptr;
-  StackFrame &sf = state.stack.back();
+  unsigned int index = state.stack.size() - 1 - K;
+  StackFrame &sf = state.stack[index];
   ExecutionState *snapshot = sf.frameSnapshot.state.get();
 
   if (!sf.frameSnapshot.wasComputed) {
@@ -4935,7 +4938,7 @@ void Executor::getOperandPointsTo(ExecutionState &state, PointsTo &result) {
 
       sf.frameSnapshot.wasComputed = true;
     } else {
-      assert(0);
+      pta = staticPTA;
     }
   } else {
     pta = sf.frameSnapshot.state->getPTA().get();
