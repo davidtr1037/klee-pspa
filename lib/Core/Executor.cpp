@@ -364,6 +364,9 @@ namespace {
 
   cl::opt<bool>
   UseSAResolve("use-sa-resolve", cl::init(false), cl::desc(""));
+
+  cl::opt<unsigned>
+  AnalysisDistance("analysis-distance", cl::init(0), cl::desc(""));
 }
 
 
@@ -4913,11 +4916,9 @@ bool Executor::startAIPhase(ExecutionState &state) {
   return true;
 }
 
-#define K (0)
-
 void Executor::getOperandPointsTo(ExecutionState &state, PointsTo &result) {
   PointerAnalysis *pta = nullptr;
-  unsigned int index = state.stack.size() - 1 - K;
+  unsigned int index = state.stack.size() - 1 - AnalysisDistance;
   StackFrame &sf = state.stack[index];
   ExecutionState *snapshot = sf.frameSnapshot.state.get();
 
