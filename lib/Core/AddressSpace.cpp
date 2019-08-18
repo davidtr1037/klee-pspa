@@ -218,6 +218,7 @@ bool AddressSpace::resolve(ExecutionState &state,
 
       // XXX I think there is some query wasteage here?
       ref<Expr> inBounds = mo->getBoundsCheckPointer(p);
+      stats::resolveQueries += 1;
       bool mayBeTrue;
       if (!solver->mayBeTrue(state, inBounds, mayBeTrue))
         return true;
@@ -227,6 +228,7 @@ bool AddressSpace::resolve(ExecutionState &state,
         // fast path check
         unsigned size = rl.size();
         if (size==1) {
+          stats::resolveQueries += 1;
           bool mustBeTrue;
           if (!solver->mustBeTrue(state, inBounds, mustBeTrue))
             return true;
@@ -237,6 +239,7 @@ bool AddressSpace::resolve(ExecutionState &state,
         }
       }
         
+      stats::resolveQueries += 1;
       bool mustBeTrue;
       if (!solver->mustBeTrue(state, 
                               UgeExpr::create(p, mo->getBaseExpr()),
@@ -251,6 +254,7 @@ bool AddressSpace::resolve(ExecutionState &state,
       if (timeout_us && timeout_us < timer.check())
         return true;
 
+      stats::resolveQueries += 1;
       bool mustBeTrue;
       if (!solver->mustBeTrue(state, 
                               UltExpr::create(p, mo->getBaseExpr()),
@@ -261,6 +265,7 @@ bool AddressSpace::resolve(ExecutionState &state,
       
       // XXX I think there is some query wasteage here?
       ref<Expr> inBounds = mo->getBoundsCheckPointer(p);
+      stats::resolveQueries += 1;
       bool mayBeTrue;
       if (!solver->mayBeTrue(state, inBounds, mayBeTrue))
         return true;
@@ -270,6 +275,7 @@ bool AddressSpace::resolve(ExecutionState &state,
         // fast path check
         unsigned size = rl.size();
         if (size==1) {
+          stats::resolveQueries += 1;
           bool mustBeTrue;
           if (!solver->mustBeTrue(state, inBounds, mustBeTrue))
             return true;

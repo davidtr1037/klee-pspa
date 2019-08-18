@@ -3570,6 +3570,11 @@ void Executor::runFunctionAsMain(Function *f,
   delete memory;
   memory = new MemoryManager(NULL);
 
+  klee_message("Resolve queries: %lu", (uint64_t)(stats::resolveQueries));
+
+  double t = (double)(stats::resolveTime / 1000000.) / (double)(statsTracker->elapsed());
+  klee_message("Resolve time: %f%%", 100 * t);
+
   globalObjects.clear();
   globalAddresses.clear();
 
