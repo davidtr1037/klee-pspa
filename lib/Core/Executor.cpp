@@ -4857,6 +4857,7 @@ bool Executor::startAIPhase(ExecutionState &state) {
 }
 
 void Executor::getOperandPointsTo(ExecutionState &state, PointsTo &result) {
+  TimerStatIncrementer timer(stats::staticAnalysisTime);
   PointerAnalysis *pta = nullptr;
   unsigned int index = state.stack.size() - 1 - AnalysisDistance;
   StackFrame &sf = state.stack[index];
