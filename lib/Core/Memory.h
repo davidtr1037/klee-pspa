@@ -72,6 +72,8 @@ public:
 
   mutable std::set<llvm::PointerType *> types;
 
+  bool isVarArg;
+
   // DO NOT IMPLEMENT
   MemoryObject(const MemoryObject &b);
   MemoryObject &operator=(const MemoryObject &b);
@@ -87,7 +89,8 @@ public:
       isFixed(true),
       parent(NULL),
       allocSite(0),
-      attachedInfo(0) {
+      attachedInfo(0),
+      isVarArg(false) {
   }
 
   MemoryObject(uint64_t _address, unsigned _size, 
@@ -105,7 +108,8 @@ public:
       isUserSpecified(false),
       parent(_parent), 
       allocSite(_allocSite),
-      attachedInfo(0) {
+      attachedInfo(0),
+      isVarArg(false) {
 
   }
 
@@ -153,7 +157,6 @@ public:
   }
 
   llvm::PointerType *getTypeHint() const;
-
 };
 
 class ObjectState {
