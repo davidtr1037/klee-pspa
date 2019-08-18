@@ -26,12 +26,16 @@ NodeID klee::computeAbstractMO(PointerAnalysis *pta,
     return pta->getPAG()->getNullPtr();
   }
 
+  if (location.isVarArg) {
+    return pta->getPAG()->getBlackHoleNode();
+  }
+
   /* get the type from the allocation site */
   PointerType *moType = dyn_cast<PointerType>(location.value->getType());
   if (!moType) {
     const CallInst *callInst = dyn_cast<CallInst>(location.value);
     if (callInst) {
-      /* TODO: better solution for varargs? */
+      /* TODO: the correct solution is checking if an argv object... */
       return pta->getPAG()->getBlackHoleNode();
     }
 

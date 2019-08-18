@@ -1518,6 +1518,7 @@ void Executor::executeCall(ExecutionState &state,
           memory->allocate(size, true, false, state.prevPC->inst,
                            (requires16ByteAlignment ? 16 : 8));
       mo->name = "varrr args";
+      mo->isVarArg = true;
       if (!mo && size) {
         terminateStateOnExecError(state, "out of memory (varargs)");
         return;
@@ -4192,76 +4193,6 @@ const Value *Executor::getAllocSite(ExecutionState &state,
   return info->getAllocSite();
 }
 
-bool Executor::getDynamicMemoryLocation(ExecutionState &state,
-                                        ref<Expr> value,
-                                        PointerType *valueType,
-                                        DynamicMemoryLocation &location) {
-  ObjectPair op;
-  bool wasResolved;
-  bool complete;
-
-  solver->setTimeout(coreSolverTimeout);
-  complete = state.addressSpace.resolveOne(state, solver, value, op, wasResolved);
-  solver->setTimeout(0);
-  if (!complete) {
-    /* TODO: should we concretize here? */
-    return false;
-  }
-
-  if (!wasResolved) {
-    ConstantExpr *ce = dyn_cast<ConstantExpr>(value);
-    if (ce) {
-      uint64_t addr = ce->getZExtValue();
-
-      /* check if it's a NULL value */
-      if (addr == 0 || addr == (uint64_t)(-1)) {
-        location.value = ConstantPointerNull::get(valueType);
-        location.size = 0;
-        location.isSymbolicOffset = false;
-        location.offset = 0;
-        location.hint = NULL;
-        return true;
-      }
-
-      /* it may be a function pointer */
-      if (legalFunctions.count(addr)) {
-        location.value = (const Function *)(addr);
-        location.size = 0;
-        location.isSymbolicOffset = false;
-        location.offset = 0;
-        location.hint = NULL;
-        return true;
-      }
-    }
-
-    /* decrement 1 from the address expression and retry... */
-    ref<Expr> subValue = SubExpr::create(value,
-                                         ConstantExpr::alloc(1, value->getWidth()));
-    solver->setTimeout(coreSolverTimeout);
-    complete = state.addressSpace.resolveOne(state, solver, subValue, op, wasResolved);
-    solver->setTimeout(0);
-    if (!complete || !wasResolved) {
-      return false;
-    }
-  }
-
-  const MemoryObject *mo = op.first;
-
-  ref<Expr> offsetExpr = mo->getOffsetExpr(value);
-  ConstantExpr *ce = dyn_cast<ConstantExpr>(offsetExpr);
-  if (!ce) {
-    location.isSymbolicOffset = true;
-  } else {
-    location.isSymbolicOffset = false;
-    location.offset = ce->getZExtValue();
-  }
-
-  location.value = getAllocSite(state, mo);
-  location.size = mo->size;
-  location.hint = mo->getTypeHint();
-  return true;
-}
-
 bool Executor::getDynamicMemoryLocations(ExecutionState &state,
                                          ref<Expr> value,
                                          PointerType *valueType,
@@ -4294,6 +4225,7 @@ bool Executor::getDynamicMemoryLocations(ExecutionState &state,
         location.isSymbolicOffset = false;
         location.offset = 0;
         location.hint = NULL;
+        location.isVarArg = false;
         locations.push_back(location);
         return true;
       }
@@ -4306,6 +4238,7 @@ bool Executor::getDynamicMemoryLocations(ExecutionState &state,
         location.isSymbolicOffset = false;
         location.offset = 0;
         location.hint = NULL;
+        location.isVarArg = false;
         locations.push_back(location);
         return true;
       }
@@ -4342,6 +4275,7 @@ bool Executor::getDynamicMemoryLocations(ExecutionState &state,
     location.value = getAllocSite(state, mo);
     location.size = mo->size;
     location.hint = mo->getTypeHint();
+    location.isVarArg = mo->isVarArg;
     locations.push_back(location);
   }
   return true;
@@ -4452,7 +4386,8 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
                                       mo->size,
                                       ce == NULL,
                                       ce == NULL ? 0 : ce->getZExtValue(),
-                                      mo->getTypeHint());
+                                      mo->getTypeHint(),
+                                      mo->isVarArg);
 
   bool canStronglyUpdate;
   NodeID src = computeAbstractMO(state.getPTA().get(),
@@ -4533,7 +4468,7 @@ NodeID Executor::ptrToAbstract(ExecutionState &state,
   }
 
   if (p->isFunctionPtr()) {
-    DynamicMemoryLocation dl(p->f, 0, false, 0, nullptr);
+    DynamicMemoryLocation dl(p->f, 0, false, 0, nullptr, false);
     return computeAbstractMO(state.getPTA().get(), dl, false);
   }
 
@@ -4548,7 +4483,8 @@ NodeID Executor::ptrToAbstract(ExecutionState &state,
                            m->size,
                            false,
                            offset,
-                           m->getTypeHint());
+                           m->getTypeHint(),
+                           m->isVarArg);
   return computeAbstractMO(state.getPTA().get(), dl, false);
 }
 
@@ -4669,7 +4605,8 @@ void Executor::updateAIPhase(ExecutionState &state,
                                       mo->size,
                                       ce == NULL,
                                       ce == NULL ? 0 : ce->getZExtValue(),
-                                      mo->getTypeHint());
+                                      mo->getTypeHint(),
+                                      mo->isVarArg);
 
   bool canStronglyUpdate;
   NodeID src = computeAbstractMO(state.getPTA().get(),
