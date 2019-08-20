@@ -109,6 +109,7 @@ static SpecialFunctionHandler::HandlerInfo handlerInfo[] = {
   add("klee_alias_function", handleAliasFunction, false),
   add("malloc", handleMalloc, true),
   add("realloc", handleRealloc, true),
+  add("malloc_usable_size", handleMallocUsableSize, true),
 
   // operator delete[](void*)
   add("_ZdaPv", handleDeleteArray, false),
@@ -360,7 +361,7 @@ void SpecialFunctionHandler::handleCloseMerge(ExecutionState &state,
   if (state.openMergeStack.empty()) {
     std::ostringstream warning;
     warning << &state << " ran into a close at " << i << " without a preceding open\n";
-    klee_warning(warning.str().c_str());
+    klee_warning("%s", warning.str().c_str());
   } else {
     state.openMergeStack.back()->addClosedState(&state, i);
     state.openMergeStack.pop_back();
@@ -409,6 +410,12 @@ void SpecialFunctionHandler::handleMalloc(ExecutionState &state,
   // XXX should type check args
   assert(arguments.size()==1 && "invalid number of arguments to malloc");
   executor.executeAlloc(state, arguments[0], false, target);
+}
+
+void SpecialFunctionHandler::handleMallocUsableSize(ExecutionState &state,
+                                                    KInstruction *target,
+                                                    std::vector<ref<Expr> > &arguments) {
+  return executor.executeMallocUsableSize(state, arguments[0], target);
 }
 
 void SpecialFunctionHandler::handleAssume(ExecutionState &state,

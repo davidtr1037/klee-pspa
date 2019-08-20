@@ -525,6 +525,8 @@ public:
 
   Expr::Width getWidthForLLVMType(llvm::Type *type) const;
   size_t getAllocationAlignment(const llvm::Value *allocSite) const;
+
+  void executeMallocUsableSize(ExecutionState &state, ref<Expr> address, KInstruction *target);
 };
   
 } // End klee namespace

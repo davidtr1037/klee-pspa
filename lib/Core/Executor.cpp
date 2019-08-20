@@ -3791,6 +3791,31 @@ size_t Executor::getAllocationAlignment(const llvm::Value *allocSite) const {
   return alignment;
 }
 
+void Executor::executeMallocUsableSize(ExecutionState &state,
+                                       ref<Expr> address,
+                                       KInstruction *target) {
+  ConstantExpr *ce = dyn_cast<ConstantExpr>(address);
+  if (!ce) {
+    assert(0);
+  }
+
+  ObjectPair op;
+  bool success;
+  solver->setTimeout(coreSolverTimeout);
+  if (!state.addressSpace.resolveOne(state, solver, address, op, success)) {
+    address = toConstant(state, address, "resolveOne failure");
+    success = state.addressSpace.resolveOne(cast<ConstantExpr>(address), op);
+  }
+  solver->setTimeout(0);
+
+  if (!success) {
+    assert(0);
+  }
+
+  const MemoryObject *mo = op.first;
+  bindLocal(target, state, mo->getSizeExpr());
+}
+
 void Executor::prepareForEarlyExit() {
   if (statsTracker) {
     // Make sure stats get flushed out
