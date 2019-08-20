@@ -253,6 +253,9 @@ private:
   /* TODO: add docs */
   AIPhase aiphase;
 
+  /* the functions at which we need to take a snapshot */
+  std::set<llvm::Function *> snapshotFunctions;
+
   llvm::Function* getTargetFunction(llvm::Value *calledVal,
                                     ExecutionState &state);
   
@@ -644,6 +647,8 @@ public:
   }
 
   bool startAIPhase(ExecutionState &state);
+
+  bool shouldTakeSnapshot(ExecutionState &state, llvm::Function *f);
 
   void getOperandPointsTo(ExecutionState &state, PointsTo &result);
 

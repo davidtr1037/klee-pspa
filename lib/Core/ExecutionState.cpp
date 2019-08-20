@@ -438,3 +438,17 @@ bool ExecutionState::isCalledRecursively(Function *f) {
 
   return count > 1;
 }
+
+
+void ExecutionState::createSnapshot(std::vector<ref<Expr>> &arguments) {
+  StackFrame &sf = stack.back();
+  sf.frameSnapshot.state = new ExecutionState(*this);
+  sf.frameSnapshot.arguments = arguments;
+  sf.frameSnapshot.wasComputed = false;
+}
+
+StackFrame &ExecutionState::getStackFrame(unsigned int index) {
+  index = stack.size() - 1 - index;
+  assert(index < stack.size());
+  return stack[index];
+}

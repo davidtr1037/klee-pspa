@@ -1463,11 +1463,8 @@ void Executor::executeCall(ExecutionState &state,
     state.pushFrame(state.prevPC, kf);
     state.pc = kf->instructions;
 
-    if (isDynamicMode()) {
-      StackFrame &sf = state.stack.back();
-      sf.frameSnapshot.state = new ExecutionState(state);
-      sf.frameSnapshot.arguments = arguments;
-      sf.frameSnapshot.wasComputed = false;
+    if (shouldTakeSnapshot(state, f)) {
+      state.createSnapshot(arguments);
     }
 
     if (statsTracker)
@@ -3605,17 +3602,26 @@ void Executor::executeMemoryOperation(ExecutionState &state,
   // we are on an error path (no resolution, multiple resolution, one
   // resolution with out of bounds)
 
+  bool useSA = false;
   PointsTo pts;
   if (UseSAResolve) {
-    getOperandPointsTo(state, pts);
-    klee_message("pts size: %u", pts.count());
+    StackFrame &sf = state.getStackFrame(AnalysisDistance);
+    if (sf.frameSnapshot.state.isNull()) {
+      klee_warning("missing snapshot, adding snapshot function %s",
+                   sf.kf->function->getName().data());
+      snapshotFunctions.insert(sf.kf->function);
+    } else {
+      getOperandPointsTo(state, pts);
+      klee_message("pts size: %u", pts.count());
+      useSA = true;
+    }
   }
 
   klee_message("resolving...");
   ResolutionList rl;  
   solver->setTimeout(coreSolverTimeout);
   bool incomplete = state.addressSpace.resolve(state, solver, address, rl,
-                                               0, coreSolverTimeout, UseSAResolve ? &pts : nullptr);
+                                               0, coreSolverTimeout, useSA ? &pts : nullptr);
   solver->setTimeout(0);
   klee_message("multiple resolution: %lu", rl.size());
   
@@ -4863,9 +4869,13 @@ void Executor::getOperandPointsTo(ExecutionState &state, PointsTo &result) {
   PointerAnalysis *pta = nullptr;
 
   if (isDynamicMode()) {
-    unsigned int index = state.stack.size() - 1 - AnalysisDistance;
-    StackFrame &sf = state.stack[index];
+    StackFrame &sf = state.getStackFrame(AnalysisDistance);
     ExecutionState *snapshot = sf.frameSnapshot.state.get();
+    if (!snapshot) {
+      /* should not happen... */
+      assert(false);
+    }
+
     if (!sf.frameSnapshot.wasComputed) {
       Function *f = sf.kf->function;
       if (ptaMode == DynamicSymbolicMode) {
@@ -4902,6 +4912,10 @@ void Executor::getOperandPointsTo(ExecutionState &state, PointsTo &result) {
     NodeID base = PAG::getPAG()->getBaseObjNode(nodeId);
     result.set(base);
   }
+}
+
+bool Executor::shouldTakeSnapshot(ExecutionState &state, llvm::Function *f) {
+  return isDynamicMode() && snapshotFunctions.find(f) != snapshotFunctions.end();
 }
 
 void Executor::prepareForEarlyExit() {

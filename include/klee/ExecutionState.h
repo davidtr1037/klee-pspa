@@ -263,6 +263,10 @@ public:
     return state;
   }
 
+  void createSnapshot(std::vector<ref<Expr>> &arguments);
+
+  StackFrame &getStackFrame(unsigned int index);
+
 };
 }
 
