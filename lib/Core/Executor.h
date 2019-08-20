@@ -652,6 +652,7 @@ public:
 
   void getOperandPointsTo(ExecutionState &state, PointsTo &result);
 
+  void executeMallocUsableSize(ExecutionState &state, ref<Expr> address, KInstruction *target);
 };
   
 } // End klee namespace

@@ -113,6 +113,7 @@ static SpecialFunctionHandler::HandlerInfo handlerInfo[] = {
   add("malloc", handleMalloc, true),
   add("mymalloc", handleMalloc, true),
   add("realloc", handleRealloc, true),
+  add("malloc_usable_size", handleMallocUsableSize, true),
 
   // operator delete[](void*)
   add("_ZdaPv", handleDeleteArray, false),
@@ -419,6 +420,12 @@ void SpecialFunctionHandler::handleMalloc(ExecutionState &state,
   }
   assert(arguments.size()==1 && "invalid number of arguments to malloc");
   executor.executeAlloc(state, arguments[0], false, target);
+}
+
+void SpecialFunctionHandler::handleMallocUsableSize(ExecutionState &state,
+                                                    KInstruction *target,
+                                                    std::vector<ref<Expr> > &arguments) {
+  return executor.executeMallocUsableSize(state, arguments[0], target);
 }
 
 void SpecialFunctionHandler::handleAssume(ExecutionState &state,
