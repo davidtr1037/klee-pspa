@@ -1463,10 +1463,12 @@ void Executor::executeCall(ExecutionState &state,
     state.pushFrame(state.prevPC, kf);
     state.pc = kf->instructions;
 
-    StackFrame &sf = state.stack.back();
-    sf.frameSnapshot.state = new ExecutionState(state);
-    sf.frameSnapshot.arguments = arguments;
-    sf.frameSnapshot.wasComputed = false;
+    if (isDynamicMode()) {
+      StackFrame &sf = state.stack.back();
+      sf.frameSnapshot.state = new ExecutionState(state);
+      sf.frameSnapshot.arguments = arguments;
+      sf.frameSnapshot.wasComputed = false;
+    }
 
     if (statsTracker)
       statsTracker->framePushed(state, &state.stack[state.stack.size()-2]);
@@ -4859,13 +4861,13 @@ bool Executor::startAIPhase(ExecutionState &state) {
 void Executor::getOperandPointsTo(ExecutionState &state, PointsTo &result) {
   TimerStatIncrementer timer(stats::staticAnalysisTime);
   PointerAnalysis *pta = nullptr;
-  unsigned int index = state.stack.size() - 1 - AnalysisDistance;
-  StackFrame &sf = state.stack[index];
-  ExecutionState *snapshot = sf.frameSnapshot.state.get();
 
-  if (!sf.frameSnapshot.wasComputed) {
-    Function *f = sf.kf->function;
-    if (isDynamicMode()) {
+  if (isDynamicMode()) {
+    unsigned int index = state.stack.size() - 1 - AnalysisDistance;
+    StackFrame &sf = state.stack[index];
+    ExecutionState *snapshot = sf.frameSnapshot.state.get();
+    if (!sf.frameSnapshot.wasComputed) {
+      Function *f = sf.kf->function;
       if (ptaMode == DynamicSymbolicMode) {
         updatePointsToOnCallSymbolic(*snapshot, f, sf.frameSnapshot.arguments);
       } else {
@@ -4880,10 +4882,10 @@ void Executor::getOperandPointsTo(ExecutionState &state, PointsTo &result) {
 
       sf.frameSnapshot.wasComputed = true;
     } else {
-      pta = staticPTA;
+      pta = sf.frameSnapshot.state->getPTA().get();
     }
   } else {
-    pta = sf.frameSnapshot.state->getPTA().get();
+    pta = staticPTA;
   }
 
   NodeID operand;
