@@ -93,7 +93,7 @@ private:
 public:
   ColourCollector colors;
   llvm::BitVector previousAllocationColours;
-  int numberOfColorTransitions;
+  int numberOfColorTransitions = 0;
   // Execution - Control Flow specific
 
   /// @brief Pointer to instruction to be executed after the current

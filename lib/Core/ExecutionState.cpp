@@ -81,6 +81,7 @@ ExecutionState::ExecutionState(KFunction *kf) :
     coveredNew(false),
     forkDisabled(false),
     ptreeNode(0),
+    previousAllocationColours(0),
     isDummy(false) {
   pushFrame(0, kf);
 }

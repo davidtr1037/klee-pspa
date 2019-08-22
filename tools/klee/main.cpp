@@ -491,6 +491,7 @@ void KleeHandler::processTestCase(const ExecutionState &state,
 
     llvm::raw_ostream *colours = openTestFile("colourTransitions", id);
     *colours << state.numberOfColorTransitions;
+//    llvm::errs() << "wrote out :" << state.numberOfColorTransitions << "\n";
     delete colours;
 
     if (m_symPathWriter) {
