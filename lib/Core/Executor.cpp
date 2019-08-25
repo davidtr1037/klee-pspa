@@ -1604,6 +1604,22 @@ void Executor::executeCall(ExecutionState &state,
     // instead of the actual instruction, since we can't make a KInstIterator
     // from just an instruction (unlike LLVM).
 
+    bool isRelevant = false;
+    for (StackFrame &sf : state.stack) {
+      if (sf.kf->function->getName() == PTAEntryPoint) {
+        isRelevant = true;
+      }
+    }
+    if (isRelevant) {
+      Instruction *callInst = state.prevPC->inst;
+      const InstructionInfo &info = kmodule->infos->getInfo(callInst);
+
+      if (f->getName().find("klee_") != 0 && \
+          info.file.find("libc/") == std::string::npos) {
+        clientStats.callSites.insert(std::make_pair(f, info.line));
+      }
+    }
+
     if (executionMode == ExecutionModeSymbolic && isTargetFunction(state, f)) {
       if (CollectModStatsOnly) {
         collectModStats(state, f, arguments);
@@ -6182,6 +6198,18 @@ void Executor::mergeConstraints(ExecutionState &dependentState, ref<Expr> condit
 }
 
 bool Executor::isFunctionToSkip(ExecutionState &state, Function *f) {
+  if (PTAEntryPoint != "") {
+    bool wasCalled = false;
+    for (StackFrame &sf : state.stack) {
+      if (sf.kf->function->getName() == PTAEntryPoint) {
+        wasCalled = true;
+      }
+    }
+    if (!wasCalled) {
+      return false;
+    }
+  }
+
   Instruction *callInst = state.prevPC->inst;
   const InstructionInfo &info = kmodule->infos->getInfo(callInst);
 
@@ -6655,6 +6683,10 @@ void Executor::dumpClinetStats() {
   klee_message("Reuse ratio: %lu / %lu",
                (uint64_t)(stats::staticAnalysisReuse),
                (uint64_t)(stats::staticAnalysisUsage));
+  klee_message("Call sites:");
+  for (auto i : clientStats.callSites) {
+    klee_message("%s:%u", i.first->getName().data(), i.second);
+  }
 }
 
 void Executor::collectGlobalsUsage() {
