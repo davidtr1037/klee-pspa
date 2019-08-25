@@ -361,6 +361,9 @@ namespace {
 
   cl::opt<bool>
   UseSolverInAIMode("use-solver-in-ai-mode", cl::init(true), cl::desc(""));
+
+  cl::opt<bool>
+  UpdatePTAOnFork("update-pta-on-fork", cl::init(true), cl::desc(""));
 }
 
 
@@ -1080,7 +1083,7 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
     ExecutionState *falseState, *trueState = &current;
 
     ++stats::forks;
-    if (ptaMode == DynamicSymbolicMode) {
+    if (ptaMode == DynamicSymbolicMode && UpdatePTAOnFork) {
       TimerStatIncrementer timer(stats::staticAnalysisTime);
       SymbolicPTA sPTA(*solver, current, legalFunctions, *kmodule->targetData);
       updateGlobalsPts(current, sPTA);
