@@ -25,6 +25,7 @@
 #include "AbstractMO.h"
 #include "AttachedInfo.h"
 #include "klee/Internal/Analysis/PTAStats.h"
+#include "klee/Internal/Analysis/ModularAnalysis.h"
 #include "../Analysis/SymbolicPTA.h"
 #include "AIPhase.h"
 
@@ -266,6 +267,12 @@ private:
 
   /* TODO: add docs */
   AIPhase aiphase;
+
+  /* TODO: add docs */
+  ModularPTA *modularPTA;
+
+  /* TODO: add docs */
+  std::map<llvm::Function *, std::set<llvm::GlobalVariable *>> globalsUsage;
 
   llvm::Function* getTargetFunction(llvm::Value *calledVal,
                                     ExecutionState &state);
@@ -659,6 +666,11 @@ public:
 
   bool startAIPhase(ExecutionState &state);
 
+  void collectGlobalsUsage();
+
+  void collectRelevantGlobals(PointerAnalysis *pta,
+                              llvm::Function *entry,
+                              std::set<NodeID> &globals);
 };
   
 } // End klee namespace

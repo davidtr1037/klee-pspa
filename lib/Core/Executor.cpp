@@ -53,6 +53,8 @@
 #include "klee/Internal/Analysis/PTAGraph.h"
 #include "klee/Internal/Analysis/PTAStats.h"
 #include "klee/Internal/Analysis/PTAUtils.h"
+#include "klee/Internal/Analysis/ModularAnalysis.h"
+#include "klee/Internal/Analysis/Reachability.h"
 
 #include "WPA/AndersenDynamic.h"
 
@@ -364,6 +366,9 @@ namespace {
 
   cl::opt<bool>
   UpdatePTAOnFork("update-pta-on-fork", cl::init(true), cl::desc(""));
+
+  cl::opt<bool>
+  UseModularPTA("use-modular-pta", cl::init(false), cl::desc(""));
 }
 
 
@@ -416,7 +421,7 @@ Executor::Executor(LLVMContext &ctx, const InterpreterOptions &opts,
                             : std::max(MaxCoreSolverTime, MaxInstructionTime)),
       debugInstFile(0), debugLogBuffer(debugBufferString),
       ptaMode(NoneMode), staticPTA(0), ptaStatsLogger(0),
-      executionMode(ExecutionModeSymbolic) {
+      executionMode(ExecutionModeSymbolic), modularPTA(0) {
 
   if (coreSolverTimeout) UseForkedCoreSolver = true;
   Solver *coreSolver = klee::createCoreSolver(CoreSolverToUse);
@@ -522,6 +527,14 @@ const Module *Executor::setModule(llvm::Module *module,
     evaluateWholeProgramPTA();
   }
 
+  if (UseModularPTA) {
+    if (!isDynamicMode()) {
+      klee_warning("modular analysis can be used only in dynamic mode");
+    }
+    modularPTA = new ModularPTA();
+    collectGlobalsUsage();
+  }
+
   specialFunctionHandler->bind();
 
   if (StatsTracker::useStatistics() || userSearcherRequiresMD2U()) {
@@ -555,6 +568,9 @@ Executor::~Executor() {
   }
   if (staticPTA) {
     delete staticPTA;
+  }
+  if (modularPTA) {
+    delete modularPTA;
   }
 }
 
@@ -4833,6 +4849,37 @@ bool Executor::startAIPhase(ExecutionState &state) {
 
   /* we are after the AI phase */
   return true;
+}
+
+void Executor::collectGlobalsUsage() {
+  for (GlobalVariable &gv : kmodule->module->globals()) {
+    if (gv.isDeclaration() || gv.isConstant()) {
+      continue;
+    }
+
+    for (Value *v : gv.users()) {
+      if (isa<Instruction>(v)) {
+        Instruction *inst = dyn_cast<Instruction>(v);
+        Function *f = inst->getParent()->getParent();
+        globalsUsage[f].insert(&gv);
+      }
+    }
+  }
+}
+
+void Executor::collectRelevantGlobals(PointerAnalysis *pta,
+                                      Function *entry,
+                                      std::set<NodeID> &globals) {
+  FunctionSet functions;
+  computeReachableFunctions(entry, pta, functions);
+
+  for (Function *f : functions) {
+    auto used = globalsUsage[f];
+    for (GlobalVariable *gv : used) {
+      NodeID nodeId = pta->getPAG()->getObjectNode(gv);
+      globals.insert(nodeId);
+    }
+  }
 }
 
 void Executor::prepareForEarlyExit() {
