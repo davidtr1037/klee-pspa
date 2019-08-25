@@ -20,10 +20,10 @@ void ModularPTA::update(Function *f,
   results.push_back(result);
 }
 
-bool ModularPTA::computeModSet(Function *f,
-                               unsigned int line,
-                               EntryState &entryState,
-                               StateProjection &projection) {
+bool ModularPTA::computeProjection(Function *f,
+                                   unsigned int line,
+                                   EntryState &entryState,
+                                   StateProjection &projection) {
   auto k = std::make_pair(f, line);
   AnalysisResults &results = cache[k];
   for (AnalysisResult &result : results) {

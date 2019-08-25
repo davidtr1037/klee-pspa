@@ -90,10 +90,10 @@ public:
               EntryState &entryState,
               StateProjection &projection);
 
-  bool computeModSet(llvm::Function *f,
-                     unsigned int line,
-                     EntryState &entryState,
-                     StateProjection &projection);
+  bool computeProjection(llvm::Function *f,
+                         unsigned int line,
+                         EntryState &entryState,
+                         StateProjection &projection);
 
   bool checkIsomorphism(EntryState &es1,
                         EntryState &es2,

@@ -263,15 +263,6 @@ void SymbolicPTA::setMemoryObjectType(const MemoryObject *mo,
   moTypes[mo] = type;
 }
 
-bool SymbolicPTA::mustBeTrue(klee::ref<Expr> e, ExecutionState &s) {
-  bool res;
-  if (solver.mustBeTrue(s, e, res)) {
-    return res;
-  } else {
-    assert(0 && "Solver failure not handled in SymbolicPTA");
-  }
-}
-
 bool SymbolicPTA::mayBeTrue(klee::ref<Expr> e, ExecutionState &s) {
   bool res;
   if (solver.mayBeTrue(s, e, res)) {

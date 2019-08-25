@@ -370,10 +370,13 @@ namespace {
   UseSolverInAIMode("use-solver-in-ai-mode", cl::init(true), cl::desc(""));
 
   cl::opt<bool>
-  UseStaticModRef("use-static-modref", cl::init(false), cl::desc(""));
+  UpdatePTAOnFork("update-pta-on-fork", cl::init(true), cl::desc(""));
 
   cl::opt<bool>
   UseModularPTA("use-modular-pta", cl::init(false), cl::desc(""));
+
+  cl::opt<bool>
+  UseStaticModRef("use-static-modref", cl::init(false), cl::desc(""));
 
   cl::opt<bool>
   UseRecoveryCache("use-recovery-cache", cl::init(false), cl::desc(""));
@@ -1226,7 +1229,7 @@ Executor::fork(ExecutionState &current, ref<Expr> condition, bool isInternal) {
     ExecutionState *falseState, *trueState = &current;
 
     ++stats::forks;
-    if (ptaMode == DynamicSymbolicMode) {
+    if (ptaMode == DynamicSymbolicMode && UpdatePTAOnFork) {
       TimerStatIncrementer timer(stats::staticAnalysisTime);
       SymbolicPTA sPTA(*solver, current, legalFunctions, *kmodule->targetData);
       updateGlobalsPts(current, sPTA);
@@ -1707,6 +1710,7 @@ void Executor::executeCall(ExecutionState &state,
           memory->allocate(size, true, false, state.prevPC->inst,
                            (requires16ByteAlignment ? 16 : 8));
       mo->name = "varrr args";
+      mo->isVarArg = true;
       if (!mo && size) {
         terminateStateOnExecError(state, "out of memory (varargs)");
         return;
@@ -4540,76 +4544,6 @@ const Value *Executor::getAllocSite(ExecutionState &state,
   return info->getAllocSite();
 }
 
-bool Executor::getDynamicMemoryLocation(ExecutionState &state,
-                                        ref<Expr> value,
-                                        PointerType *valueType,
-                                        DynamicMemoryLocation &location) {
-  ObjectPair op;
-  bool wasResolved;
-  bool complete;
-
-  solver->setTimeout(coreSolverTimeout);
-  complete = state.addressSpace.resolveOne(state, solver, value, op, wasResolved);
-  solver->setTimeout(0);
-  if (!complete) {
-    /* TODO: should we concretize here? */
-    return false;
-  }
-
-  if (!wasResolved) {
-    ConstantExpr *ce = dyn_cast<ConstantExpr>(value);
-    if (ce) {
-      uint64_t addr = ce->getZExtValue();
-
-      /* check if it's a NULL value */
-      if (addr == 0 || addr == (uint64_t)(-1)) {
-        location.value = ConstantPointerNull::get(valueType);
-        location.size = 0;
-        location.isSymbolicOffset = false;
-        location.offset = 0;
-        location.hint = NULL;
-        return true;
-      }
-
-      /* it may be a function pointer */
-      if (legalFunctions.count(addr)) {
-        location.value = (const Function *)(addr);
-        location.size = 0;
-        location.isSymbolicOffset = false;
-        location.offset = 0;
-        location.hint = NULL;
-        return true;
-      }
-    }
-
-    /* decrement 1 from the address expression and retry... */
-    ref<Expr> subValue = SubExpr::create(value,
-                                         ConstantExpr::alloc(1, value->getWidth()));
-    solver->setTimeout(coreSolverTimeout);
-    complete = state.addressSpace.resolveOne(state, solver, subValue, op, wasResolved);
-    solver->setTimeout(0);
-    if (!complete || !wasResolved) {
-      return false;
-    }
-  }
-
-  const MemoryObject *mo = op.first;
-
-  ref<Expr> offsetExpr = mo->getOffsetExpr(value);
-  ConstantExpr *ce = dyn_cast<ConstantExpr>(offsetExpr);
-  if (!ce) {
-    location.isSymbolicOffset = true;
-  } else {
-    location.isSymbolicOffset = false;
-    location.offset = ce->getZExtValue();
-  }
-
-  location.value = getAllocSite(state, mo);
-  location.size = mo->size;
-  location.hint = mo->getTypeHint();
-  return true;
-}
-
 bool Executor::getDynamicMemoryLocations(ExecutionState &state,
                                          ref<Expr> value,
                                          PointerType *valueType,
@@ -4642,6 +4576,7 @@ bool Executor::getDynamicMemoryLocations(ExecutionState &state,
         location.isSymbolicOffset = false;
         location.offset = 0;
         location.hint = NULL;
+        location.isVarArg = false;
         locations.push_back(location);
         return true;
       }
@@ -4654,6 +4589,7 @@ bool Executor::getDynamicMemoryLocations(ExecutionState &state,
         location.isSymbolicOffset = false;
         location.offset = 0;
         location.hint = NULL;
+        location.isVarArg = false;
         locations.push_back(location);
         return true;
       }
@@ -4690,6 +4626,7 @@ bool Executor::getDynamicMemoryLocations(ExecutionState &state,
     location.value = getAllocSite(state, mo);
     location.size = mo->size;
     location.hint = mo->getTypeHint();
+    location.isVarArg = mo->isVarArg;
     locations.push_back(location);
   }
   return true;
@@ -4801,7 +4738,8 @@ void Executor::updatePointsToOnStore(ExecutionState &state,
                                       mo->size,
                                       ce == NULL,
                                       ce == NULL ? 0 : ce->getZExtValue(),
-                                      mo->getTypeHint());
+                                      mo->getTypeHint(),
+                                      mo->isVarArg);
 
   bool canStronglyUpdate;
   NodeID src = computeAbstractMO(state.getPTA().get(),
@@ -4885,7 +4823,7 @@ NodeID Executor::ptrToAbstract(ExecutionState &state,
   }
 
   if (p->isFunctionPtr()) {
-    DynamicMemoryLocation dl(p->f, 0, false, 0, nullptr);
+    DynamicMemoryLocation dl(p->f, 0, false, 0, nullptr, false);
     return computeAbstractMO(state.getPTA().get(), dl, false);
   }
 
@@ -4900,7 +4838,8 @@ NodeID Executor::ptrToAbstract(ExecutionState &state,
                            m->size,
                            false,
                            offset,
-                           m->getTypeHint());
+                           m->getTypeHint(),
+                           m->isVarArg);
   return computeAbstractMO(state.getPTA().get(), dl, false);
 }
 
@@ -5035,7 +4974,8 @@ void Executor::updateAIPhase(ExecutionState &state,
                                       mo->size,
                                       ce == NULL,
                                       ce == NULL ? 0 : ce->getZExtValue(),
-                                      mo->getTypeHint());
+                                      mo->getTypeHint(),
+                                      mo->isVarArg);
 
   bool canStronglyUpdate;
   NodeID src = computeAbstractMO(state.getPTA().get(),
@@ -5156,7 +5096,7 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
 
   if (CollectModRef) {
     set<Function *> functions;
-    for (unsigned int i = 0; i < state.stack.size() - 1; i++) {
+    for (unsigned int i = 0; i < state.stack.size(); i++) {
       StackFrame &sf = state.stack[i];
       functions.insert(sf.kf->function);
     }
@@ -5250,6 +5190,37 @@ bool Executor::startAIPhase(ExecutionState &state) {
 
   /* we are after the AI phase */
   return true;
+}
+
+void Executor::collectGlobalsUsage() {
+  for (GlobalVariable &gv : kmodule->module->globals()) {
+    if (gv.isDeclaration() || gv.isConstant()) {
+      continue;
+    }
+
+    for (Value *v : gv.users()) {
+      if (isa<Instruction>(v)) {
+        Instruction *inst = dyn_cast<Instruction>(v);
+        Function *f = inst->getParent()->getParent();
+        globalsUsage[f].insert(&gv);
+      }
+    }
+  }
+}
+
+void Executor::collectRelevantGlobals(PointerAnalysis *pta,
+                                      Function *entry,
+                                      std::set<NodeID> &globals) {
+  FunctionSet functions;
+  computeReachableFunctions(entry, pta, functions);
+
+  for (Function *f : functions) {
+    auto used = globalsUsage[f];
+    for (GlobalVariable *gv : used) {
+      NodeID nodeId = pta->getPAG()->getObjectNode(gv);
+      globals.insert(nodeId);
+    }
+  }
 }
 
 bool Executor::isMayBlockingLoad(ExecutionState &state, KInstruction *ki) {
@@ -6342,7 +6313,7 @@ void Executor::saveModSet(ExecutionState &state) {
       buildEntryState(snapshotPTA, f, entryState);
 
       /* TODO: should we check reusability without the call stack? */
-      canReuse = modularPTA->computeModSet(f, 0, entryState, projection);
+      canReuse = modularPTA->computeProjection(f, 0, entryState, projection);
     }
 
     if (canReuse) {
@@ -6502,21 +6473,6 @@ void Executor::updateModInfo(ref<Snapshot> snapshot,
       mod.size()
     );
   );
-}
-
-void Executor::collectRelevantGlobals(PointerAnalysis *pta,
-                                      Function *entry,
-                                      std::set<NodeID> &globals) {
-  FunctionSet functions;
-  computeReachableFunctions(entry, pta, functions);
-
-  for (Function *f : functions) {
-    auto used = globalsUsage[f];
-    for (GlobalVariable *gv : used) {
-      NodeID nodeId = pta->getPAG()->getObjectNode(gv);
-      globals.insert(nodeId);
-    }
-  }
 }
 
 void Executor::bindAll(ExecutionState *state,
@@ -6689,22 +6645,6 @@ void Executor::dumpClinetStats() {
   }
 }
 
-void Executor::collectGlobalsUsage() {
-  for (GlobalVariable &gv : kmodule->module->globals()) {
-    if (gv.isDeclaration() || gv.isConstant()) {
-      continue;
-    }
-
-    for (Value *v : gv.users()) {
-      if (isa<Instruction>(v)) {
-        Instruction *inst = dyn_cast<Instruction>(v);
-        Function *f = inst->getParent()->getParent();
-        globalsUsage[f].insert(&gv);
-      }
-    }
-  }
-}
-
 void Executor::collectModStats(ExecutionState &state,
                                Function *f,
                                std::vector<ref<Expr>> &arguments) {
@@ -6751,10 +6691,10 @@ void Executor::collectModStats(ExecutionState &state,
       /* build the entry state for the given function */
       buildEntryState(snapshotPTA, f, entryState);
       /* TODO: should we check reusability without the call stack? */
-      canReuse = modularPTA->computeModSet(f,
-                                           info.line,
-                                           entryState,
-                                           projection);
+      canReuse = modularPTA->computeProjection(f,
+                                               info.line,
+                                               entryState,
+                                               projection);
     }
 
     if (canReuse) {

@@ -17,13 +17,15 @@ struct DynamicMemoryLocation {
   bool isSymbolicOffset;
   uint64_t offset;
   llvm::PointerType *hint;
+  bool isVarArg;
 
   DynamicMemoryLocation() :
     value(NULL),
     size(0),
     isSymbolicOffset(false),
     offset(0),
-    hint(0) {
+    hint(0),
+    isVarArg(false) {
 
   }
 
@@ -31,12 +33,14 @@ struct DynamicMemoryLocation {
                         size_t size,
                         bool isSymbolicOffset,
                         uint64_t offset,
-                        llvm::PointerType *hint) :
+                        llvm::PointerType *hint,
+                        bool isVarArg) :
     value(value),
     size(size),
     isSymbolicOffset(isSymbolicOffset),
     offset(offset),
-    hint(hint) {
+    hint(hint),
+    isVarArg(isVarArg) {
 
   }
 

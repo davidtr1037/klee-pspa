@@ -644,11 +644,6 @@ public:
 
   const llvm::Value *getAllocSite(ExecutionState &state, const MemoryObject *mo);
 
-  bool getDynamicMemoryLocation(ExecutionState &state,
-                                ref<Expr> value,
-                                llvm::PointerType *valueType,
-                                DynamicMemoryLocation &location);
-
   bool getDynamicMemoryLocations(ExecutionState &state,
                                  ref<Expr> value,
                                  llvm::PointerType *valueType,
@@ -714,6 +709,12 @@ public:
   }
 
   bool startAIPhase(ExecutionState &state);
+
+  void collectGlobalsUsage();
+
+  void collectRelevantGlobals(PointerAnalysis *pta,
+                              llvm::Function *entry,
+                              std::set<NodeID> &globals);
 
   bool isMayBlockingLoad(ExecutionState &state,
                          KInstruction *ki);
@@ -827,10 +828,6 @@ public:
                      PointerAnalysis *pta,
                      StateProjection &state);
 
-  void collectRelevantGlobals(PointerAnalysis *pta,
-                              llvm::Function *f,
-                              std::set<NodeID> &globals);
-
   void bindAll(ExecutionState *state,
                MemoryObject *mo,
                bool isLocal,
@@ -848,8 +845,6 @@ public:
   ExecutionState *createSnapshotState(ExecutionState &state);
 
   void dumpClinetStats();
-
-  void collectGlobalsUsage();
 
   void collectModStats(ExecutionState &state,
                        llvm::Function *f,
