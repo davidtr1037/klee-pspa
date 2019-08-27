@@ -8,10 +8,25 @@
 using namespace llvm;
 using namespace klee;
 
+void StateProjection::dump() const {
+  for (auto i : pointsToMap) {
+    NodeID src = i.first;
+    errs() << src << ": { ";
+    PointsTo &pts = i.second;
+    for (NodeID n : pts) {
+      errs() << n << " ";
+    }
+    errs() << "}\n";
+  }
+}
 
-void SideEffectsCollector::visitStore(PointerAnalysis *pta,
-                                      Function *f,
-                                      StoreInst *inst) {
+void StateProjectionCollector::visitStore(PointerAnalysis *pta,
+                                          Function *f,
+                                          StoreInst *inst) {
+  if (!collectMod) {
+    return;
+  }
+
   NodeID id = pta->getPAG()->getValueNode(inst->getPointerOperand());
   PointsTo &pts = pta->getPts(id);
 
@@ -28,15 +43,26 @@ void SideEffectsCollector::visitStore(PointerAnalysis *pta,
   }
 }
 
-void SideEffectsCollector::dump(PointerAnalysis *pta) {
-  for (auto i : projection.pointsToMap) {
-    NodeID src = i.first;
-    errs() << src << ": { ";
-    PointsTo &pts = i.second;
-    for (NodeID n : pts) {
-      errs() << n << " ";
+void StateProjectionCollector::visitLoad(PointerAnalysis *pta,
+                                         Function *f,
+                                         LoadInst *inst) {
+  if (collectMod) {
+    return;
+  }
+
+  NodeID id = pta->getPAG()->getValueNode(inst->getPointerOperand());
+  PointsTo &pts = pta->getPts(id);
+
+  for (NodeID nodeId : pts) {
+    if (canEscape(pta->getPAG(), nodeId, called)) {
+      continue;
     }
-    errs() << "}\n";
+    if (nodeId == pta->getPAG()->getConstantNode()) {
+      continue;
+    }
+
+    NodeID value = pta->getPAG()->getValueNode(inst);
+    projection.pointsToMap[nodeId] = pta->getPts(value);
   }
 }
 
