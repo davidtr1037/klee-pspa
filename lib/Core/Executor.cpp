@@ -6390,7 +6390,7 @@ void Executor::computeModSet(ExecutionState &state,
     called.insert(sf.kf->function);
   }
 
-  SideEffectsCollector collector(called, projection);
+  StateProjectionCollector collector(called, projection, true);
   collector.visitReachable(pta.get(), snapshot->f);
 
   collectRelevantGlobals(pta.get(), snapshot->f, entryState.usedGlobals);
@@ -6680,7 +6680,7 @@ void Executor::collectModStats(ExecutionState &state,
       pta->initialize(*kmodule->module);
       pta->analyzeFunction(*kmodule->module, snapshot->f);
 
-      SideEffectsCollector collector(called, projection);
+      StateProjectionCollector collector(called, projection, true);
       collector.visitReachable(pta.get(), snapshot->f);
       collectRelevantGlobals(pta.get(), snapshot->f, entryState.usedGlobals);
 
@@ -6698,7 +6698,7 @@ void Executor::collectModStats(ExecutionState &state,
     state.clearParameterPointsTo(f);
 
   } else {
-    SideEffectsCollector collector(called, projection);
+    StateProjectionCollector collector(called, projection, true);
     collector.visitReachable(staticPTA, f);
     size = projection.pointsToMap.size();
   }
