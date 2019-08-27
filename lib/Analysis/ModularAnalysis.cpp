@@ -269,13 +269,17 @@ void ModularPTA::filterNodes(EntryState &es,
   for (NodeID n : nodes) {
     PointsTo &pts = es.pta->getPts(n);
     if (pts.count() == 0) {
-       continue;
+      continue;
     }
     if (pts.count() == 1) {
-        NodeID x = *pts.begin();
-        if (x == es.pta->getPAG()->getNullPtr()) {
-            continue;
-        }
+      NodeID x = *pts.begin();
+      if (x == es.pta->getPAG()->getNullPtr()) {
+        continue;
+      }
+      /* TODO: check correctness... */
+      if (!es.pta->getPAG()->findPAGNode(x)) {
+        continue;
+      }
     }
     result.set(n);
   }
@@ -379,8 +383,14 @@ void ModularPTA::dump(EntryState &es, NodeID nodeId, std::set<NodeID> &visited, 
   errs() << indent << "// node:\n";
   dumpNodeInfo(es.pta.get(), nodeId, level * 4);
 
-  const NodeBS &subNodes = es.pta->getAllFieldsObjNode(nodeId);
-  for (NodeID subNode : subNodes) {
+  if (!es.pta->getPAG()->findPAGNode(nodeId)) {
+    return;
+  }
+
+  NodeBS filtered;
+  filterNodes(es, es.pta->getAllFieldsObjNode(nodeId), filtered);
+
+  for (NodeID subNode : filtered) {
     visited.insert(subNode);
     errs() << indent << "// sub node:\n";
     dumpNodeInfo(es.pta.get(), subNode, level * 4);
