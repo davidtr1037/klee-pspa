@@ -14,16 +14,20 @@ namespace klee {
 struct StateProjection {
   /* TODO: add docs */
   std::map<NodeID, PointsTo> pointsToMap;
+
+  void dump() const;
 };
 
-class SideEffectsCollector : public klee::InstructionVisitor {
+class StateProjectionCollector : public klee::InstructionVisitor {
 
 public:
 
-  SideEffectsCollector(std::set<llvm::Function *> &called,
-                       StateProjection &projection) :
+  StateProjectionCollector(std::set<llvm::Function *> &called,
+                           StateProjection &projection,
+                           bool collectMod) :
     called(called),
-    projection(projection) {
+    projection(projection),
+    collectMod(collectMod) {
 
   }
 
@@ -33,11 +37,7 @@ public:
 
   virtual void visitLoad(PointerAnalysis *pta,
                          llvm::Function *f,
-                         llvm::LoadInst *inst) {
-
-  }
-
-  void dump(PointerAnalysis *pta);
+                         llvm::LoadInst *inst);
 
 private:
 
@@ -45,6 +45,8 @@ private:
   std::set<llvm::Function *> called;
   /* TODO: add docs */
   StateProjection &projection;
+  /* TODO: add docs */
+  bool collectMod;
 };
 
 size_t getFlatModSize(StateProjection &projection);
