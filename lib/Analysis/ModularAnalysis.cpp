@@ -10,6 +10,30 @@ using namespace klee;
 using namespace std;
 
 
+void ModularPTA::buildEntryState(ref<AndersenDynamic> pta,
+                                 Function *f,
+                                 EntryState &entryState) {
+  entryState.setPTA(pta);
+
+  unsigned int argIndex = 0;
+  for (Argument &arg : f->getArgumentList()) {
+    argIndex++;
+
+    PointerType *paramType = dyn_cast<PointerType>(arg.getType());
+    if (!paramType) {
+      continue;
+    }
+
+    NodeID formalParamId = pta->getPAG()->getValueNode(&arg);
+    PointsTo &pts = pta->getPts(formalParamId);
+    if (pts.empty()) {
+      continue;
+    }
+    NodeID dst = *pts.begin();
+    entryState.addParameter(dst, argIndex - 1);
+  }
+}
+
 void ModularPTA::update(Function *f,
                         unsigned int line,
                         EntryState &entryState,
