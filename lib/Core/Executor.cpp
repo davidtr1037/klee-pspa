@@ -6310,7 +6310,7 @@ void Executor::saveModSet(ExecutionState &state) {
       mergePointsTo(state, index, clonedPTA.get());
 
       /* build the entry state for the given function */
-      buildEntryState(snapshotPTA, f, entryState);
+      modularPTA->buildEntryState(snapshotPTA, f, entryState);
 
       /* TODO: should we check reusability without the call stack? */
       canReuse = modularPTA->computeProjection(f, 0, entryState, projection);
@@ -6353,30 +6353,6 @@ void Executor::saveModSet(ExecutionState &state) {
 
     updateModInfo(snapshot, snapshotPTA.get(), projection);
     snapshot->modComputed = true;
-  }
-}
-
-void Executor::buildEntryState(ref<AndersenDynamic> pta,
-                               llvm::Function *f,
-                               EntryState &entryState) {
-  entryState.setPTA(pta);
-
-  unsigned int argIndex = 0;
-  for (Argument &arg : f->getArgumentList()) {
-    argIndex++;
-
-    PointerType *paramType = dyn_cast<PointerType>(arg.getType());
-    if (!paramType) {
-      continue;
-    }
-
-    NodeID formalParamId = pta->getPAG()->getValueNode(&arg);
-    PointsTo &pts = pta->getPts(formalParamId);
-    if (pts.empty()) {
-      continue;
-    }
-    NodeID dst = *pts.begin();
-    entryState.addParameter(dst, argIndex - 1);
   }
 }
 
@@ -6689,7 +6665,7 @@ void Executor::collectModStats(ExecutionState &state,
     auto &info = kmodule->infos->getInfo(snapshot->state->prevPC->inst);
     if (UseModularPTA) {
       /* build the entry state for the given function */
-      buildEntryState(snapshotPTA, f, entryState);
+      modularPTA->buildEntryState(snapshotPTA, f, entryState);
       /* TODO: should we check reusability without the call stack? */
       canReuse = modularPTA->computeProjection(f,
                                                info.line,
