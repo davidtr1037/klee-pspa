@@ -85,6 +85,10 @@ public:
 
   }
 
+  void buildEntryState(ref<AndersenDynamic> pta,
+                       llvm::Function *f,
+                       EntryState &entryState);
+
   void update(llvm::Function *f,
               unsigned int line,
               EntryState &entryState,
