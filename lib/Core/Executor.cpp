@@ -504,6 +504,15 @@ const Module *Executor::setModule(llvm::Module *module,
   specialFunctionHandler->prepare();
   kmodule->prepare(opts, interpreterHandler);
 
+  specialFunctionHandler->bind();
+
+  if (StatsTracker::useStatistics() || userSearcherRequiresMD2U()) {
+    statsTracker =
+      new StatsTracker(*this,
+                       interpreterHandler->getOutputFilename("assembly.ll"),
+                       userSearcherRequiresMD2U());
+  }
+
   if (UsePTAMode.size() > 1) {
     klee_error("Only one PTA mode can be specified");
   }
@@ -516,6 +525,7 @@ const Module *Executor::setModule(llvm::Module *module,
   }
 
   if (ptaMode == StaticMode) {
+    TimerStatIncrementer timer(stats::staticAnalysisTime);
     klee_message("Running whole program pointer analysis...");
     staticPTA = new Andersen();
     staticPTA->analyze(*kmodule->module);
@@ -525,15 +535,6 @@ const Module *Executor::setModule(llvm::Module *module,
     evaluateWholeProgramPTA();
   }
 
-  specialFunctionHandler->bind();
-
-  if (StatsTracker::useStatistics() || userSearcherRequiresMD2U()) {
-    statsTracker = 
-      new StatsTracker(*this,
-                       interpreterHandler->getOutputFilename("assembly.ll"),
-                       userSearcherRequiresMD2U());
-  }
-  
   return module;
 }
 
