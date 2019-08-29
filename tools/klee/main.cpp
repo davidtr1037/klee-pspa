@@ -1380,6 +1380,13 @@ int main(int argc, char **argv, char **envp) {
   }
   handler->getInfoStream() << "PID: " << getpid() << "\n";
 
+  char buf[256];
+  time_t t[2];
+  t[0] = time(NULL);
+  strftime(buf, sizeof(buf), "Started: %Y-%m-%d %H:%M:%S\n", localtime(&t[0]));
+  handler->getInfoStream() << buf;
+  handler->getInfoStream().flush();
+
   const Module *finalModule =
     interpreter->setModule(mainModule, Opts);
   externalsAndGlobalsCheck(finalModule);
@@ -1387,13 +1394,6 @@ int main(int argc, char **argv, char **envp) {
   if (ReplayPathFile != "") {
     interpreter->setReplayPath(&replayPath);
   }
-
-  char buf[256];
-  time_t t[2];
-  t[0] = time(NULL);
-  strftime(buf, sizeof(buf), "Started: %Y-%m-%d %H:%M:%S\n", localtime(&t[0]));
-  handler->getInfoStream() << buf;
-  handler->getInfoStream().flush();
 
   if (!ReplayKTestDir.empty() || !ReplayKTestFile.empty()) {
     assert(SeedOutFile.empty());
