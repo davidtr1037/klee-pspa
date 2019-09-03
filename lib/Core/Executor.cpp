@@ -5887,6 +5887,11 @@ void Executor::onRecoveryStateWrite(ExecutionState &state,
                                     const MemoryObject *mo,
                                     ref<Expr> offset,
                                     ref<Expr> value) {
+  ref<RecoveryInfo> recoveryInfo = state.getRecoveryInfo();
+  if (recoveryInfo->loadBase != mo->address) {
+    return;
+  }
+
   assert(isa<ConstantExpr>(address));
   assert(isa<ConstantExpr>(offset));
 
@@ -5904,13 +5909,8 @@ void Executor::onRecoveryStateWrite(ExecutionState &state,
 
   ExecutionState *dependentState = state.getDependentState();
   uint64_t storeAddr = dyn_cast<ConstantExpr>(address)->getZExtValue();
-  ref<RecoveryInfo> recoveryInfo = state.getRecoveryInfo();
 
   if (!recoveryInfo->isConcrete) {
-    if (recoveryInfo->loadBase != mo->address) {
-      return;
-    }
-
     Expr::Width type = value->getWidth();
     size_t size = Expr::getMinBytesForWidth(type);
     WrittenAddressInfo info;
