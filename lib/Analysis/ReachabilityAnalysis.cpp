@@ -25,6 +25,36 @@ void ReachabilityAnalysis::prepare() {
   computeFunctionTypeMap();
 }
 
+void ReachabilityAnalysis::removeUnusedValues() {
+  bool changed = true;
+  set<string> keep;
+
+  /* entry function must not be removed */
+  keep.insert(entry);
+
+  while (changed) {
+    std::set<Function *> functions;
+
+    for (Module::iterator i = module->begin(); i != module->end(); i++) {
+      Function *f = &*i;
+      if (keep.find(f->getName().str()) != keep.end()) {
+        continue;
+      }
+
+      if (f->hasNUses(0)) {
+        functions.insert(f);
+      }
+    }
+
+    for (Function *f : functions) {
+      debugs << "erasing: " << f->getName() << "\n";
+      f->eraseFromParent();
+    }
+
+    changed = !functions.empty();
+  }
+}
+
 void ReachabilityAnalysis::computeFunctionTypeMap() {
   for (Module::iterator i = module->begin(); i != module->end(); i++) {
     /* add functions which may be virtual */

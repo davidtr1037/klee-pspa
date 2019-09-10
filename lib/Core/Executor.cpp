@@ -540,6 +540,7 @@ const Module *Executor::setModule(llvm::Module *module,
                                 opts.EntryPoint,
                                 targets,
                                 *saLog);
+  ra->removeUnusedValues();
 
   inliner = new Inliner(kmodule->module,
                         ra,

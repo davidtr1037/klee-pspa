@@ -40,6 +40,8 @@ public:
 
   };
 
+  void removeUnusedValues();
+
   /* must be called before making any reachability analysis */
   void prepare();
 
