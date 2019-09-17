@@ -657,7 +657,7 @@ public:
 
   void executeMallocUsableSize(ExecutionState &state, ref<Expr> address, KInstruction *target);
 
-  unsigned int getAnalysisDistance(ExecutionState &state);
+  unsigned int getAnalysisDistance(ExecutionState &state, llvm::Function *f);
 };
   
 } // End klee namespace

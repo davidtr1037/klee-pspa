@@ -370,6 +370,9 @@ namespace {
 
   cl::opt<unsigned>
   AnalysisDistance("analysis-distance", cl::init(0), cl::desc(""));
+
+  cl::opt<bool>
+  DetermineAnalysisDistance("determine-analysis-distance", cl::init(false), cl::desc(""));
 }
 
 
@@ -3618,10 +3621,10 @@ void Executor::executeMemoryOperation(ExecutionState &state,
   bool useSA = false;
   PointsTo pts;
   if (UseSAResolve) {
-    unsigned int distance = getAnalysisDistance(state);
+    Function *f = state.stack.back().kf->function;
+    unsigned int distance = getAnalysisDistance(state, f);
     StackFrame &sf = state.getStackFrame(distance);
     if (sf.frameSnapshot.state.isNull()) {
-      Function *f = state.stack.back().kf->function;
       klee_warning("missing snapshot, adding snapshot function %s at distance %u from %s",
                    sf.kf->function->getName().data(),
                    distance,
@@ -4967,8 +4970,22 @@ void Executor::executeMallocUsableSize(ExecutionState &state,
   bindLocal(target, state, mo->getSizeExpr());
 }
 
-unsigned int Executor::getAnalysisDistance(ExecutionState &state) {
-  return AnalysisDistance;
+unsigned int Executor::getAnalysisDistance(ExecutionState &state, Function *f) {
+  if (DetermineAnalysisDistance) {
+    auto i = distances.find(f);
+    if (i == distances.end()) {
+      for (unsigned int index = 0; index < state.stack.size(); index++) {
+        if (!state.stack[state.stack.size() - 1 - index].hasSymbolicArg) {
+          return index;
+        }
+      }
+      assert(0);
+    } else {
+      return i->second;
+    }
+  } else {
+    return AnalysisDistance;
+  }
 }
 
 void Executor::prepareForEarlyExit() {
