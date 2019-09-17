@@ -256,6 +256,9 @@ private:
   /* the functions at which we need to take a snapshot */
   std::set<llvm::Function *> snapshotFunctions;
 
+  /* frame distance from analyzed function */
+  std::map<llvm::Function *, unsigned int> distances;
+
   llvm::Function* getTargetFunction(llvm::Value *calledVal,
                                     ExecutionState &state);
   
@@ -653,6 +656,8 @@ public:
   void getOperandPointsTo(ExecutionState &state, PointsTo &result);
 
   void executeMallocUsableSize(ExecutionState &state, ref<Expr> address, KInstruction *target);
+
+  unsigned int getAnalysisDistance(ExecutionState &state);
 };
   
 } // End klee namespace

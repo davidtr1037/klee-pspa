@@ -3609,11 +3609,16 @@ void Executor::executeMemoryOperation(ExecutionState &state,
   bool useSA = false;
   PointsTo pts;
   if (UseSAResolve) {
-    StackFrame &sf = state.getStackFrame(AnalysisDistance);
+    unsigned int distance = getAnalysisDistance(state);
+    StackFrame &sf = state.getStackFrame(distance);
     if (sf.frameSnapshot.state.isNull()) {
-      klee_warning("missing snapshot, adding snapshot function %s",
-                   sf.kf->function->getName().data());
+      Function *f = state.stack.back().kf->function;
+      klee_warning("missing snapshot, adding snapshot function %s at distance %u from %s",
+                   sf.kf->function->getName().data(),
+                   distance,
+                   f->getName().data());
       snapshotFunctions.insert(sf.kf->function);
+      distances[f] = distance;
     } else {
       getOperandPointsTo(state, pts);
       klee_message("pts size: %u", pts.count());
@@ -4873,7 +4878,14 @@ void Executor::getOperandPointsTo(ExecutionState &state, PointsTo &result) {
   PointerAnalysis *pta = nullptr;
 
   if (isDynamicMode()) {
-    StackFrame &sf = state.getStackFrame(AnalysisDistance);
+    Function *f = state.stack.back().kf->function;
+    if (distances.find(f) == distances.end()) {
+      /* distance should be assigned at this point */
+      assert(0);
+    }
+
+    unsigned int distance = distances[f];
+    StackFrame &sf = state.getStackFrame(distance);
     ExecutionState *snapshot = sf.frameSnapshot.state.get();
     if (!snapshot) {
       /* should not happen... */
@@ -4944,6 +4956,10 @@ void Executor::executeMallocUsableSize(ExecutionState &state,
 
   const MemoryObject *mo = op.first;
   bindLocal(target, state, mo->getSizeExpr());
+}
+
+unsigned int Executor::getAnalysisDistance(ExecutionState &state) {
+  return AnalysisDistance;
 }
 
 void Executor::prepareForEarlyExit() {
