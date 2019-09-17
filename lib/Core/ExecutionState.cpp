@@ -42,7 +42,7 @@ namespace {
 
 StackFrame::StackFrame(KInstIterator _caller, KFunction *_kf)
   : caller(_caller), kf(_kf), callPathNode(0), 
-    minDistToUncoveredOnReturn(0), varargs(0) {
+    minDistToUncoveredOnReturn(0), varargs(0), hasSymbolicArg(false) {
   locals = new Cell[kf->numRegisters];
 }
 
@@ -55,7 +55,8 @@ StackFrame::StackFrame(const StackFrame &s)
     minDistToUncoveredOnReturn(s.minDistToUncoveredOnReturn),
     varargs(s.varargs),
     loopTrackingInfo(s.loopTrackingInfo),
-    frameSnapshot(s.frameSnapshot) {
+    frameSnapshot(s.frameSnapshot),
+    hasSymbolicArg(s.hasSymbolicArg) {
   locals = new Cell[s.kf->numRegisters];
   for (unsigned i=0; i<s.kf->numRegisters; i++)
     locals[i] = s.locals[i];

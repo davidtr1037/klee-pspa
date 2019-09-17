@@ -78,6 +78,8 @@ struct StackFrame {
 
   FrameSnapshot frameSnapshot;
 
+  bool hasSymbolicArg;
+
   StackFrame(KInstIterator caller, KFunction *kf);
   StackFrame(const StackFrame &s);
   ~StackFrame();

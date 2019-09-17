@@ -1466,6 +1466,15 @@ void Executor::executeCall(ExecutionState &state,
     KFunction *kf = kmodule->functionMap[f];
     state.pushFrame(state.prevPC, kf);
     state.pc = kf->instructions;
+    if (isDynamicMode()) {
+      for (ref<Expr> e : arguments) {
+        e = state.constraints.simplifyExpr(e);
+        if (!isa<ConstantExpr>(e)) {
+          state.stack.back().hasSymbolicArg = true;
+          break;
+        }
+      }
+    }
 
     if (shouldTakeSnapshot(state, f)) {
       state.createSnapshot(arguments);
