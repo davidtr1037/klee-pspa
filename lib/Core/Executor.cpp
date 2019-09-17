@@ -4976,6 +4976,7 @@ unsigned int Executor::getAnalysisDistance(ExecutionState &state, Function *f) {
     if (i == distances.end()) {
       for (unsigned int index = 0; index < state.stack.size(); index++) {
         if (!state.stack[state.stack.size() - 1 - index].hasSymbolicArg) {
+          klee_message("computed analysis distance for %s: %u", f->getName().data(), index);
           return index;
         }
       }
