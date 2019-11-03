@@ -16,7 +16,9 @@ void ColourCollector::visitStore(PointerAnalysis *pta,
   NodeID id = pta->getPAG()->getValueNode(inst->getPointerOperand());
   PointsTo pts;
   for (NodeID n : pta->getPts(id)) {
-    pts.set(stripUniqueAS(pta, n));
+    /* I think we can do it without disabling unique AS */
+    //pts.set(stripUniqueAS(pta, n));
+    pts.set(n);
   }
   ptsSets.push_back(pts);
 }
@@ -46,22 +48,25 @@ bool ColourCollector::intersects(PointerAnalysis* pta,
 
   return false;
 }
+
 llvm::BitVector ColourCollector::getColour(llvm::Instruction *inst) {
-    auto objnodeId = pta->getPAG()->getObjectNode(inst);
-    //llvm::errs() << " object node Id" << objnodeId << "\n";
-    auto memobj = pta->getPAG()->getBaseObj(objnodeId);
-    assert(memobj && "Passed instructions is not an allocation");
-    auto allFields = pta->getPAG()->getAllFieldsObjNode(memobj);
-    int colour = 0;
-    llvm::BitVector returnColour(ptsSets.size() + 1);
-    for(auto pts : ptsSets) {
-        colour++;
-        if(pts.intersects(allFields)) {
-            returnColour.set(colour);
-//            llvm::errs() << " found a colour" << colour << "!\n" ;
-        }
+  NodeID objnodeId = pta->getPAG()->getObjectNode(inst);
+  //llvm::errs() << " object node Id" << objnodeId << "\n";
+  const MemObj *memobj = pta->getPAG()->getBaseObj(objnodeId);
+  assert(memobj && "Passed instructions is not an allocation");
+  NodeBS &allFields = pta->getPAG()->getAllFieldsObjNode(memobj);
+
+  int colour = 0;
+  llvm::BitVector returnColour(ptsSets.size() + 1);
+  for (auto pts : ptsSets) {
+    colour++;
+    //if (pts.intersects(allFields)) {
+    if (intersects(pta, pts, allFields)) {
+      //llvm::errs() << " found a colour" << colour << "!\n" ;
+      returnColour.set(colour);
     }
-    return returnColour;
+  }
+  return returnColour;
 }
 
 void ColourCollector::computeColours(PointerAnalysis* pta, 
