@@ -3353,13 +3353,14 @@ void Executor::executeAlloc(ExecutionState &state,
       auto colors = state.colors.getColour(target->inst);
       // We are conservative here and assume even if 1 field colour matches,
       // the buffer overflow can be hidden
-      if(colors != (state.previousAllocationColours)) {
+      state.numberOfColorTransitions += colors.count();
+      if(colors.anyCommon(state.previousAllocationColours)) {
+          state.numberOfColorTransitions--;
 //      if(!colors.anyCommon(state.previousAllocationColours)) {
-          state.numberOfColorTransitions += colors.count();
-          state.previousAllocationColours = colors;
 //          llvm::errs() << "Colour transitions increased by"<< colors.count() << "\n";
 //        llvm::errs() << "colour transitions :" << state.numberOfColorTransitions << "\n";
       }
+     state.previousAllocationColours = colors;
   }
   size = toUnique(state, size);
   if (ConstantExpr *CE = dyn_cast<ConstantExpr>(size)) {
