@@ -20,7 +20,7 @@ public:
                           llvm::Function *f,
                           llvm::StoreInst *inst);
 
-  llvm::BitVector getColour(llvm::Instruction *inst);
+  std::vector<int> getColour(llvm::Instruction *inst);
 
   ColourCollector() {}
 

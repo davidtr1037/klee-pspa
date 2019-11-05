@@ -49,24 +49,49 @@ bool ColourCollector::intersects(PointerAnalysis* pta,
   return false;
 }
 
-llvm::BitVector ColourCollector::getColour(llvm::Instruction *inst) {
+std::vector<int> ColourCollector::getColour(llvm::Instruction *inst) {
   NodeID objnodeId = pta->getPAG()->getObjectNode(inst);
   //llvm::errs() << " object node Id" << objnodeId << "\n";
   const MemObj *memobj = pta->getPAG()->getBaseObj(objnodeId);
   assert(memobj && "Passed instructions is not an allocation");
   NodeBS &allFields = pta->getPAG()->getAllFieldsObjNode(memobj);
+//  llvm::errs() << objnodeId << ":\n";
+  std::vector<std::pair<NodeID, GepObjPN*>> fields;
+  for(auto nId : allFields) {
+      PAGNode* pn = pta->getPAG()->getPAGNode(nId);
+ //     llvm::errs() << "\t" << nId  << "\n";
+      if(allFields.count() == 1) { //We don't skip field insenstive nodes if there is only 1
+          fields.emplace_back(nId,nullptr);
+      } else { //Otherwise we skip FI nodes, (they shouldn't have a pts set anyway)
+          GepObjPN* gep = dyn_cast<GepObjPN>(pn);
+          if(gep) {
+ //          llvm::errs() << "offset: " << gep->getLocationSet().getOffset();
+ //          llvm::errs() << "\n";
+            fields.emplace_back(nId,gep);
+          }
+      }
+  }
 
   int colour = 0;
-  llvm::BitVector returnColour(ptsSets.size() + 1);
+//  llvm::BitVector returnColour(ptsSets.size() + 1);
+  //A vector of offset sorted colours
+  std::vector<int> returnColours(fields.size(), 0);
   for (auto pts : ptsSets) {
     colour++;
-    //if (pts.intersects(allFields)) {
-    if (intersects(pta, pts, allFields)) {
-      //llvm::errs() << " found a colour" << colour << "!\n" ;
-      returnColour.set(colour);
+    int idx = 0;
+    for(const auto& fIdGep : fields) {
+      if(pts.test(fIdGep.first)) {
+//          llvm::errs() << fIdGep.first << " has colour " << colour;
+          if(fIdGep.second) {
+//              llvm::errs() << " at offset: " << fIdGep.second->getLocationSet().getOffset(); 
+          }
+//          llvm::errs() << "\n";
+          returnColours[idx] = colour;
+      }
+      idx++;
     }
   }
-  return returnColour;
+  return returnColours;
 }
 
 void ColourCollector::computeColours(PointerAnalysis* pta, 
