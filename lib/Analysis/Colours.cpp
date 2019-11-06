@@ -60,16 +60,12 @@ std::vector<int> ColourCollector::getColour(llvm::Instruction *inst) {
   for(auto nId : allFields) {
       PAGNode* pn = pta->getPAG()->getPAGNode(nId);
  //     llvm::errs() << "\t" << nId  << "\n";
-      if(allFields.count() == 1) { //We don't skip field insenstive nodes if there is only 1
-          fields.emplace_back(nId,nullptr);
-      } else { //Otherwise we skip FI nodes, (they shouldn't have a pts set anyway)
-          GepObjPN* gep = dyn_cast<GepObjPN>(pn);
-          if(gep) {
+      GepObjPN* gep = dyn_cast<GepObjPN>(pn);
+      if(gep) {
  //          llvm::errs() << "offset: " << gep->getLocationSet().getOffset();
  //          llvm::errs() << "\n";
-            fields.emplace_back(nId,gep);
-          }
       }
+      fields.emplace_back(nId,gep);
   }
 
   int colour = 0;
@@ -91,7 +87,14 @@ std::vector<int> ColourCollector::getColour(llvm::Instruction *inst) {
       idx++;
     }
   }
-  return returnColours;
+  //filter out fields that don't have a colour. For example FI node, if FS nodes are present
+  std::vector<int> returnCols;
+  for(auto& c : returnColours) {
+      if(c > 0) {
+          returnCols.emplace_back(c);
+      }
+  }
+  return returnCols;
 }
 
 void ColourCollector::computeColours(PointerAnalysis* pta, 
