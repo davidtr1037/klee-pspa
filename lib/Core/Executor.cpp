@@ -373,6 +373,9 @@ namespace {
 
   cl::opt<bool>
   DetermineAnalysisDistance("determine-analysis-distance", cl::init(false), cl::desc(""));
+
+  cl::opt<bool>
+  TakeAllSnapshots("take-all-snapshots", cl::init(false), cl::desc(""));
 }
 
 
@@ -4943,8 +4946,13 @@ void Executor::getOperandPointsTo(ExecutionState &state, PointsTo &result) {
 }
 
 bool Executor::shouldTakeSnapshot(ExecutionState &state, llvm::Function *f) {
-  return isDynamicMode() && snapshotFunctions.find(f) != snapshotFunctions.end();
+  if (TakeAllSnapshots) {
+    return isDynamicMode();
+  } else {
+    return isDynamicMode() && snapshotFunctions.find(f) != snapshotFunctions.end();
+  }
 }
+
 void Executor::executeMallocUsableSize(ExecutionState &state,
                                        ref<Expr> address,
                                        KInstruction *target) {
