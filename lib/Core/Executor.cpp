@@ -3626,14 +3626,14 @@ void Executor::executeMemoryOperation(ExecutionState &state,
   if (UseSAResolve) {
     Function *f = state.stack.back().kf->function;
     unsigned int distance = getAnalysisDistance(state, f);
+    distances[f] = distance;
     StackFrame &sf = state.getStackFrame(distance);
-    if (sf.frameSnapshot.state.isNull()) {
+    if (isDynamicMode() && sf.frameSnapshot.state.isNull()) {
       klee_warning("missing snapshot, adding snapshot function %s at distance %u from %s",
                    sf.kf->function->getName().data(),
                    distance,
                    f->getName().data());
       snapshotFunctions.insert(sf.kf->function);
-      distances[f] = distance;
     } else {
       getOperandPointsTo(state, pts);
       klee_message("pts size: %u", pts.count());
@@ -3641,7 +3641,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
     }
   }
 
-  klee_message("resolving...");
+  klee_message("resolving... (using PA = %u)", useSA);
   ResolutionList rl;  
   solver->setTimeout(coreSolverTimeout);
   bool incomplete = state.addressSpace.resolve(state, solver, address, rl,
