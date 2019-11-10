@@ -345,6 +345,12 @@ bool AddressSpace::copyInConcretes() {
 }
 
 bool AddressSpace::canSkipMO(const MemoryObject *mo, PointsTo &pts) {
+  if (pts.test(PAG::getPAG()->getBlackHoleNode())) {
+    return false;
+  }
+  if (pts.test(PAG::getPAG()->getBlkPtr())) {
+    return false;
+  }
   const llvm::Value *as = mo->allocSite;
   if (mo->attachedInfo) {
     PTAInfo *info = (PTAInfo *)(mo->attachedInfo);
