@@ -108,6 +108,7 @@ struct LoadInfo {
   uint64_t size;
   const MemoryObject *mo;
   ref<Expr> offset;
+  bool allocatedByRecovery;
 };
 
 struct ClientStats {

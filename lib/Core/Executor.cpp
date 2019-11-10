@@ -5542,7 +5542,7 @@ bool Executor::getRequiredRecoveryInfoDynamic(ExecutionState &state,
   NodeID nodeId = computeAbstractMO(pta, location, false, NULL);
   loads.push_back(nodeId);
 
-  if (loadInfo.mo->attachedInfo) {
+  if (loadInfo.allocatedByRecovery && loadInfo.mo->attachedInfo) {
     /* if the memory object has a unique allocation site then
        we want also the corresponding non-unique allocation site,
        otherwise the side-effects inference will be unsound */
@@ -5656,6 +5656,7 @@ bool Executor::getLoadInfo(ExecutionState &state,
     info.size = Expr::getMinBytesForWidth(width);
     info.mo = mo;
     info.offset = mo->getOffsetExpr(address);
+    info.allocatedByRecovery = op.second->allocatedByRecovery;
     return true;
   } else {
     DEBUG_WITH_TYPE(
@@ -6471,6 +6472,7 @@ void Executor::bindAll(ExecutionState *state,
     if (!state->addressSpace.findObject(mo)) {
       ObjectState *os = bindObjectInState(*state, mo, isLocal);
       /* initialize allocated object */
+      os->allocatedByRecovery = true;
       if (zeroMemory) {
         os->initializeToZero();
       } else {
