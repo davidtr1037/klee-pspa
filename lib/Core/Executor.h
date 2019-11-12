@@ -658,6 +658,10 @@ public:
   void executeMallocUsableSize(ExecutionState &state, ref<Expr> address, KInstruction *target);
 
   unsigned int getAnalysisDistance(ExecutionState &state, llvm::Function *f);
+
+  void markSymbolicPointers(ExecutionState &state,
+                            std::vector<ref<Expr>> &arguments,
+                            llvm::Function *f);
 };
   
 } // End klee namespace
