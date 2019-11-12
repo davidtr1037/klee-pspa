@@ -130,6 +130,8 @@ namespace klee {
     bool copyInConcretes();
 
     bool canSkipMO(const MemoryObject *mo, PointsTo &pts);
+
+    bool canSkipAS(const llvm::Value *as, PointsTo &pts);
   };
 } // End klee namespace
 

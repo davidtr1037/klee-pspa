@@ -346,21 +346,34 @@ bool AddressSpace::copyInConcretes() {
 
 bool AddressSpace::canSkipMO(const MemoryObject *mo, PointsTo &pts) {
   const llvm::Value *as = mo->allocSite;
-  if (mo->attachedInfo) {
-    PTAInfo *info = (PTAInfo *)(mo->attachedInfo);
-    as = info->getAllocSite();
+  const llvm::Value *uas = nullptr;
+
+  if (!as) {
+    return false;
   }
 
-  if (as) {
-    if (!PAG::getPAG()->hasObjectNode(as)) {
-      return true;
-    }
+  if (mo->attachedInfo) {
+    PTAInfo *info = (PTAInfo *)(mo->attachedInfo);
+    uas = info->getAllocSite();
+  }
 
-    NodeID base = PAG::getPAG()->getObjectNode(as);
-    if (!pts.test(base)) {
-      //llvm::errs() << "skipping mo: " << mo->address << "\n";
+  if (canSkipAS(as, pts)) {
+    if (!uas || canSkipAS(uas, pts)) {
       return true;
     }
+  }
+
+  return false;
+}
+
+bool AddressSpace::canSkipAS(const llvm::Value *as, PointsTo &pts) {
+  if (!PAG::getPAG()->hasObjectNode(as)) {
+    return true;
+  }
+
+  NodeID base = PAG::getPAG()->getObjectNode(as);
+  if (!pts.test(base)) {
+    return true;
   }
 
   return false;
