@@ -1473,13 +1473,7 @@ void Executor::executeCall(ExecutionState &state,
     state.pushFrame(state.prevPC, kf);
     state.pc = kf->instructions;
     if (isDynamicMode()) {
-      for (ref<Expr> e : arguments) {
-        e = state.constraints.simplifyExpr(e);
-        if (!isa<ConstantExpr>(e)) {
-          state.stack.back().hasSymbolicArg = true;
-          break;
-        }
-      }
+      markSymbolicPointers(state, arguments, f);
     }
 
     if (shouldTakeSnapshot(state, f)) {
@@ -4994,6 +4988,32 @@ unsigned int Executor::getAnalysisDistance(ExecutionState &state, Function *f) {
     }
   } else {
     return AnalysisDistance;
+  }
+}
+
+void Executor::markSymbolicPointers(ExecutionState &state,
+                                    std::vector<ref<Expr>> &arguments,
+                                    llvm::Function *f) {
+  if (f->isVarArg()) {
+    for (ref<Expr> e : arguments) {
+      if (!isa<ConstantExpr>(e)) {
+        state.stack.back().hasSymbolicArg = true;
+        break;
+      }
+    }
+  } else {
+    unsigned i = 0;
+    for (auto j = f->arg_begin(); j != f->arg_end(); i++, j++) {
+      ref<Expr> e = state.constraints.simplifyExpr(arguments[i]);
+      Argument &arg = *j;
+      if (!isa<ConstantExpr>(e)) {
+        /* mark as symbolic only if it's a poiner */
+        if (isa<PointerType>(arg.getType())) {
+          state.stack.back().hasSymbolicArg = true;
+          break;
+        }
+      }
+    }
   }
 }
 
