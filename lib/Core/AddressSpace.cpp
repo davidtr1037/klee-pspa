@@ -15,6 +15,7 @@
 
 #include "klee/Expr.h"
 #include "klee/TimerStatIncrementer.h"
+#include "klee/ExecutionState.h"
 
 using namespace klee;
 
@@ -167,7 +168,8 @@ bool AddressSpace::resolve(ExecutionState &state,
                            ResolutionList &rl, 
                            unsigned maxResolutions,
                            double timeout,
-                           PointsTo *pts) {
+                           PointsTo *pts,
+                           bool useConservativeCheck) {
   if (ConstantExpr *CE = dyn_cast<ConstantExpr>(p)) {
     ObjectPair res;
     if (resolveOne(CE, res))
@@ -215,7 +217,7 @@ bool AddressSpace::resolve(ExecutionState &state,
     while (oi!=begin) {
       --oi;
       const MemoryObject *mo = oi->first;
-      if (pts && canSkipMO(mo, *pts)) {
+      if (pts && canSkipMO(state, mo, *pts, useConservativeCheck)) {
         continue;
       }
 
@@ -257,7 +259,7 @@ bool AddressSpace::resolve(ExecutionState &state,
     // search forwards
     for (oi=start; oi!=end; ++oi) {
       const MemoryObject *mo = oi->first;
-      if (pts && canSkipMO(mo, *pts)) {
+      if (pts && canSkipMO(state, mo, *pts, useConservativeCheck)) {
         continue;
       }
       if (timeout_us && timeout_us < timer.check())
@@ -344,7 +346,10 @@ bool AddressSpace::copyInConcretes() {
   return true;
 }
 
-bool AddressSpace::canSkipMO(const MemoryObject *mo, PointsTo &pts) {
+bool AddressSpace::canSkipMO(ExecutionState &state,
+                             const MemoryObject *mo,
+                             PointsTo &pts,
+                             bool useConservativeCheck) {
   if (pts.test(PAG::getPAG()->getBlackHoleNode()) || pts.test(PAG::getPAG()->getBlkPtr())) {
     return false;
   }
@@ -361,13 +366,24 @@ bool AddressSpace::canSkipMO(const MemoryObject *mo, PointsTo &pts) {
     uas = info->getAllocSite();
   }
 
-  if (canSkipAS(as, pts)) {
-    if (!uas || canSkipAS(uas, pts)) {
-      return true;
+  if (uas) {
+    /* we have a heap object */
+    if (useConservativeCheck) {
+      if (!canSkipAS(as, pts)) {
+        return false;
+      }
+    }
+    if (!canSkipAS(uas, pts)) {
+      return false;
+    }
+  } else {
+    /* make the basic conservative check... */
+    if (!canSkipAS(as, pts)) {
+      return false;
     }
   }
 
-  return false;
+  return true;
 }
 
 bool AddressSpace::canSkipAS(const llvm::Value *as, PointsTo &pts) {

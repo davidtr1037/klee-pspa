@@ -42,7 +42,8 @@ namespace {
 
 StackFrame::StackFrame(KInstIterator _caller, KFunction *_kf)
   : caller(_caller), kf(_kf), callPathNode(0), 
-    minDistToUncoveredOnReturn(0), varargs(0), hasSymbolicArg(false) {
+    minDistToUncoveredOnReturn(0), varargs(0), hasSymbolicArg(false),
+    isTrackingAllocations(true), hasAS(false) {
   locals = new Cell[kf->numRegisters];
 }
 
@@ -56,7 +57,9 @@ StackFrame::StackFrame(const StackFrame &s)
     varargs(s.varargs),
     loopTrackingInfo(s.loopTrackingInfo),
     frameSnapshot(s.frameSnapshot),
-    hasSymbolicArg(s.hasSymbolicArg) {
+    hasSymbolicArg(s.hasSymbolicArg),
+    isTrackingAllocations(s.isTrackingAllocations),
+    hasAS(s.hasAS) {
   locals = new Cell[s.kf->numRegisters];
   for (unsigned i=0; i<s.kf->numRegisters; i++)
     locals[i] = s.locals[i];
@@ -452,4 +455,28 @@ StackFrame &ExecutionState::getStackFrame(unsigned int index) {
   index = stack.size() - 1 - index;
   assert(index < stack.size());
   return stack[index];
+}
+
+void ExecutionState::addAllocationSite(const llvm::Value *as) {
+  stack.back().hasAS = true;
+}
+
+bool ExecutionState::wasTrackingAllocations(unsigned int distance) {
+  for (unsigned int i = 0; i < distance + 1; i++) {
+    StackFrame &sf = getStackFrame(i);
+    if (!sf.isTrackingAllocations) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool ExecutionState::hadAlloctionSites(unsigned int distance) {
+  for (unsigned int i = 0; i < distance + 1; i++) {
+    StackFrame &sf = getStackFrame(i);
+    if (sf.hasAS) {
+      return true;
+    }
+  }
+  return false;
 }

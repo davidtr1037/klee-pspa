@@ -80,6 +80,10 @@ struct StackFrame {
 
   bool hasSymbolicArg;
 
+  bool isTrackingAllocations;
+
+  bool hasAS;
+
   StackFrame(KInstIterator caller, KFunction *kf);
   StackFrame(const StackFrame &s);
   ~StackFrame();
@@ -269,6 +273,11 @@ public:
 
   StackFrame &getStackFrame(unsigned int index);
 
+  void addAllocationSite(const llvm::Value *as);
+
+  bool wasTrackingAllocations(unsigned int distance);
+
+  bool hadAlloctionSites(unsigned int distance);
 };
 }
 

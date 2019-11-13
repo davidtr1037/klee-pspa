@@ -653,7 +653,8 @@ public:
 
   bool shouldTakeSnapshot(ExecutionState &state, llvm::Function *f);
 
-  void getOperandPointsTo(ExecutionState &state, PointsTo &result);
+  void getOperandPointsTo(ExecutionState &state,
+                          PointsTo &result);
 
   void executeMallocUsableSize(ExecutionState &state, ref<Expr> address, KInstruction *target);
 
@@ -662,6 +663,8 @@ public:
   void markSymbolicPointers(ExecutionState &state,
                             std::vector<ref<Expr>> &arguments,
                             llvm::Function *f);
+
+  void updateAllocatedObjects(ExecutionState &state, const MemoryObject *mo);
 };
   
 } // End klee namespace

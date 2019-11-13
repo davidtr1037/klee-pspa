@@ -90,7 +90,8 @@ namespace klee {
                  ResolutionList &rl, 
                  unsigned maxResolutions=0,
                  double timeout=0.,
-                 PointsTo *pts = nullptr);
+                 PointsTo *pts = nullptr,
+                 bool useConservativeCheck = true);
 
     /***/
 
@@ -129,7 +130,10 @@ namespace klee {
     /// \retval false The copy failed because a read-only object was modified.
     bool copyInConcretes();
 
-    bool canSkipMO(const MemoryObject *mo, PointsTo &pts);
+    bool canSkipMO(ExecutionState &state,
+                   const MemoryObject *mo,
+                   PointsTo &pts,
+                   bool useConservativeCheck);
 
     bool canSkipAS(const llvm::Value *as, PointsTo &pts);
   };

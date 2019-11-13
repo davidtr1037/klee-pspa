@@ -3386,6 +3386,9 @@ void Executor::executeAlloc(ExecutionState &state,
         os->initializeToRandom();
       }
       bindLocal(target, state, mo->getBaseExpr());
+      if (isDynamicMode()) {
+        updateAllocatedObjects(state, mo);
+      }
       
       if (reallocFrom) {
         unsigned count = std::min(reallocFrom->size, os->size);
@@ -3617,6 +3620,8 @@ void Executor::executeMemoryOperation(ExecutionState &state,
 
   bool useSA = false;
   PointsTo pts;
+  bool useConservativeCheck = true;
+
   if (UseSAResolve) {
     Function *f = state.stack.back().kf->function;
     unsigned int distance = getAnalysisDistance(state, f);
@@ -3632,6 +3637,14 @@ void Executor::executeMemoryOperation(ExecutionState &state,
       getOperandPointsTo(state, pts);
       klee_message("pts size: %u", pts.count());
       useSA = true;
+      if (isDynamicMode()) {
+        /* check if we had allocations since the entry point */
+        if (state.wasTrackingAllocations(distance) && !state.hadAlloctionSites(distance)) {
+          useConservativeCheck = false;
+        }
+      }
+      klee_message("performing %s check",
+                   useConservativeCheck ? "conservative" : "non-conservative");
     }
   }
 
@@ -3639,7 +3652,8 @@ void Executor::executeMemoryOperation(ExecutionState &state,
   ResolutionList rl;  
   solver->setTimeout(coreSolverTimeout);
   bool incomplete = state.addressSpace.resolve(state, solver, address, rl,
-                                               0, coreSolverTimeout, useSA ? &pts : nullptr);
+                                               0, coreSolverTimeout,
+                                               useSA ? &pts : nullptr, useConservativeCheck);
   solver->setTimeout(0);
   klee_message("multiple resolution: %lu", rl.size());
   
@@ -4882,7 +4896,8 @@ bool Executor::startAIPhase(ExecutionState &state) {
   return true;
 }
 
-void Executor::getOperandPointsTo(ExecutionState &state, PointsTo &result) {
+void Executor::getOperandPointsTo(ExecutionState &state,
+                                  PointsTo &result) {
   TimerStatIncrementer timer(stats::staticAnalysisTime);
   PointerAnalysis *pta = nullptr;
 
@@ -4893,6 +4908,7 @@ void Executor::getOperandPointsTo(ExecutionState &state, PointsTo &result) {
       assert(0);
     }
 
+    /* get the frame from which the analysis will be run... */
     unsigned int distance = distances[f];
     StackFrame &sf = state.getStackFrame(distance);
     ExecutionState *snapshot = sf.frameSnapshot.state.get();
@@ -5014,6 +5030,15 @@ void Executor::markSymbolicPointers(ExecutionState &state,
           break;
         }
       }
+    }
+  }
+}
+
+void Executor::updateAllocatedObjects(ExecutionState &state,
+                                      const MemoryObject *mo) {
+  if (state.stack.back().isTrackingAllocations) {
+    if (mo->allocSite) {
+      state.addAllocationSite(mo->allocSite);
     }
   }
 }
