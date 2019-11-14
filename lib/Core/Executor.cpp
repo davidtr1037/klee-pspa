@@ -101,6 +101,9 @@ using namespace klee;
 
 namespace {
   cl::opt<bool>
+  UseRandomTermination("use-random-termination", cl::desc("..."), cl::init(true));
+
+  cl::opt<bool>
   DumpStatesOnHalt("dump-states-on-halt",
                    cl::init(true),
 		   cl::desc("Dump test cases for all active states on exit (default=on)"));
@@ -2580,7 +2583,7 @@ void Executor::checkMemoryUsage() {
                    (memory->getUsedDeterministicSize() >> 20);
 
     if (mbs > MaxMemory) {
-      if (mbs > MaxMemory + 100) {
+      if (UseRandomTermination && mbs > MaxMemory + 100) {
         // just guess at how many to kill
         unsigned numStates = states.size();
         unsigned toKill = std::max(1U, numStates - numStates * MaxMemory / mbs);
