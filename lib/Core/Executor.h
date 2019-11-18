@@ -847,9 +847,9 @@ public:
 
   void dumpClinetStats();
 
-  void collectModStats(ExecutionState &state,
-                       llvm::Function *f,
-                       std::vector<ref<Expr>> &arguments);
+  void collectModRefStats(ExecutionState &state,
+                          llvm::Function *f,
+                          std::vector<ref<Expr>> &arguments);
 };
   
 } // End klee namespace
