@@ -387,6 +387,9 @@ namespace {
   cl::opt<bool>
   CollectModStatsOnly("collect-mod-stats-only", cl::init(false), cl::desc(""));
 
+  cl::opt<bool>
+  CollectRefStatsOnly("collect-ref-stats-only", cl::init(false), cl::desc(""));
+
   cl::opt<std::string>
   PTAEntryPoint("pta-entry-point", cl::init(""), cl::desc(""));
 }
@@ -1625,8 +1628,8 @@ void Executor::executeCall(ExecutionState &state,
     }
 
     if (executionMode == ExecutionModeSymbolic && isTargetFunction(state, f)) {
-      if (CollectModStatsOnly) {
-        collectModStats(state, f, arguments);
+      if (CollectModStatsOnly || CollectRefStatsOnly) {
+        collectModRefStats(state, f, arguments);
       } else {
         analyzeTargetFunction(state, ki, f, arguments);
       }
@@ -6624,9 +6627,9 @@ void Executor::dumpClinetStats() {
   }
 }
 
-void Executor::collectModStats(ExecutionState &state,
-                               Function *f,
-                               std::vector<ref<Expr>> &arguments) {
+void Executor::collectModRefStats(ExecutionState &state,
+                                  Function *f,
+                                  std::vector<ref<Expr>> &arguments) {
   TimerStatIncrementer timer(stats::staticAnalysisTime);
 
   /* TODO: remove later */
@@ -6635,6 +6638,18 @@ void Executor::collectModStats(ExecutionState &state,
   StateProjection projection;
   set<Function *> called;
   size_t size = 0;
+
+  if (!(CollectModStatsOnly ^ CollectRefStatsOnly)) {
+    klee_error("invalid usage...");
+  }
+
+  bool collectMod;
+  if (CollectModStatsOnly) {
+    collectMod = true;
+  }
+  if (CollectRefStatsOnly) {
+    collectMod = false;
+  }
 
   /* get called functions */
   for (StackFrame &sf : state.stack) {
@@ -6683,7 +6698,7 @@ void Executor::collectModStats(ExecutionState &state,
       pta->initialize(*kmodule->module);
       pta->analyzeFunction(*kmodule->module, snapshot->f);
 
-      StateProjectionCollector collector(called, projection, true);
+      StateProjectionCollector collector(called, projection, collectMod);
       collector.visitReachable(pta.get(), snapshot->f);
       collectRelevantGlobals(pta.get(), snapshot->f, entryState.usedGlobals);
 
@@ -6701,7 +6716,7 @@ void Executor::collectModStats(ExecutionState &state,
     state.clearParameterPointsTo(f);
 
   } else {
-    StateProjectionCollector collector(called, projection, true);
+    StateProjectionCollector collector(called, projection, collectMod);
     collector.visitReachable(staticPTA, f);
     size = projection.pointsToMap.size();
   }
@@ -6713,18 +6728,22 @@ void Executor::collectModStats(ExecutionState &state,
 
   PTAStatsSummary summary;
   summary.context = context;
-  summary.queries = 0; // ignore
-  summary.average_size = 0; // ignore
-  summary.max_size = 0; // ignore
-  summary.mod_size = size;
-  summary.ref_size = 0; // ignore
+
+  if (CollectModStatsOnly) {
+    summary.mod_size = size;
+  }
+  if (CollectRefStatsOnly) {
+    summary.ref_size = size;
+  }
 
   CallInst *callInst = dyn_cast<CallInst>(state.prevPC->inst);
   if (!callInst) {
     assert(0);
   }
   if (!callInst->hasNUses(0)) {
-    summary.mod_size++;
+    if (CollectModStatsOnly) {
+      summary.mod_size++;
+    }
   }
 
   ptaStatsLogger->dump(summary);
