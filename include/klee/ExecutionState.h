@@ -94,6 +94,7 @@ public:
   ColourCollector colors;
   int previousAllocationColours;
   int numberOfColorTransitions = 0;
+  std::vector<MemoryObject *> allocations;
   // Execution - Control Flow specific
 
   /// @brief Pointer to instruction to be executed after the current

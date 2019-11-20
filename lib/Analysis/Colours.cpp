@@ -15,10 +15,17 @@ void ColourCollector::visitStore(PointerAnalysis *pta,
                                  StoreInst *inst) {
   NodeID id = pta->getPAG()->getValueNode(inst->getPointerOperand());
   PointsTo pts;
+//  inst->dump();
   for (NodeID n : pta->getPts(id)) {
     /* I think we can do it without disabling unique AS */
     //pts.set(stripUniqueAS(pta, n));
     pts.set(n);
+    PAGNode *pagNode = pta->getPAG()->getPAGNode(n);
+    ObjPN *obj = dyn_cast<ObjPN>(pagNode);
+    if(!obj) continue;
+    if(obj->getMemObj()->getRefVal() == nullptr) continue;
+//    obj->getMemObj()->getRefVal()->dump();
+     
   }
   ptsSets.push_back(pts);
 }
@@ -49,7 +56,9 @@ bool ColourCollector::intersects(PointerAnalysis* pta,
   return false;
 }
 
-std::vector<int> ColourCollector::getColour(llvm::Instruction *inst) {
+static uint64_t freshColours = 10000000;
+
+std::vector<int> ColourCollector::getColour(const llvm::Value *inst) {
   NodeID objnodeId = pta->getPAG()->getObjectNode(inst);
   //llvm::errs() << " object node Id" << objnodeId << "\n";
   const MemObj *memobj = pta->getPAG()->getBaseObj(objnodeId);
@@ -94,6 +103,13 @@ std::vector<int> ColourCollector::getColour(llvm::Instruction *inst) {
           returnCols.emplace_back(c);
       }
   }
+
+  //if there are no return colours, it means there were no stores in the
+  //analyzed function to this object therefore we assign it a new fresh colour.
+  if(returnCols.size() == 0) {
+      returnCols.emplace_back(freshColours++);
+  }
+
   return returnCols;
 }
 

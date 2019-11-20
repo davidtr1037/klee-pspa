@@ -3351,8 +3351,6 @@ void Executor::executeAlloc(ExecutionState &state,
                             std::string name) {
   if(state.colors.witMode) {
       auto colors = state.colors.getColour(target->inst);
-      // We are conservative here and assume even if 1 field colour matches,
-      // the buffer overflow can be hidden
       for(auto color : colors) {
           if(state.previousAllocationColours != color) 
             state.numberOfColorTransitions++;
@@ -3369,6 +3367,7 @@ void Executor::executeAlloc(ExecutionState &state,
         memory->allocate(CE->getZExtValue(), isLocal, /*isGlobal=*/false,
                          allocSite, allocationAlignment);
         mo->name = name;
+    state.allocations.push_back(mo);
     if (!mo) {
       bindLocal(target, state, 
                 ConstantExpr::alloc(0, Context::get().getPointerWidth()));
@@ -4807,6 +4806,19 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
     auto os = interpreterHandler->openOutputFile("colours");
     state.colors.visitAll(pta);
     state.colors.computeColours(pta, *os);
+    for(auto& mo : state.allocations) {
+        auto inst = mo->allocSite;
+        if(mo->attachedInfo) {
+            inst = static_cast<PTAInfo*>(mo->attachedInfo)->getAllocSite();
+        }
+        auto colors = state.colors.getColour(inst);
+        for(auto color : colors) {
+              if(state.previousAllocationColours != color) 
+                state.numberOfColorTransitions++;
+              
+              state.previousAllocationColours = color;
+        }
+    }
     delete os;
 
 //    terminateState(state);
