@@ -69,7 +69,7 @@ std::vector<int> ColourCollector::getColour(const llvm::Value *inst, Type *hint)
   } else {
     if (hint) {
       StInfo *stInfo = SymbolTableInfo::SymbolInfo()->getStructInfo(hint);
-      for (unsigned int i = 0; i < stInfo->getSize(); i++) {
+      for (unsigned int i = 0; i < stInfo->getFlattenFieldInfoVec().size(); i++) {
         NodeID id = pta->getGepObjNode(memobj->getSymId(), LocationSet(i));
         PAGNode *node = pta->getPAG()->getPAGNode(id);
         GepObjPN *gep = dyn_cast<GepObjPN>(node);
