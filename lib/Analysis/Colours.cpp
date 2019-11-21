@@ -102,6 +102,7 @@ std::vector<int> ColourCollector::getColour(const llvm::Value *inst, Type *hint)
     }
     if (!hasColor) {
       /* TODO: add fresh color? */
+      returnColours[idx] = freshColours++;
     }
     idx++;
   }
