@@ -64,48 +64,77 @@ std::vector<int> ColourCollector::getColour(const llvm::Value *inst) {
   const MemObj *memobj = pta->getPAG()->getBaseObj(objnodeId);
   assert(memobj && "Passed instructions is not an allocation");
   std::vector<std::pair<NodeID, GepObjPN*>> fields;
-  if(memobj->isFieldInsensitive()) {
-      fields.emplace_back(pta->getPAG()->getFIObjNode(memobj),nullptr);
-  }  else {
-  NodeBS &allFields = pta->getPAG()->getAllFieldsObjNode(memobj);
-//  llvm::errs() << objnodeId << ":\n";
-  for(auto nId : allFields) {
-      PAGNode* pn = pta->getPAG()->getPAGNode(nId);
- //     llvm::errs() << "\t" << nId  << "\n";
-      GepObjPN* gep = dyn_cast<GepObjPN>(pn);
-      if(gep) {
- //          llvm::errs() << "offset: " << gep->getLocationSet().getOffset();
- //          llvm::errs() << "\n";
-      fields.emplace_back(nId,gep);
-      }
-  }
+
+  errs() << "FI " << pta->isFieldInsensitive(objnodeId) << "\n";
+  if (memobj->isFieldInsensitive()) {
+    fields.emplace_back(pta->getPAG()->getFIObjNode(memobj),nullptr);
+  } else {
+    Type *t = memobj->getTypeInfo()->getLLVMType();
+    StInfo *stInfo = SymbolTableInfo::SymbolInfo()->getStructInfo(t);
+    errs() << "SIZE " << stInfo->getSize() << "\n";
+
+    //NodeBS &allFields = pta->getPAG()->getAllFieldsObjNode(memobj);
+    //NodeBS &allFields = pta->getPAG()->getAllFieldsObjNode(memobj);
+    for (unsigned int i = 0; i < stInfo->getSize(); i++) {
+      NodeID id = pta->getGepObjNode(memobj->getSymId(), LocationSet(i));
+      PAGNode *node = pta->getPAG()->getPAGNode(id);
+      GepObjPN *gep = dyn_cast<GepObjPN>(node);
+      fields.emplace_back(id, gep);
+    }
+//  //  llvm::errs() << objnodeId << ":\n";
+//    for(auto nId : allFields) {
+//        PAGNode* pn = pta->getPAG()->getPAGNode(nId);
+//   //     llvm::errs() << "\t" << nId  << "\n";
+//        GepObjPN* gep = dyn_cast<GepObjPN>(pn);
+//        if(gep) {
+//   //          llvm::errs() << "offset: " << gep->getLocationSet().getOffset();
+//   //          llvm::errs() << "\n";
+//        fields.emplace_back(nId,gep);
+//        }
+//    }
   }
 
-  int colour = 0;
-//  llvm::BitVector returnColour(ptsSets.size() + 1);
+  int idx = 0;
   //A vector of offset sorted colours
   std::vector<int> returnColours(fields.size(), 0);
-  for (auto pts : ptsSets) {
-    colour++;
-    int idx = 0;
-    for(const auto& fIdGep : fields) {
-      if(pts.test(fIdGep.first)) {
-//          llvm::errs() << fIdGep.first << " has colour " << colour;
-          if(fIdGep.second) {
-//              llvm::errs() << " at offset: " << fIdGep.second->getLocationSet().getOffset(); 
-          }
-//          llvm::errs() << "\n";
-          returnColours[idx] = colour;
+  for (const auto& fIdGep : fields) {
+    int colour = 0;
+    bool hasColor = false;
+    for (auto pts : ptsSets) {
+      if (pts.test(fIdGep.first)) {
+        returnColours[idx] = colour;
+        hasColor = true;
       }
-      idx++;
+      colour++;
     }
+    if (!hasColor) {
+      /* TODO: add fresh color? */
+    }
+    idx++;
   }
+
+  //for (auto pts : ptsSets) {
+  //  colour++;
+  //  int idx = 0;
+  //  bool hasColor = false;
+  //  for (const auto& fIdGep : fields) {
+  //    if (pts.test(fIdGep.first)) {
+  //      returnColours[idx] = colour;
+  //      hasColor = true;
+  //    }
+  //    idx++;
+  //  }
+  //  if (!hasColor) {
+  //    errs() << "MISS\n";
+  //  }
+  //}
+
   //filter out fields that don't have a colour. For example FI node, if FS nodes are present
   std::vector<int> returnCols;
-  for(auto& c : returnColours) {
-      if(c > 0) {
-          returnCols.emplace_back(c);
-      }
+  for (auto& c : returnColours) {
+    if (c > 0) {
+      returnCols.emplace_back(c);
+    }
   }
 
   //if there are no return colours, it means there were no stores in the
