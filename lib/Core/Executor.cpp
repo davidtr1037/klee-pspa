@@ -2295,7 +2295,7 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   case Instruction::BitCast: {
     ref<Expr> result = eval(ki, 0, state).value;
     bindLocal(ki, state, result);
-    if (isDynamicMode() || ptaMode == AIMode) {
+    if (isDynamicMode() || ptaMode == AIMode || ptaMode == StaticMode) {
       handleBitCast(state, ki, result);
     }
     break;
