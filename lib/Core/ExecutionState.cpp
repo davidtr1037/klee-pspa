@@ -131,8 +131,8 @@ ExecutionState::ExecutionState(const ExecutionState& state):
     openMergeStack(state.openMergeStack),
     modifiedGlobals(state.modifiedGlobals),
     colors(state.colors),
-    numberOfColorTransitions(state.numberOfColorTransitions),
     previousAllocationColours(state.previousAllocationColours),
+    numberOfColorTransitions(state.numberOfColorTransitions),
     isDummy(state.isDummy)
 {
   for (unsigned int i=0; i<symbolics.size(); i++)

@@ -91,9 +91,6 @@ private:
   unsigned int initialCallDepth;
 
 public:
-  ColourCollector colors;
-  int previousAllocationColours;
-  int numberOfColorTransitions = 0;
   std::vector<MemoryObject *> allocations;
   // Execution - Control Flow specific
 
@@ -171,6 +168,10 @@ public:
   std::vector<ref<MergeHandler> > openMergeStack;
 
   std::set<const llvm::Value *> modifiedGlobals;
+
+  ColourCollector colors;
+  int previousAllocationColours;
+  int numberOfColorTransitions = 0;
 
   /* TODO: add docs and rename */
   bool isDummy;
