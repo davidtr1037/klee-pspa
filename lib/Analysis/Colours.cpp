@@ -63,9 +63,12 @@ std::vector<int> ColourCollector::getColour(const llvm::Value *inst) {
   //llvm::errs() << " object node Id" << objnodeId << "\n";
   const MemObj *memobj = pta->getPAG()->getBaseObj(objnodeId);
   assert(memobj && "Passed instructions is not an allocation");
+  std::vector<std::pair<NodeID, GepObjPN*>> fields;
+  if(memobj->isFieldInsensitive()) {
+      fields.emplace_back(pta->getPAG()->getFIObjNode(memobj),nullptr);
+  }  else {
   NodeBS &allFields = pta->getPAG()->getAllFieldsObjNode(memobj);
 //  llvm::errs() << objnodeId << ":\n";
-  std::vector<std::pair<NodeID, GepObjPN*>> fields;
   for(auto nId : allFields) {
       PAGNode* pn = pta->getPAG()->getPAGNode(nId);
  //     llvm::errs() << "\t" << nId  << "\n";
@@ -73,8 +76,9 @@ std::vector<int> ColourCollector::getColour(const llvm::Value *inst) {
       if(gep) {
  //          llvm::errs() << "offset: " << gep->getLocationSet().getOffset();
  //          llvm::errs() << "\n";
-      }
       fields.emplace_back(nId,gep);
+      }
+  }
   }
 
   int colour = 0;
