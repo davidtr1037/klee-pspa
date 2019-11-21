@@ -3349,15 +3349,14 @@ void Executor::executeAlloc(ExecutionState &state,
                             bool zeroMemory,
                             const ObjectState *reallocFrom,
                             std::string name) {
-  if(state.colors.witMode) {
-      auto colors = state.colors.getColour(target->inst);
-      for(auto color : colors) {
-          if(state.previousAllocationColours != color) 
-            state.numberOfColorTransitions++;
-          
-          state.previousAllocationColours = color;
+  if (state.colors.witMode) {
+    auto colors = state.colors.getColour(target->inst);
+    for(auto color : colors) {
+      if (state.previousAllocationColours != color) {
+        state.numberOfColorTransitions++;
       }
-
+      state.previousAllocationColours = color;
+    }
   }
   size = toUnique(state, size);
   if (ConstantExpr *CE = dyn_cast<ConstantExpr>(size)) {
@@ -3367,7 +3366,9 @@ void Executor::executeAlloc(ExecutionState &state,
         memory->allocate(CE->getZExtValue(), isLocal, /*isGlobal=*/false,
                          allocSite, allocationAlignment);
         mo->name = name;
-    state.allocations.push_back(mo);
+    if (!state.colors.witMode && !isLocal && mo->allocSite) {
+      state.addMO(mo);
+    }
     if (!mo) {
       bindLocal(target, state, 
                 ConstantExpr::alloc(0, Context::get().getPointerWidth()));
@@ -4806,19 +4807,20 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
     auto os = interpreterHandler->openOutputFile("colours");
     state.colors.visitAll(pta);
     state.colors.computeColours(pta, *os);
-    for(auto& mo : state.allocations) {
-        auto inst = mo->allocSite;
-        if(mo->attachedInfo) {
-            inst = static_cast<PTAInfo*>(mo->attachedInfo)->getAllocSite();
+    for (auto &mo : state.allocations) {
+      const Value *as = mo->allocSite;
+      if (mo->attachedInfo) {
+        as = static_cast<PTAInfo*>(mo->attachedInfo)->getAllocSite();
+      }
+      auto colors = state.colors.getColour(as);
+      for (auto color : colors) {
+        if (state.previousAllocationColours != color) {
+          state.numberOfColorTransitions++;
         }
-        auto colors = state.colors.getColour(inst);
-        for(auto color : colors) {
-              if(state.previousAllocationColours != color) 
-                state.numberOfColorTransitions++;
-              
-              state.previousAllocationColours = color;
-        }
+        state.previousAllocationColours = color;
+      }
     }
+    state.clearAllocations();
     delete os;
 
 //    terminateState(state);

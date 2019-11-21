@@ -91,7 +91,7 @@ private:
   unsigned int initialCallDepth;
 
 public:
-  std::vector<MemoryObject *> allocations;
+  std::vector<const MemoryObject *> allocations;
   // Execution - Control Flow specific
 
   /// @brief Pointer to instruction to be executed after the current
@@ -253,6 +253,9 @@ public:
     return state;
   }
 
+  void addMO(const MemoryObject *mo);
+
+  void clearAllocations();
 };
 }
 

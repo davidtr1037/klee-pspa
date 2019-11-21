@@ -439,3 +439,15 @@ bool ExecutionState::isCalledRecursively(Function *f) {
 
   return count > 1;
 }
+
+void ExecutionState::addMO(const MemoryObject *mo) {
+  mo->refCount++;
+  allocations.push_back(mo);
+}
+
+void ExecutionState::clearAllocations() {
+  for (const MemoryObject *mo : allocations) {
+    mo->refCount--;
+  }
+  allocations.clear();
+}
