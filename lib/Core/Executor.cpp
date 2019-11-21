@@ -3350,7 +3350,7 @@ void Executor::executeAlloc(ExecutionState &state,
                             const ObjectState *reallocFrom,
                             std::string name) {
   if (state.colors.witMode) {
-    auto colors = state.colors.getColour(target->inst);
+    auto colors = state.colors.getColour(target->inst, nullptr);
     for(auto color : colors) {
       if (state.previousAllocationColours != color) {
         state.numberOfColorTransitions++;
@@ -4812,7 +4812,14 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
       if (mo->attachedInfo) {
         as = static_cast<PTAInfo*>(mo->attachedInfo)->getAllocSite();
       }
-      auto colors = state.colors.getColour(as);
+
+      Type *hint = nullptr;
+      PointerType *pt = mo->getTypeHint();
+      if (pt) {
+        hint = pt->getElementType();
+      }
+
+      auto colors = state.colors.getColour(as, hint);
       for (auto color : colors) {
         if (state.previousAllocationColours != color) {
           state.numberOfColorTransitions++;

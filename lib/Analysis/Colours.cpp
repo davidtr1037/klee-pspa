@@ -58,40 +58,33 @@ bool ColourCollector::intersects(PointerAnalysis* pta,
 
 static uint64_t freshColours = 10000000;
 
-std::vector<int> ColourCollector::getColour(const llvm::Value *inst) {
+std::vector<int> ColourCollector::getColour(const llvm::Value *inst, Type *hint) {
   NodeID objnodeId = pta->getPAG()->getObjectNode(inst);
-  //llvm::errs() << " object node Id" << objnodeId << "\n";
   const MemObj *memobj = pta->getPAG()->getBaseObj(objnodeId);
   assert(memobj && "Passed instructions is not an allocation");
   std::vector<std::pair<NodeID, GepObjPN*>> fields;
 
-  errs() << "FI " << pta->isFieldInsensitive(objnodeId) << "\n";
   if (memobj->isFieldInsensitive()) {
-    fields.emplace_back(pta->getPAG()->getFIObjNode(memobj),nullptr);
+    fields.emplace_back(pta->getPAG()->getFIObjNode(memobj), nullptr);
   } else {
-    Type *t = memobj->getTypeInfo()->getLLVMType();
-    StInfo *stInfo = SymbolTableInfo::SymbolInfo()->getStructInfo(t);
-    errs() << "SIZE " << stInfo->getSize() << "\n";
-
-    //NodeBS &allFields = pta->getPAG()->getAllFieldsObjNode(memobj);
-    //NodeBS &allFields = pta->getPAG()->getAllFieldsObjNode(memobj);
-    for (unsigned int i = 0; i < stInfo->getSize(); i++) {
-      NodeID id = pta->getGepObjNode(memobj->getSymId(), LocationSet(i));
-      PAGNode *node = pta->getPAG()->getPAGNode(id);
-      GepObjPN *gep = dyn_cast<GepObjPN>(node);
-      fields.emplace_back(id, gep);
+    if (hint) {
+      StInfo *stInfo = SymbolTableInfo::SymbolInfo()->getStructInfo(hint);
+      for (unsigned int i = 0; i < stInfo->getSize(); i++) {
+        NodeID id = pta->getGepObjNode(memobj->getSymId(), LocationSet(i));
+        PAGNode *node = pta->getPAG()->getPAGNode(id);
+        GepObjPN *gep = dyn_cast<GepObjPN>(node);
+        fields.emplace_back(id, gep);
+      }
+    } else {
+      NodeBS &allFields = pta->getPAG()->getAllFieldsObjNode(memobj);
+      for (auto nId : allFields) {
+        PAGNode* pn = pta->getPAG()->getPAGNode(nId);
+        GepObjPN* gep = dyn_cast<GepObjPN>(pn);
+        if (gep) {
+          fields.emplace_back(nId,gep);
+        }
+      }
     }
-//  //  llvm::errs() << objnodeId << ":\n";
-//    for(auto nId : allFields) {
-//        PAGNode* pn = pta->getPAG()->getPAGNode(nId);
-//   //     llvm::errs() << "\t" << nId  << "\n";
-//        GepObjPN* gep = dyn_cast<GepObjPN>(pn);
-//        if(gep) {
-//   //          llvm::errs() << "offset: " << gep->getLocationSet().getOffset();
-//   //          llvm::errs() << "\n";
-//        fields.emplace_back(nId,gep);
-//        }
-//    }
   }
 
   int idx = 0;
