@@ -183,34 +183,35 @@ void ColourCollector::computeColours(PointerAnalysis* pta,
          outputFile << " " << colour << " " << nodeId << "\n";
       }
 	}
-  colour = 0;
-  for(auto pts : ptsSets) {
-      bool isAllStack = false;
-      bool firstAlloc = true;
-      for(auto nodeId : pts) {
-         PAGNode *pagNode = pta->getPAG()->getPAGNode(nodeId);
-         ObjPN *obj = dyn_cast<ObjPN>(pagNode);
-         if(!obj) continue;
-         //if(!obj || isa<GepObjPN>(obj)) continue;
-         if(obj->getMemObj()->getRefVal() == nullptr) continue;
-         auto inst = dyn_cast<Instruction>(obj->getMemObj()->getRefVal());
-         if(!inst) continue;
-         if(firstAlloc) isAllStack = isa<AllocaInst>(inst);
-         else    isAllStack &= isa<AllocaInst>(inst);
-         firstAlloc = false;
-         MDNode *n = inst->getMetadata("dbg");
-         if(!n) continue;
-         DILocation *loc = cast<DILocation>(n);
-         outputFile << loc->getFilename();
-         outputFile << ":" << loc->getLine();
-         outputFile << " " << colour << " " << nodeId << "\n";
-      }
-      if(!isAllStack) {
-          colour++;
-      }
-	}
-
-
-
-  klee_message("There are %lu heap colours", colour);
+//  colour = 0;
+//  for(auto pts : ptsSets) {
+//      bool isAllStack = false;
+//      bool firstAlloc = true;
+//      for(auto nodeId : pts) {
+//         PAGNode *pagNode = pta->getPAG()->getPAGNode(nodeId);
+//         ObjPN *obj = dyn_cast<ObjPN>(pagNode);
+//         if(!obj) continue;
+//         //if(!obj || isa<GepObjPN>(obj)) continue;
+//         if(obj->getMemObj()->getRefVal() == nullptr) continue;
+//         auto inst = dyn_cast<Instruction>(obj->getMemObj()->getRefVal());
+//         if(!inst) continue;
+//         if(firstAlloc) isAllStack = isa<AllocaInst>(inst);
+//         else    isAllStack &= isa<AllocaInst>(inst);
+//         firstAlloc = false;
+//         MDNode *n = inst->getMetadata("dbg");
+//         if(!n) continue;
+//         DILocation *loc = cast<DILocation>(n);
+//         outputFile << loc->getFilename();
+//         outputFile << ":" << loc->getLine();
+//         outputFile << " " << colour << " " << nodeId << "\n";
+//      }
+//      if(!isAllStack) {
+//          colour++;
+//      }
+//	}
+//
+//
+//
+//  klee_message("There are %lu heap colours", colour);
+  klee_message("There are %lu heap colours", ptsSets.size());
 }
