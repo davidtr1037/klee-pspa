@@ -3350,7 +3350,7 @@ void Executor::executeAlloc(ExecutionState &state,
                             bool zeroMemory,
                             const ObjectState *reallocFrom,
                             std::string name) {
-  if (state.colors.witMode) {
+  if (state.colors.witMode && !isLocal) {
     auto colors = state.colors.getColour(target->inst, nullptr);
     for(auto color : colors) {
       if (state.previousAllocationColours != color) {

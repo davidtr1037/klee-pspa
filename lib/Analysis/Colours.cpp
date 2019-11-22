@@ -183,6 +183,31 @@ void ColourCollector::computeColours(PointerAnalysis* pta,
          outputFile << " " << colour << " " << nodeId << "\n";
       }
 	}
+  colour = 0;
+  for(auto pts : ptsSets) {
+      bool isOnlyStack = true;
+      for(auto nodeId : pts) {
+         PAGNode *pagNode = pta->getPAG()->getPAGNode(nodeId);
+         ObjPN *obj = dyn_cast<ObjPN>(pagNode);
+         if(!obj) continue;
+         //if(!obj || isa<GepObjPN>(obj)) continue;
+         if(obj->getMemObj()->getRefVal() == nullptr) continue;
+         auto inst = dyn_cast<Instruction>(obj->getMemObj()->getRefVal());
+         if(!inst) continue;
+         isOnlyStack &= isa<AllocaInst>(inst);
+         MDNode *n = inst->getMetadata("dbg");
+         if(!n) continue;
+         DILocation *loc = cast<DILocation>(n);
+         outputFile << loc->getFilename();
+         outputFile << ":" << loc->getLine();
+         outputFile << " " << colour << " " << nodeId << "\n";
+      }
+      if(!isOnlyStack) {
+          colour++;
+      }
+	}
 
-  klee_message("There are %lu colours", ptsSets.size());
+
+
+  klee_message("There are %lu heap colours", colour);
 }
