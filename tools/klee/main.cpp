@@ -1525,6 +1525,8 @@ int main(int argc, char **argv, char **envp) {
     *theStatisticManager->getStatisticByName("Instructions");
   uint64_t forks =
     *theStatisticManager->getStatisticByName("Forks");
+  uint64_t transitions =
+    *theStatisticManager->getStatisticByName("Transitions");
 
   handler->getInfoStream()
     << "KLEE: done: explored paths = " << 1 + forks << "\n";
@@ -1545,6 +1547,8 @@ int main(int argc, char **argv, char **envp) {
   stats << "\n";
   stats << "KLEE: done: total instructions = "
         << instructions << "\n";
+  stats << "KLEE: done: total transitions = "
+        << transitions << "\n";
   stats << "KLEE: done: completed paths = "
         << handler->getNumPathsExplored() << "\n";
   stats << "KLEE: done: generated tests = "

@@ -3354,6 +3354,7 @@ void Executor::executeAlloc(ExecutionState &state,
     for(auto color : colors) {
       if (state.previousAllocationColours != color) {
         state.numberOfColorTransitions++;
+        ++stats::transitions;
       }
       state.previousAllocationColours = color;
     }
@@ -4823,6 +4824,7 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
       for (auto color : colors) {
         if (state.previousAllocationColours != color) {
           state.numberOfColorTransitions++;
+          ++stats::transitions;
         }
         state.previousAllocationColours = color;
       }
