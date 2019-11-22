@@ -185,7 +185,8 @@ void ColourCollector::computeColours(PointerAnalysis* pta,
 	}
   colour = 0;
   for(auto pts : ptsSets) {
-      bool isOnlyStack = true;
+      bool isAllStack = false;
+      bool firstAlloc = true;
       for(auto nodeId : pts) {
          PAGNode *pagNode = pta->getPAG()->getPAGNode(nodeId);
          ObjPN *obj = dyn_cast<ObjPN>(pagNode);
@@ -194,7 +195,9 @@ void ColourCollector::computeColours(PointerAnalysis* pta,
          if(obj->getMemObj()->getRefVal() == nullptr) continue;
          auto inst = dyn_cast<Instruction>(obj->getMemObj()->getRefVal());
          if(!inst) continue;
-         isOnlyStack &= isa<AllocaInst>(inst);
+         if(firstAlloc) isAllStack = isa<AllocaInst>(inst);
+         else    isAllStack &= isa<AllocaInst>(inst);
+         firstAlloc = false;
          MDNode *n = inst->getMetadata("dbg");
          if(!n) continue;
          DILocation *loc = cast<DILocation>(n);
@@ -202,7 +205,7 @@ void ColourCollector::computeColours(PointerAnalysis* pta,
          outputFile << ":" << loc->getLine();
          outputFile << " " << colour << " " << nodeId << "\n";
       }
-      if(!isOnlyStack) {
+      if(!isAllStack) {
           colour++;
       }
 	}
