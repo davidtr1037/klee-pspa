@@ -31,3 +31,4 @@ Statistic stats::uncoveredInstructions("UncoveredInstructions", "Iuncov");
 Statistic stats::staticAnalysisUsage("StaticAnalysisUsage", "SAusage");
 Statistic stats::transitions("Transitions", "Trans");
 Statistic stats::uniqueTransitions("UniqueTransitions", "UniqueTrans");
+Statistic stats::pops("Pops", "Pops");

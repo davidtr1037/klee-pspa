@@ -172,6 +172,7 @@ public:
   ColourCollector colors;
   int previousAllocationColours;
   int numberOfColorTransitions = 0;
+  unsigned int pops;
 
   /* TODO: add docs and rename */
   bool isDummy;

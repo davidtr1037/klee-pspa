@@ -82,12 +82,13 @@ ExecutionState::ExecutionState(KFunction *kf) :
     forkDisabled(false),
     ptreeNode(0),
     previousAllocationColours(0),
+    pops(0),
     isDummy(false) {
   pushFrame(0, kf);
 }
 
 ExecutionState::ExecutionState(const std::vector<ref<Expr> > &assumptions)
-    : pta(0), initialCallDepth(0), constraints(assumptions), queryCost(0.), ptreeNode(0), isDummy(false) {}
+    : pta(0), initialCallDepth(0), constraints(assumptions), queryCost(0.), ptreeNode(0), pops(0), isDummy(false) {}
 
 ExecutionState::~ExecutionState() {
   for (unsigned int i=0; i<symbolics.size(); i++)
@@ -133,6 +134,7 @@ ExecutionState::ExecutionState(const ExecutionState& state):
     colors(state.colors),
     previousAllocationColours(state.previousAllocationColours),
     numberOfColorTransitions(state.numberOfColorTransitions),
+    pops(state.pops),
     isDummy(state.isDummy)
 {
   for (unsigned int i=0; i<symbolics.size(); i++)

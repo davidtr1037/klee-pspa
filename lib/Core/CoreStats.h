@@ -30,6 +30,7 @@ namespace stats {
   extern Statistic staticAnalysisUsage;
   extern Statistic transitions;
   extern Statistic uniqueTransitions;
+  extern Statistic pops;
 
   /// The number of process forks.
   extern Statistic forks;

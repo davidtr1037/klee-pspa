@@ -1693,6 +1693,9 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
       assert(!caller && "caller set on initial stack frame");
       terminateStateOnExit(state);
     } else {
+      if (state.colors.witMode) {
+        state.pops++;
+      }
       state.popFrame();
 
       if (statsTracker)
@@ -3024,6 +3027,7 @@ void Executor::continueState(ExecutionState &state){
 
 void Executor::terminateState(ExecutionState &state) {
   stats::transitions += state.numberOfColorTransitions;
+  stats::pops += state.pops;
   if (replayKTest && replayPosition!=replayKTest->numObjects) {
     klee_warning_once(replayKTest,
                       "replay did not consume all objects in test input.");
@@ -3352,7 +3356,7 @@ void Executor::executeAlloc(ExecutionState &state,
                             std::string name) {
   if (state.colors.witMode && !isLocal) {
     auto colors = state.colors.getColour(target->inst, nullptr);
-    for(auto color : colors) {
+    for (auto color : colors) {
       if (state.previousAllocationColours != color) {
         state.numberOfColorTransitions++;
         stats::uniqueTransitions += 1;
