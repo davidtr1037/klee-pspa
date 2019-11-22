@@ -198,12 +198,6 @@ void ColourCollector::computeColours(PointerAnalysis* pta,
 //         if(firstAlloc) isAllStack = isa<AllocaInst>(inst);
 //         else    isAllStack &= isa<AllocaInst>(inst);
 //         firstAlloc = false;
-//         MDNode *n = inst->getMetadata("dbg");
-//         if(!n) continue;
-//         DILocation *loc = cast<DILocation>(n);
-//         outputFile << loc->getFilename();
-//         outputFile << ":" << loc->getLine();
-//         outputFile << " " << colour << " " << nodeId << "\n";
 //      }
 //      if(!isAllStack) {
 //          colour++;
