@@ -3023,6 +3023,7 @@ void Executor::continueState(ExecutionState &state){
 }
 
 void Executor::terminateState(ExecutionState &state) {
+  stats::transitions += state.numberOfColorTransitions;
   if (replayKTest && replayPosition!=replayKTest->numObjects) {
     klee_warning_once(replayKTest,
                       "replay did not consume all objects in test input.");
@@ -3354,7 +3355,6 @@ void Executor::executeAlloc(ExecutionState &state,
     for(auto color : colors) {
       if (state.previousAllocationColours != color) {
         state.numberOfColorTransitions++;
-        ++stats::transitions;
       }
       state.previousAllocationColours = color;
     }
@@ -4824,7 +4824,6 @@ void Executor::analyzeTargetFunction(ExecutionState &state,
       for (auto color : colors) {
         if (state.previousAllocationColours != color) {
           state.numberOfColorTransitions++;
-          ++stats::transitions;
         }
         state.previousAllocationColours = color;
       }
