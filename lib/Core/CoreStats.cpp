@@ -30,3 +30,4 @@ Statistic stats::trueBranches("TrueBranches", "Bt");
 Statistic stats::uncoveredInstructions("UncoveredInstructions", "Iuncov");
 Statistic stats::staticAnalysisUsage("StaticAnalysisUsage", "SAusage");
 Statistic stats::transitions("Transitions", "Trans");
+Statistic stats::uniqueTransitions("UniqueTransitions", "UniqueTrans");
