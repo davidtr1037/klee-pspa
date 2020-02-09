@@ -4478,6 +4478,7 @@ void Executor::updatePointsToOnCall(ExecutionState &state,
   }
 }
 
+/* TODO: ignores the enforceFI field */
 NodeID Executor::ptrToAbstract(ExecutionState &state,
                                Pointer *p,
                                SymbolicPTA &sPTA) {

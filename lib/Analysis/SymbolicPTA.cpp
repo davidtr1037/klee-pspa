@@ -389,6 +389,7 @@ void OffsetFinder::visitArray(ArrayType *at) {
   uint64_t len = layout.getTypeStoreSize(at->getElementType());
   size_t numResults = results.size();
   for (uint64_t i = 0; i < numElements; i++) {
+    /* TODO: not restore after array visit is done --> conservative... */
     if (!weakUpdate) {
       weakUpdate = i != 0;
     }
