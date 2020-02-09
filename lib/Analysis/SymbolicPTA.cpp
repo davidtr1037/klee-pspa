@@ -160,6 +160,7 @@ std::vector<Pointer *> SymbolicPTA::getPointerTarget(Pointer &p) {
   return ret;
 }
 
+/* TODO: doesn't handle correctly missing type information */
 std::vector<Pointer *> SymbolicPTA::getColocatedPointers(Pointer &p) {
   // If it's a pointer type it can be an array
   std::vector<Pointer *> ret;
