@@ -108,7 +108,6 @@ static unsigned __sym_uint32(const char *name) {
                          writes past the initial file size are discarded 
 			 (file offset is always incremented)
    max_failures: maximum number of system call failures */
-#define INPUT_PATH "/home/user/tau/dsa/klee-dsa-benchmarks/resolution/make/make.input"
 void klee_init_fds(unsigned n_files, unsigned file_length,
                    unsigned long long stdin_length, int sym_stdout_flag,
                    int save_all_writes_flag, unsigned max_failures) {
@@ -124,7 +123,9 @@ void klee_init_fds(unsigned n_files, unsigned file_length,
     name[0] = 'A' + k;
     if (k == 0) {
       char buffer[500];
-      int filedesc = open(INPUT_PATH, O_RDONLY);
+      char *input_path = getenv("KLEE_INPUT_TEMPLATE");
+      assert(input_path);
+      int filedesc = open(input_path, O_RDONLY);
       file_length = read(filedesc, buffer, 500);
       buffer[file_length + 1] = 0;
       fprintf(stderr, "Populating %s %u\n", name, file_length);
@@ -137,7 +138,7 @@ void klee_init_fds(unsigned n_files, unsigned file_length,
         }
         __exe_fs.sym_files[k].contents[i] = buffer[i];
       }
-      stat64(INPUT_PATH, __exe_fs.sym_files[k].stat);
+      stat64(input_path, __exe_fs.sym_files[k].stat);
     } else {
       __create_new_dfile(&__exe_fs.sym_files[k], file_length, name, &s);
     }
