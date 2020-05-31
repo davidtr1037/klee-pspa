@@ -1596,7 +1596,11 @@ void Executor::executeCall(ExecutionState &state,
       // FIXME: We should validate that the target didn't do something bad
       // with va_end, however (like call it twice).
       break;
-        
+
+    case Intrinsic::lifetime_start:
+    case Intrinsic::lifetime_end:
+      break;
+
     case Intrinsic::vacopy:
       // va_copy should have been lowered.
       //
