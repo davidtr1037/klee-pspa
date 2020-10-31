@@ -1,6 +1,6 @@
-Static Analysis Framework for Symbolic Execution
+Pointer Analysis Framework for Symbolic Execution
 =============================
-A static analysis framework for the KLEE symbolic virtual machine.
+A pointer analysis framework for the KLEE symbolic virtual machine.
 
 ## Build
 Build SVF fork:
@@ -29,28 +29,28 @@ make
 ```
 
 ## Options
+
+### Pointer Analysis Modes
+Use the following option to perform _static_ analysis:
+```
+-use-pta-mode=static
+```
+
+Use the following option to perform _past-sensitive_ analysis:
+```
+-use-pta-mode=symbolic
+```
+
 ### Target Functions
-The target functions are set using the following option:
+The target functions to analyze are set using the following option:
 ```
 -pta-target=<function1>[:line1/line2/...],<function2>[:line1/line2/...],...
 ```
-### Update Mode
-Use the following option to enforce strong points-tp updates (on by default):
-```
--use-strong-updates
-```
 
 ### Allocation Sites
-Use the following option to create a unique allocation site (name)
-for each dynamic allocation (on by default):
+Use the following option to create a unique allocation sites for each dynamic allocation (_on_ by default):
 ```
 -create-unique-as
-```
-
-### Standard Static Analysis
-Use the following option to perfrom standard static analysis (instead of dynamic):
-```
--run-static-pta
 ```
 
 ### Debugging
