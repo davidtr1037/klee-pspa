@@ -4,7 +4,7 @@ A pointer analysis framework for the KLEE symbolic virtual machine.
 
 ## Build
 Build SVF fork:
-* https://github.com/davidtr1037/SVF-dynamic
+* https://github.com/davidtr1037/SVF-dynamic/tree/dynamic-pta
 
 Build KLEE:
 ```
