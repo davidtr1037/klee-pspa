@@ -648,7 +648,12 @@ public:
   bool isInDependentMode() {
     assert(isNormalState());
     /* TODO: add doc... */
-    return !getSnapshots().empty();
+    for (ref<Snapshot> snapshot : getSnapshots()) {
+      if (!snapshot.isNull()) {
+        return true;
+      }
+    }
+    return false;
   }
 
   std::list< ref<RecoveryInfo> > &getPendingRecoveryInfos() {

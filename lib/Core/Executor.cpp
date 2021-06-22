@@ -395,6 +395,9 @@ namespace {
 
   cl::opt<std::string>
   PTAEntryPoint("pta-entry-point", cl::init(""), cl::desc(""));
+
+  cl::opt<bool>
+  UseSingleRecovery("use-single-recovery", cl::init(false), cl::desc(""));
 }
 
 
@@ -5475,6 +5478,10 @@ bool Executor::getRequiredRecoveryInfo(ExecutionState &state,
     }
 
     ref<Snapshot> snapshot = snapshots[index];
+    if (snapshot.isNull()) {
+      continue;
+    }
+
     Function *snapshotFunction = snapshot->f;
 
     for (ModRefAnalysis::ModInfo modInfo : approximateModInfos) {
@@ -5573,6 +5580,8 @@ bool Executor::getRequiredRecoveryInfoDynamic(ExecutionState &state,
 
   /* collect recovery information */
   for (unsigned int index = startIndex; index < snapshots.size(); index++) {
+    /* TODO: handle */
+    assert(!snapshots[index].isNull());
     if (state.isRecoveryState()) {
       if (state.getRecoveryInfo()->snapshotIndex == index) {
         break;
@@ -5603,6 +5612,8 @@ bool Executor::mayDepend(ExecutionState &state,
                          NodeID load) {
   assert(index < state.getSnapshots().size());
   ref<Snapshot> snapshot = state.getSnapshots()[index];
+  /* TODO: handle */
+  assert(!snapshot.isNull());
 
   NodeID fiLoad = pta->getFIObjNode(load);
   if (fiLoad == load) {
@@ -5747,6 +5758,20 @@ void Executor::onRecoveryStateExit(ExecutionState &state) {
     startRecoveryState(*dependentState, ri);
   } else {
     notifyDependentState(state);
+  }
+
+  if (UseSingleRecovery) {
+    std::vector<ref<Snapshot>> &snapshots = dependentState->getSnapshots();
+    ref<RecoveryInfo> ri = state.getRecoveryInfo();
+    snapshots[ri->snapshotIndex] = nullptr;
+    DEBUG_WITH_TYPE(
+      DEBUG_BASIC,
+      klee_message(
+        "%p: releasing snapshot at index: %u",
+        &state,
+        ri->snapshotIndex
+      )
+    );
   }
   terminateState(state);
 }
@@ -5899,6 +5924,45 @@ void Executor::onRecoveryStateWrite(ExecutionState &state,
                                     const MemoryObject *mo,
                                     ref<Expr> offset,
                                     ref<Expr> value) {
+  if (UseSingleRecovery) {
+    /* check if the object exists in the dependent state */
+    ExecutionState *dependentState = state.getDependentState();
+    const ObjectState *os = dependentState->addressSpace.findObject(mo);
+    if (!os) {
+      return;
+    }
+
+    uint64_t storeAddr = dyn_cast<ConstantExpr>(address)->getZExtValue();
+    size_t size = Expr::getMinBytesForWidth(value->getWidth());
+    WrittenAddressInfo info;
+    /* TODO: check partial overwrite */
+    if (dependentState->getWrittenAddressInfo(storeAddr, size, info)) {
+      /* there was an overwrite */
+      return;
+    }
+
+    ObjectState *wos = dependentState->addressSpace.getWriteable(mo, os);
+    wos->write(offset, value);
+    DEBUG_WITH_TYPE(
+      DEBUG_BASIC,
+      klee_message("copying from %p to %p", &state, dependentState)
+    );
+
+    /* TODO: ... */
+    dependentState->addWrittenAddress(storeAddr,
+                                      size,
+                                      dependentState->getCurrentSnapshotIndex());
+    DEBUG_WITH_TYPE(
+      DEBUG_BASIC,
+      klee_message("%p: adding written address: (%lx, %zu)",
+        dependentState,
+        storeAddr,
+        size
+      )
+    );
+    return;
+  }
+
   ref<RecoveryInfo> recoveryInfo = state.getRecoveryInfo();
   if (recoveryInfo->loadBase != mo->address) {
     return;
@@ -6302,6 +6366,8 @@ void Executor::saveModSet(ExecutionState &state) {
 
   for (unsigned int index = 0; index < state.getSnapshots().size(); index++) {
     ref<Snapshot> snapshot = state.getSnapshots()[index];
+    /* TODO: handle */
+    assert(!snapshot.isNull());
     if (snapshot->modComputed) {
       continue;
     }
@@ -6387,6 +6453,8 @@ void Executor::computeModSet(ExecutionState &state,
                              StateProjection &projection) {
   /* get the current snapshot */
   ref<Snapshot> snapshot = state.getSnapshots()[index];
+  /* TODO: handle */
+  assert(!snapshot.isNull());
 
   /* get it's abstract state */
   ref<AndersenDynamic> snapshotPTA = snapshot->state->getPTA();
@@ -6416,6 +6484,8 @@ void Executor::mergePointsTo(ExecutionState &state,
                              AndersenDynamic *pta) {
   for (unsigned int i = 0; i < index; i++) {
     ref<Snapshot> snapshot = state.getSnapshots()[i];
+    /* TODO: handle */
+    assert(!snapshot.isNull());
     for (auto i : snapshot->projection.pointsToMap) {
       NodeID src = i.first;
       PointsTo &pts = i.second;
